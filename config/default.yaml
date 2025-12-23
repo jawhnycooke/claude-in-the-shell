@@ -1,0 +1,56 @@
+# Reachy Agent Configuration
+# Copy to ~/.reachy/config.yaml and customize
+
+version: "1.0"
+
+agent:
+  name: Reachy
+  wake_word: hey reachy
+  model: claude-sonnet-4-20250514
+  max_tokens: 1024
+
+perception:
+  wake_word_engine: openwakeword
+  wake_word_sensitivity: 0.5
+  spatial_audio_enabled: true
+  vision_enabled: true
+  face_detection_enabled: true
+
+memory:
+  chroma_path: ~/.reachy/memory/chroma
+  sqlite_path: ~/.reachy/memory/reachy.db
+  embedding_model: all-MiniLM-L6-v2
+  max_memories: 10000
+  retention_days: 90
+
+attention:
+  passive_to_alert_motion_threshold: 0.3
+  alert_to_passive_timeout_minutes: 5
+  engaged_to_alert_silence_seconds: 30
+
+resilience:
+  thermal_threshold_celsius: 80.0
+  api_timeout_seconds: 30.0
+  max_retries: 3
+  offline_llm_model: llama3.2:3b
+
+privacy:
+  audit_logging_enabled: true
+  audit_retention_days: 7
+  store_audio: false
+  store_images: false
+
+integrations:
+  home_assistant:
+    enabled: false
+    url: null
+    token_env_var: HA_TOKEN
+
+  google_calendar:
+    enabled: false
+    credentials_path: null
+
+  github:
+    enabled: false
+    token_env_var: GITHUB_TOKEN
+    repos: []

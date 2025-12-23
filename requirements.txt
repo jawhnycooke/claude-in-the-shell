@@ -1,0 +1,25 @@
+# Reachy Agent - Production Dependencies
+# Install with: uv pip install -r requirements.txt
+
+# Claude Agent SDK and MCP
+anthropic>=0.40.0
+mcp>=1.0.0
+
+# Async and HTTP
+httpx>=0.27.0
+aiofiles>=24.1.0
+
+# Configuration and validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+pyyaml>=6.0.0
+
+# Logging
+structlog>=24.0.0
+
+# Memory system
+chromadb>=0.5.0
+
+# CLI and terminal UI
+rich>=13.0.0
+typer>=0.12.0

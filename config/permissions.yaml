@@ -1,0 +1,101 @@
+# Reachy Agent Permission Configuration
+# Defines permission tiers and rules for tool execution
+
+tiers:
+  - tier: 1
+    name: autonomous
+    description: Execute immediately without notification
+    behavior:
+      execute: true
+      notify_user: false
+      require_confirmation: false
+
+  - tier: 2
+    name: notify
+    description: Execute and notify user
+    behavior:
+      execute: true
+      notify_user: true
+      require_confirmation: false
+
+  - tier: 3
+    name: confirm
+    description: Request confirmation before execution
+    behavior:
+      execute: true
+      notify_user: true
+      require_confirmation: true
+      confirmation_timeout_seconds: 60
+
+  - tier: 4
+    name: forbidden
+    description: Never execute, explain why
+    behavior:
+      execute: false
+      notify_user: true
+      require_confirmation: false
+
+rules:
+  # Tier 1: Autonomous (body control, observation)
+  - pattern: "mcp__reachy__*"
+    tier: 1
+    reason: "Body control"
+
+  - pattern: "mcp__calendar__get_*"
+    tier: 1
+    reason: "Read-only calendar access"
+
+  - pattern: "mcp__weather__*"
+    tier: 1
+    reason: "Weather information"
+
+  - pattern: "mcp__github__get_*"
+    tier: 1
+    reason: "Read-only GitHub access"
+
+  # Tier 2: Notify (reversible actions)
+  - pattern: "mcp__homeassistant__turn_on_*"
+    tier: 2
+    reason: "Smart home control"
+
+  - pattern: "mcp__homeassistant__turn_off_*"
+    tier: 2
+    reason: "Smart home control"
+
+  - pattern: "mcp__slack__send_message"
+    tier: 2
+    reason: "Communication"
+
+  - pattern: "mcp__spotify__*"
+    tier: 2
+    reason: "Media control"
+
+  # Tier 3: Confirm (irreversible or sensitive)
+  - pattern: "mcp__calendar__create_*"
+    tier: 3
+    reason: "Creates calendar data"
+
+  - pattern: "mcp__github__create_*"
+    tier: 3
+    reason: "Creates repository data"
+
+  - pattern: "mcp__homeassistant__unlock_*"
+    tier: 3
+    reason: "Security action"
+
+  - pattern: "Bash"
+    tier: 3
+    reason: "System access"
+
+  # Tier 4: Forbidden
+  - pattern: "mcp__homeassistant__disarm_*"
+    tier: 4
+    reason: "Security critical - never autonomous"
+
+  - pattern: "mcp__email__send"
+    tier: 4
+    reason: "Impersonation risk"
+
+  - pattern: "mcp__banking__*"
+    tier: 4
+    reason: "Financial operations"
