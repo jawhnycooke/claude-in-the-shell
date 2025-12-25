@@ -279,6 +279,11 @@ class ReachyAgentLoop:
             name: Unique name for this server connection.
             command: Command to execute (e.g., python executable).
             args: Arguments for the command.
+
+        Note:
+            Uses local context tracking during initialization to prevent
+            resource leaks if initialization fails partway through.
+            Contexts are only added to _mcp_contexts after full success.
         """
         log.info("Connecting to MCP server", server=name, args=args)
 
@@ -288,38 +293,60 @@ class ReachyAgentLoop:
             args=args,
         )
 
-        # Use stdio_client as async context manager
-        client_ctx = stdio_client(server_params)
-        streams = await client_ctx.__aenter__()
-        self._mcp_contexts.append(client_ctx)
+        # Track contexts locally during initialization
+        # Only add to global list after complete success to prevent leaks
+        local_contexts: list = []
 
-        # Create client session (use async context manager properly)
-        read_stream, write_stream = streams
-        session = ClientSession(read_stream, write_stream)
-        await session.__aenter__()
-        self._mcp_contexts.append(session)  # Track for proper __aexit__ cleanup
+        try:
+            # Use stdio_client as async context manager
+            client_ctx = stdio_client(server_params)
+            streams = await client_ctx.__aenter__()
+            local_contexts.append(client_ctx)
 
-        # Initialize the session
-        await session.initialize()
+            # Create client session (use async context manager properly)
+            read_stream, write_stream = streams
+            session = ClientSession(read_stream, write_stream)
+            await session.__aenter__()
+            local_contexts.append(session)
 
-        # Store the session
-        self._mcp_sessions[name] = session
+            # Initialize the session
+            await session.initialize()
 
-        # Discover tools and add to our tool list
-        tools_result = await session.list_tools()
-        server_tools = list(tools_result.tools)
-        self._mcp_tools.extend(server_tools)
+            # Store the session
+            self._mcp_sessions[name] = session
 
-        # Track which server each tool came from for routing
-        for tool in server_tools:
-            self._mcp_tool_server[tool.name] = name
+            # Discover tools and add to our tool list
+            tools_result = await session.list_tools()
+            server_tools = list(tools_result.tools)
+            self._mcp_tools.extend(server_tools)
 
-        log.info(
-            "MCP server connected",
-            server=name,
-            tools_discovered=len(server_tools),
-            tool_names=[t.name for t in server_tools],
-        )
+            # Track which server each tool came from for routing
+            for tool in server_tools:
+                self._mcp_tool_server[tool.name] = name
+
+            # Success - transfer local contexts to global list for cleanup
+            self._mcp_contexts.extend(local_contexts)
+
+            log.info(
+                "MCP server connected",
+                server=name,
+                tools_discovered=len(server_tools),
+                tool_names=[t.name for t in server_tools],
+            )
+
+        except Exception:
+            # Clean up any contexts that were entered before the failure
+            # Process in reverse order (LIFO) for proper cleanup
+            for ctx in reversed(local_contexts):
+                try:
+                    await ctx.__aexit__(None, None, None)
+                except Exception as cleanup_error:
+                    log.warning(
+                        "Error during MCP context cleanup",
+                        server=name,
+                        error=str(cleanup_error),
+                    )
+            raise
 
     async def _initialize_memory(self) -> None:
         """Initialize the memory system.
