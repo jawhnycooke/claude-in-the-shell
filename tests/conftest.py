@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
-import pytest_asyncio
 
 from reachy_agent.permissions.tiers import (
     PermissionConfig,
     PermissionEvaluator,
-    PermissionRule,
 )
 from reachy_agent.utils.config import ReachyConfig
 

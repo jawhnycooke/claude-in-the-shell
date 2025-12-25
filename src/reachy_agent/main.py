@@ -2,20 +2,25 @@
 
 Run with: python -m reachy_agent
 Or: reachy-agent (after installation)
+
+Commands:
+- run: Start the agent with basic interactive prompt
+- repl: Start the Rich-based CLI REPL
+- web: Start the web dashboard server
+- check: Check system health
+- version: Show version info
 """
 
 from __future__ import annotations
 
 import asyncio
 import signal
-import sys
 from pathlib import Path
-from typing import Any
 
 import typer
 
-from reachy_agent.agent.loop import ReachyAgentLoop
-from reachy_agent.utils.config import load_config, get_env_settings
+from reachy_agent.agent.agent import ReachyAgentLoop
+from reachy_agent.utils.config import get_env_settings, load_config
 from reachy_agent.utils.logging import configure_logging, get_logger
 
 app = typer.Typer(
@@ -106,10 +111,9 @@ async def async_main(
     )
 
     # Start mock daemon if requested
-    mock_task = None
     if mock_daemon:
         log.info("Starting mock daemon")
-        mock_task = asyncio.create_task(start_mock_daemon())
+        _ = asyncio.create_task(start_mock_daemon())
         await asyncio.sleep(1)  # Wait for daemon to start
 
     # Create and run agent
@@ -127,6 +131,7 @@ async def start_mock_daemon() -> None:
     """Start the mock daemon server in background."""
     try:
         import uvicorn
+
         from reachy_agent.mcp_servers.reachy.daemon_mock import create_mock_daemon_app
 
         app = create_mock_daemon_app()
@@ -186,6 +191,173 @@ def version() -> None:
 
 
 @app.command()
+def repl(
+    daemon_url: str = typer.Option(
+        "http://localhost:8765",
+        "--daemon-url",
+        "-d",
+        help="URL of Reachy daemon",
+    ),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+) -> None:
+    """Start the Rich-based interactive REPL.
+
+    Provides a full-featured CLI with:
+    - Rich markdown rendering
+    - Command history
+    - Slash commands (/help, /status, /history, etc.)
+    - Permission confirmation prompts
+    """
+    from reachy_agent.cli import AgentREPL
+    from reachy_agent.permissions.storage.sqlite_audit import SQLiteAuditStorage
+
+    # Load configuration
+    cfg = load_config(config)
+    env = get_env_settings()
+
+    # Configure logging
+    configure_logging(
+        level="DEBUG" if env.debug else "INFO",
+        json_format=False,
+    )
+
+    log.info("Starting REPL", daemon_url=daemon_url)
+
+    async def run_repl() -> None:
+        # Create audit storage for the session
+        audit_storage = SQLiteAuditStorage()
+
+        # Create agent loop (optional - can run in demo mode)
+        agent_loop = None
+        try:
+            agent_loop = ReachyAgentLoop(config=cfg, daemon_url=daemon_url)
+            await agent_loop.initialize()
+        except Exception as e:
+            log.warning(f"Agent initialization failed, running in demo mode: {e}")
+
+        # Create and run REPL
+        repl = AgentREPL(
+            agent_loop=agent_loop,
+            daemon_url=daemon_url,
+        )
+
+        try:
+            await repl.run()
+        finally:
+            if agent_loop:
+                await agent_loop.shutdown()
+            await audit_storage.close()
+
+    try:
+        asyncio.run(run_repl())
+    except KeyboardInterrupt:
+        print("\n👋 Goodbye!")
+
+
+@app.command()
+def web(
+    host: str = typer.Option(
+        "0.0.0.0",
+        "--host",
+        "-h",
+        help="Host to bind to",
+    ),
+    port: int = typer.Option(
+        8080,
+        "--port",
+        "-p",
+        help="Port to listen on",
+    ),
+    daemon_url: str = typer.Option(
+        "http://localhost:8765",
+        "--daemon-url",
+        "-d",
+        help="URL of Reachy daemon",
+    ),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug mode",
+    ),
+) -> None:
+    """Start the web dashboard server.
+
+    Provides a browser-based interface with:
+    - Chat interface for agent conversations
+    - Live video stream from MuJoCo simulation
+    - Permission confirmation modals
+    - Real-time status updates via WebSocket
+    """
+    from reachy_agent.web import create_app
+
+    # Load configuration
+    cfg = load_config(config)
+    env = get_env_settings()
+
+    # Configure logging
+    configure_logging(
+        level="DEBUG" if debug or env.debug else "INFO",
+        json_format=False,
+    )
+
+    log.info(
+        "Starting web dashboard",
+        host=host,
+        port=port,
+        daemon_url=daemon_url,
+    )
+
+    async def run_web() -> None:
+        import uvicorn
+
+        # Create agent loop (optional)
+        agent_loop = None
+        try:
+            agent_loop = ReachyAgentLoop(config=cfg, daemon_url=daemon_url)
+            await agent_loop.initialize()
+        except Exception as e:
+            log.warning(f"Agent initialization failed, running in demo mode: {e}")
+
+        # Create the web app
+        web_app = create_app(
+            daemon_url=daemon_url,
+            agent_loop=agent_loop,
+            debug=debug,
+        )
+
+        # Run with uvicorn
+        uvicorn_config = uvicorn.Config(
+            web_app,
+            host=host,
+            port=port,
+            log_level="debug" if debug else "info",
+        )
+        server = uvicorn.Server(uvicorn_config)
+
+        try:
+            await server.serve()
+        finally:
+            if agent_loop:
+                await agent_loop.shutdown()
+
+    try:
+        asyncio.run(run_web())
+    except KeyboardInterrupt:
+        print("\n👋 Goodbye!")
+
+
+@app.command()
 def check() -> None:
     """Check system health and configuration."""
     import httpx
@@ -195,7 +367,7 @@ def check() -> None:
     # Check configuration
     try:
         config = load_config()
-        print(f"✅ Configuration loaded")
+        print("✅ Configuration loaded")
         print(f"   Model: {config.agent.model.value}")
         print(f"   Wake word: {config.agent.wake_word}")
     except Exception as e:
@@ -204,9 +376,9 @@ def check() -> None:
     # Check environment
     env = get_env_settings()
     if env.anthropic_api_key:
-        print(f"✅ Anthropic API key configured")
+        print("✅ Anthropic API key configured")
     else:
-        print(f"⚠️ Anthropic API key not set (ANTHROPIC_API_KEY)")
+        print("⚠️ Anthropic API key not set (ANTHROPIC_API_KEY)")
 
     # Check daemon
     try:
@@ -218,7 +390,7 @@ def check() -> None:
         else:
             print(f"⚠️ Reachy daemon returned status {response.status_code}")
     except httpx.ConnectError:
-        print(f"❌ Reachy daemon not reachable at localhost:8000")
+        print("❌ Reachy daemon not reachable at localhost:8000")
     except Exception as e:
         print(f"❌ Error checking daemon: {e}")
 

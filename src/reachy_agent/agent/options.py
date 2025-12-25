@@ -10,9 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from reachy_agent.utils.logging import get_logger
-
 from reachy_agent.utils.config import ClaudeModel
+from reachy_agent.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from reachy_agent.utils.config import ReachyConfig
@@ -41,7 +40,7 @@ def render_template(template: str, context: dict[str, str]) -> str:
     return result
 
 
-def get_default_context(config: "ReachyConfig | None" = None) -> dict[str, str]:
+def get_default_context(config: ReachyConfig | None = None) -> dict[str, str]:
     """Get default context variables for prompt rendering.
 
     Args:
@@ -99,7 +98,7 @@ def load_prompt_file(
 
 def load_system_prompt(
     prompt_path: Path | None = None,
-    config: "ReachyConfig | None" = None,
+    config: ReachyConfig | None = None,
     prompts_dir: Path | None = None,
 ) -> str:
     """Load and render the system prompt from external files.
@@ -165,7 +164,7 @@ class AgentOptionsBuilder:
     with Reachy-specific configuration.
     """
 
-    def __init__(self, config: "ReachyConfig | None" = None) -> None:
+    def __init__(self, config: ReachyConfig | None = None) -> None:
         """Initialize the options builder.
 
         Args:
@@ -175,7 +174,7 @@ class AgentOptionsBuilder:
         self._options: dict[str, Any] = {}
         self._mcp_servers: list[Any] = []
 
-    def with_model(self, model: str | None = None) -> "AgentOptionsBuilder":
+    def with_model(self, model: str | None = None) -> AgentOptionsBuilder:
         """Set the Claude model to use.
 
         Args:
@@ -193,7 +192,7 @@ class AgentOptionsBuilder:
 
         return self
 
-    def with_max_tokens(self, max_tokens: int | None = None) -> "AgentOptionsBuilder":
+    def with_max_tokens(self, max_tokens: int | None = None) -> AgentOptionsBuilder:
         """Set maximum tokens for responses.
 
         Args:
@@ -215,7 +214,7 @@ class AgentOptionsBuilder:
         self,
         prompt: str | None = None,
         prompt_path: Path | None = None,
-    ) -> "AgentOptionsBuilder":
+    ) -> AgentOptionsBuilder:
         """Set the system prompt.
 
         Args:
@@ -234,7 +233,7 @@ class AgentOptionsBuilder:
 
         return self
 
-    def with_mcp_server(self, server: Any) -> "AgentOptionsBuilder":
+    def with_mcp_server(self, server: Any) -> AgentOptionsBuilder:
         """Add an MCP server.
 
         Args:
@@ -246,7 +245,7 @@ class AgentOptionsBuilder:
         self._mcp_servers.append(server)
         return self
 
-    def with_api_key(self, api_key: str | None = None) -> "AgentOptionsBuilder":
+    def with_api_key(self, api_key: str | None = None) -> AgentOptionsBuilder:
         """Set the Anthropic API key.
 
         Args:
@@ -285,7 +284,7 @@ class AgentOptionsBuilder:
 
 
 def create_agent_options(
-    config: "ReachyConfig | None" = None,
+    config: ReachyConfig | None = None,
     mcp_servers: list[Any] | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:

@@ -534,12 +534,14 @@ Now that you have a working development environment:
 
 ### Explore the Codebase
 - `src/reachy_agent/simulation/reachy_client.py` - The robot control API
-- `src/reachy_agent/mcp_servers/reachy/server.py` - MCP tool definitions
+- `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` - MCP tool definitions (23 tools)
+- `src/reachy_agent/mcp_servers/reachy/__main__.py` - Standalone MCP server entry point
+- `src/reachy_agent/agent/agent.py` - Agent loop with MCP client integration
 - `src/reachy_agent/permissions/tiers.py` - Permission system
 
 ### Continue Learning
 - [Architecture Overview](../architecture/overview.md) - Understand the full system
-- [MCP Tools Reference](../api/mcp-tools.md) - All 16 available tools
+- [MCP Tools Reference](../../ai_docs/mcp-tools-quick-ref.md) - All 23 available tools
 - [Phase 2 Preparation](../guides/phase2-preparation.md) - Hardware integration
 
 ---

@@ -4,14 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from reachy_agent.utils.config import (
     AgentConfig,
-    AttentionConfig,
     ClaudeModel,
     EnvSettings,
-    IntegrationsConfig,
     MemoryConfig,
     PerceptionConfig,
     PrivacyConfig,

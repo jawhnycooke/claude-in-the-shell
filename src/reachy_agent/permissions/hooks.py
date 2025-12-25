@@ -7,20 +7,20 @@ tier system defined in TECH_REQ.md.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Awaitable
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from reachy_agent.permissions.tiers import (
-    PermissionDecision,
     PermissionEvaluator,
     PermissionTier,
 )
 from reachy_agent.utils.logging import get_logger
 
 if TYPE_CHECKING:
-    from reachy_agent.permissions.tiers import PermissionConfig
+    pass
 
 log = get_logger(__name__)
 
@@ -187,7 +187,7 @@ class PermissionHooks:
         self,
         tool_name: str,
         tool_input: dict[str, Any],
-        tool_result: Any,
+        tool_result: Any,  # noqa: ARG002
         execution_id: str | None = None,
         error: Exception | None = None,
     ) -> None:

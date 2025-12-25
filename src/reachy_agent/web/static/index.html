@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reachy Agent Dashboard</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <!-- Markdown rendering with XSS protection -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <h1>Reachy Agent</h1>
+            <div class="status-badges">
+                <span id="agent-status" class="badge badge-disconnected">Agent: Disconnected</span>
+                <span id="robot-status" class="badge badge-disconnected">Robot: Disconnected</span>
+                <span id="ws-status" class="badge badge-disconnected">WebSocket: Disconnected</span>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Left panel: Chat -->
+            <section class="chat-panel">
+                <div class="chat-header">
+                    <h2>Conversation</h2>
+                    <button id="clear-history-btn" class="btn btn-secondary">Clear</button>
+                </div>
+
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Messages will be inserted here -->
+                    <div class="message system">
+                        <div class="message-content">
+                            Welcome to Reachy Agent Dashboard. Type a message to start chatting.
+                        </div>
+                    </div>
+                </div>
+
+                <form id="chat-form" class="chat-input-form">
+                    <input
+                        type="text"
+                        id="chat-input"
+                        placeholder="Type your message..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </form>
+            </section>
+
+            <!-- Right panel: Status & Video -->
+            <aside class="status-panel">
+                <!-- Video feed -->
+                <section class="video-section">
+                    <h3>Live View</h3>
+                    <div class="video-container">
+                        <img
+                            id="robot-camera"
+                            src=""
+                            alt="Robot Camera Feed"
+                            class="video-feed"
+                        >
+                        <div id="video-placeholder" class="video-placeholder">
+                            <span>Camera feed unavailable</span>
+                        </div>
+                    </div>
+                    <div class="video-controls">
+                        <button id="video-toggle" class="btn btn-sm">Start Video</button>
+                        <span id="video-fps" class="video-info">0 FPS</span>
+                    </div>
+                </section>
+
+                <!-- Robot status -->
+                <section class="robot-info">
+                    <h3>Robot Status</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Connection</span>
+                            <span id="connection-type" class="info-value">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Head Position</span>
+                            <span id="head-position" class="info-value">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Turns</span>
+                            <span id="turn-count" class="info-value">0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Notifications -->
+                <section class="notifications-section">
+                    <h3>Activity</h3>
+                    <div id="notifications" class="notifications-list">
+                        <!-- Notifications will be inserted here -->
+                    </div>
+                </section>
+            </aside>
+        </main>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmation-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">Confirmation Required</h3>
+                    <span id="modal-timer" class="timer">60s</span>
+                </div>
+                <div class="modal-body">
+                    <p id="modal-tool-name" class="tool-name"></p>
+                    <p id="modal-reason" class="reason"></p>
+                    <div id="modal-params" class="params-table"></div>
+                </div>
+                <div class="modal-footer">
+                    <button id="modal-deny" class="btn btn-danger">Deny</button>
+                    <button id="modal-approve" class="btn btn-success">Approve</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast container -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -55,12 +55,12 @@ uvx pytest -v --cov=. --cov-report=html
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| **Agent Loop** | Perceive → Think → Act cycle | `src/agent/loop.py` |
-| **Reachy MCP Server** | Exposes robot body as MCP tools | `src/mcp_servers/reachy/` |
-| **Perception System** | Wake word, spatial audio, vision | `src/perception/` |
-| **Memory System** | ChromaDB for long-term, SQLite structured | `src/memory/` |
-| **Permission Hooks** | 4-tier permission enforcement | `src/permissions/` |
-| **Expressions** | Antenna/emotion sequences | `src/expressions/` |
+| **Agent Loop** | Perceive → Think → Act cycle + MCP client | `src/reachy_agent/agent/agent.py` |
+| **Reachy MCP Server** | Exposes robot body as MCP tools (23 tools) | `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` |
+| **Daemon Client** | HTTP client for Reachy daemon API | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` |
+| **Mock Daemon** | Testing without hardware | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` |
+| **Permission Hooks** | 4-tier permission enforcement | `src/reachy_agent/permissions/` |
+| **Simulation Client** | High-level robot control | `src/reachy_agent/simulation/reachy_client.py` |
 
 ### Permission Tiers
 
@@ -75,20 +75,25 @@ uvx pytest -v --cov=. --cov-report=html
 - **Alert** - Motion detected, periodic Claude check-ins
 - **Engaged** - Active listening, full Claude API interaction
 
-## Reachy MCP Tools
+## Reachy MCP Tools (23 tools)
 
-The Reachy MCP server exposes these tools to Claude:
+The Reachy MCP server exposes these tools organized by category:
 
-| Tool | Description |
-|------|-------------|
-| `move_head` | Control head position (left/right/up/down/front) |
-| `play_emotion` | Trigger expression sequences (happy, sad, curious, etc.) |
-| `speak` | Output audio through speaker |
-| `dance` | Execute choreographed routines |
-| `capture_image` | Get frame from camera |
-| `set_antenna_state` | Control antenna positions for expression |
-| `get_sensor_data` | Read IMU, audio levels, temperature |
-| `look_at_sound` | Turn toward detected sound source |
+| Category | Tools |
+|----------|-------|
+| **Movement** | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` |
+| **Expression** | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` |
+| **Audio** | `speak`, `listen` |
+| **Perception** | `capture_image`, `get_sensor_data`, `look_at_sound` |
+| **Lifecycle** | `wake_up`, `sleep` |
+| **Status** | `get_status`, `get_pose` |
+| **Control** | `set_motor_mode`, `cancel_action` |
+
+### Native SDK Emotions
+
+The `play_emotion` tool prefers native SDK emotions from `pollen-robotics/reachy-mini-emotions-library` (HuggingFace) with synchronized audio, falling back to custom compositions.
+
+See `ai_docs/mcp-tools-quick-ref.md` for complete parameter details.
 
 ## Hardware Reference
 
@@ -109,6 +114,34 @@ The Reachy MCP server exposes these tools to Claude:
 - `pyroomacoustics` - Spatial audio (sound localization)
 - `piper-tts` - Local TTS fallback
 - `opencv-python` - Vision processing
+
+## AI Agent Reference (ai_docs/)
+
+The `ai_docs/` folder contains curated reference materials for AI agents working on this codebase:
+
+| Document | Purpose |
+|----------|---------|
+| [code-standards.md](ai_docs/code-standards.md) | Linting, logging, type checking requirements |
+| [architecture.md](ai_docs/architecture.md) | System design and component relationships |
+| [mcp-tools-quick-ref.md](ai_docs/mcp-tools-quick-ref.md) | MCP tools with parameters and permissions |
+| [agent-behavior.md](ai_docs/agent-behavior.md) | Personality guidelines and expression patterns |
+| [dev-commands.md](ai_docs/dev-commands.md) | Common development commands cheat sheet |
+
+**When to use**: Consult these docs before writing code, implementing tools, or working on agent behavior.
+
+## Planning Documents (docs/planning/)
+
+Historical planning and requirements documents are archived in `docs/planning/`:
+
+| Document | Purpose |
+|----------|---------|
+| [PRD.md](docs/planning/PRD.md) | Product Requirements Document |
+| [TECH_REQ.md](docs/planning/TECH_REQ.md) | Technical Requirements Document |
+| [EPCC_PLAN.md](docs/planning/EPCC_PLAN.md) | Implementation roadmap (EPCC workflow) |
+| [EPCC_CODE.md](docs/planning/EPCC_CODE.md) | Phase 1 implementation log |
+| [REACHY_CLAUDE_AGENT_SDK.md](docs/planning/REACHY_CLAUDE_AGENT_SDK.md) | Research and feasibility analysis |
+
+**When to use**: Reference these for understanding original requirements and design decisions.
 
 ## Configuration Files
 
@@ -136,13 +169,27 @@ uvx pytest --cov=src --cov-report=html
 
 ```bash
 # Start the agent
-python -m src.main
+python -m reachy_agent run
 
 # With debug logging
-REACHY_DEBUG=1 python -m src.main
+REACHY_DEBUG=1 python -m reachy_agent run
 
-# Run setup wizard
-python scripts/setup_wizard.py
+# Start mock daemon for testing
+python -m reachy_agent.mcp_servers.reachy.daemon_mock
+
+# Run MCP server standalone (for MCP Inspector testing)
+python -m reachy_agent.mcp_servers.reachy
+```
+
+## MCP Testing
+
+```bash
+# Start mock daemon (Terminal 1)
+python -m reachy_agent.mcp_servers.reachy.daemon_mock
+
+# Run MCP Inspector (Terminal 2)
+npx @modelcontextprotocol/inspector \
+  .venv/bin/python -m reachy_agent.mcp_servers.reachy
 ```
 
 ## External References

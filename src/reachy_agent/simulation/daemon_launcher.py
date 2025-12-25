@@ -7,6 +7,8 @@ This provides a physics-accurate simulation for testing without hardware.
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
 import subprocess
 import sys
 import time
@@ -97,11 +99,28 @@ class SimulationDaemon:
             port=self.config.port,
         )
 
-        # Build command based on platform
-        # macOS requires mjpython for GUI rendering
+        # Build command and environment based on platform
+        # macOS requires mjpython for GUI rendering with MuJoCo
+        env = os.environ.copy()
+
         if sys.platform == "darwin" and not self.config.headless:
+            # Find mjpython - check common locations
+            mjpython_path = shutil.which("mjpython")
+            if mjpython_path is None:
+                # Try common Homebrew locations
+                for path in ["/opt/homebrew/bin/mjpython", "/usr/local/bin/mjpython"]:
+                    if os.path.exists(path):
+                        mjpython_path = path
+                        break
+
+            if mjpython_path is None:
+                raise RuntimeError(
+                    "mjpython not found. Install with: brew install mujoco\n"
+                    "Or run in headless mode with: --headless"
+                )
+
             cmd = [
-                "mjpython",
+                mjpython_path,
                 "-m",
                 "reachy_mini.daemon.app.main",
                 "--sim",
@@ -110,6 +129,22 @@ class SimulationDaemon:
                 "--fastapi-port",
                 str(self.config.port),
             ]
+
+            # Set PYTHONPATH to include current venv's site-packages
+            # so mjpython can find installed packages like reachy_mini
+            import site
+            venv_site_packages = site.getsitepackages()
+            current_pythonpath = env.get("PYTHONPATH", "")
+            new_pythonpath = os.pathsep.join(venv_site_packages)
+            if current_pythonpath:
+                new_pythonpath = f"{new_pythonpath}{os.pathsep}{current_pythonpath}"
+            env["PYTHONPATH"] = new_pythonpath
+
+            log.debug(
+                "Using mjpython for GUI mode",
+                mjpython_path=mjpython_path,
+                pythonpath=new_pythonpath,
+            )
         else:
             cmd = [
                 sys.executable,
@@ -131,6 +166,7 @@ class SimulationDaemon:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=env,
             )
         except FileNotFoundError as e:
             raise RuntimeError(

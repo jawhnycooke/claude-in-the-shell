@@ -184,7 +184,7 @@ async def run_validation(headless: bool = True, scene: str = "empty") -> bool:
     print("Reachy Agent MuJoCo Simulation Validation")
     print("=" * 60)
     print()
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Scene: {scene}")
     print(f"  Headless: {headless}")
     print()
