@@ -128,6 +128,7 @@ class ReachyAgentLoop:
         # MCP client connections (true MCP protocol)
         self._mcp_sessions: dict[str, ClientSession] = {}
         self._mcp_tools: list[Tool] = []  # Discovered tools from MCP servers
+        self._mcp_tool_server: dict[str, str] = {}  # Maps tool name -> server name
         self._mcp_contexts: list[Any] = []  # Context managers to clean up
         self._use_mcp_client: bool = True  # Use true MCP protocol
 
@@ -217,55 +218,108 @@ class ReachyAgentLoop:
     async def _connect_mcp_servers(self) -> None:
         """Connect to MCP servers and discover tools dynamically.
 
-        Launches the Reachy MCP server as a subprocess and connects
-        via stdio transport. Discovers available tools via ListTools.
+        Launches MCP servers as subprocesses and connects via stdio transport.
+        Discovers available tools via ListTools from each server.
         """
         log.info("Connecting to MCP servers", daemon_url=self.daemon_url)
 
         # Find python executable
         python_executable = sys.executable
 
-        # Create server parameters for the Reachy MCP server
-        server_params = StdioServerParameters(
-            command=python_executable,
-            args=["-m", "reachy_agent.mcp_servers.reachy", self.daemon_url],
-        )
+        # Define MCP servers to connect to
+        mcp_servers: list[tuple[str, list[str]]] = [
+            ("reachy", ["-m", "reachy_agent.mcp_servers.reachy", self.daemon_url]),
+        ]
 
-        # Connect to the MCP server
-        try:
-            # Use stdio_client as async context manager
-            client_ctx = stdio_client(server_params)
-            streams = await client_ctx.__aenter__()
-            self._mcp_contexts.append(client_ctx)
-
-            # Create client session (use async context manager properly)
-            read_stream, write_stream = streams
-            session = ClientSession(read_stream, write_stream)
-            await session.__aenter__()
-            self._mcp_contexts.append(session)  # Track for proper __aexit__ cleanup
-
-            # Initialize the session
-            await session.initialize()
-
-            # Store the session
-            self._mcp_sessions["reachy"] = session
-
-            # Discover tools
-            tools_result = await session.list_tools()
-            self._mcp_tools = list(tools_result.tools)
-
-            log.info(
-                "MCP server connected",
-                server="reachy",
-                tools_discovered=len(self._mcp_tools),
-                tool_names=[t.name for t in self._mcp_tools],
+        # Add memory MCP server if memory is enabled
+        if self._enable_memory:
+            mcp_servers.append(
+                ("memory", ["-m", "reachy_agent.mcp_servers.memory"])
             )
 
-        except Exception as e:
-            log.error("Failed to connect to MCP server", error=str(e))
-            # Fall back to direct daemon client
-            self._use_mcp_client = False
-            raise
+        # Connect to each MCP server
+        for server_name, server_args in mcp_servers:
+            try:
+                await self._connect_single_mcp_server(
+                    name=server_name,
+                    command=python_executable,
+                    args=server_args,
+                )
+            except Exception as e:
+                log.error(
+                    "Failed to connect to MCP server",
+                    server=server_name,
+                    error=str(e),
+                )
+                # Memory server failure is non-fatal if memory is optional
+                if server_name == "reachy":
+                    self._use_mcp_client = False
+                    raise
+                else:
+                    log.warning(
+                        "Continuing without optional MCP server",
+                        server=server_name,
+                    )
+
+        log.info(
+            "All MCP servers connected",
+            servers=list(self._mcp_sessions.keys()),
+            total_tools=len(self._mcp_tools),
+        )
+
+    async def _connect_single_mcp_server(
+        self,
+        name: str,
+        command: str,
+        args: list[str],
+    ) -> None:
+        """Connect to a single MCP server.
+
+        Args:
+            name: Unique name for this server connection.
+            command: Command to execute (e.g., python executable).
+            args: Arguments for the command.
+        """
+        log.info("Connecting to MCP server", server=name, args=args)
+
+        # Create server parameters
+        server_params = StdioServerParameters(
+            command=command,
+            args=args,
+        )
+
+        # Use stdio_client as async context manager
+        client_ctx = stdio_client(server_params)
+        streams = await client_ctx.__aenter__()
+        self._mcp_contexts.append(client_ctx)
+
+        # Create client session (use async context manager properly)
+        read_stream, write_stream = streams
+        session = ClientSession(read_stream, write_stream)
+        await session.__aenter__()
+        self._mcp_contexts.append(session)  # Track for proper __aexit__ cleanup
+
+        # Initialize the session
+        await session.initialize()
+
+        # Store the session
+        self._mcp_sessions[name] = session
+
+        # Discover tools and add to our tool list
+        tools_result = await session.list_tools()
+        server_tools = list(tools_result.tools)
+        self._mcp_tools.extend(server_tools)
+
+        # Track which server each tool came from for routing
+        for tool in server_tools:
+            self._mcp_tool_server[tool.name] = name
+
+        log.info(
+            "MCP server connected",
+            server=name,
+            tools_discovered=len(server_tools),
+            tool_names=[t.name for t in server_tools],
+        )
 
     async def _initialize_memory(self) -> None:
         """Initialize the memory system.
@@ -555,9 +609,8 @@ class ReachyAgentLoop:
     ) -> dict[str, Any]:
         """Execute a tool via MCP protocol.
 
-        Uses the MCP ClientSession to call tools on the connected MCP server.
-        This is the key to true MCP architecture - tools are executed via
-        the protocol, not via direct method calls.
+        Routes tool calls to the correct MCP server based on where the tool
+        was discovered. This is the key to multi-server MCP architecture.
 
         Args:
             tool_name: Name of the tool to execute.
@@ -567,40 +620,44 @@ class ReachyAgentLoop:
             Tool execution result.
         """
         try:
-            # Use MCP protocol if available
-            if self._use_mcp_client and "reachy" in self._mcp_sessions:
-                session = self._mcp_sessions["reachy"]
+            # Find which server owns this tool
+            server_name = self._mcp_tool_server.get(tool_name)
 
-                log.debug(
-                    "Calling tool via MCP protocol",
-                    tool=tool_name,
-                    input=tool_input,
-                )
+            if not server_name:
+                # Tool not found in any server
+                log.error("Tool not found in any MCP server", tool=tool_name)
+                return {"error": f"Tool '{tool_name}' not found"}
 
-                # Call the tool via MCP protocol
-                result = await session.call_tool(tool_name, tool_input)
+            # Get the session for this server
+            if server_name not in self._mcp_sessions:
+                log.error("MCP server session not found", server=server_name)
+                return {"error": f"Server '{server_name}' not connected"}
 
-                # Extract content from MCP result
-                # MCP returns a CallToolResult with content list
-                if result.content:
-                    # Content is a list of TextContent or other content types
-                    for content in result.content:
-                        if hasattr(content, "text"):
-                            # Parse JSON text content
-                            try:
-                                return json.loads(content.text)
-                            except json.JSONDecodeError:
-                                return {"status": "success", "message": content.text}
+            session = self._mcp_sessions[server_name]
 
-                return {"status": "success", "message": "Tool executed"}
+            log.debug(
+                "Calling tool via MCP protocol",
+                tool=tool_name,
+                server=server_name,
+                input=tool_input,
+            )
 
-            else:
-                # Fallback: direct daemon client (deprecated path)
-                log.warning(
-                    "MCP client not available, using direct daemon client",
-                    tool=tool_name,
-                )
-                return await self._execute_tool_direct(tool_name, tool_input)
+            # Call the tool via MCP protocol
+            result = await session.call_tool(tool_name, tool_input)
+
+            # Extract content from MCP result
+            # MCP returns a CallToolResult with content list
+            if result.content:
+                # Content is a list of TextContent or other content types
+                for content in result.content:
+                    if hasattr(content, "text"):
+                        # Parse JSON text content
+                        try:
+                            return json.loads(content.text)
+                        except json.JSONDecodeError:
+                            return {"status": "success", "message": content.text}
+
+            return {"status": "success", "message": "Tool executed"}
 
         except Exception as e:
             log.error("Tool execution error", tool=tool_name, error=str(e))
@@ -779,6 +836,7 @@ class ReachyAgentLoop:
         self._mcp_contexts.clear()
         self._mcp_sessions.clear()
         self._mcp_tools.clear()
+        self._mcp_tool_server.clear()
         log.info("MCP client connections closed")
 
         # Close daemon client if used
