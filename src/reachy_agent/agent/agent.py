@@ -276,11 +276,13 @@ class ReachyAgentLoop:
         log.info("Initializing memory system")
 
         # Get memory paths from config or use defaults
-        if self.config and hasattr(self.config, "memory"):
-            chroma_path = self.config.memory.chroma_path
-            sqlite_path = self.config.memory.sqlite_path
-            embedding_model = self.config.memory.embedding_model
-            retention_days = self.config.memory.retention_days
+        # Config is optional and may be None, so check for memory attribute safely
+        memory_config = getattr(self.config, "memory", None) if self.config else None
+        if memory_config is not None:
+            chroma_path = memory_config.chroma_path
+            sqlite_path = memory_config.sqlite_path
+            embedding_model = memory_config.embedding_model
+            retention_days = memory_config.retention_days
         else:
             chroma_path = "~/.reachy/memory/chroma"
             sqlite_path = "~/.reachy/memory/reachy.db"

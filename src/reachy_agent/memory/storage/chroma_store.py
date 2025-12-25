@@ -182,9 +182,11 @@ class ChromaMemoryStore:
                 metadata = results["metadatas"][0][i] if results["metadatas"] else {}
                 distance = results["distances"][0][i] if results["distances"] else 1.0
 
-                # Convert distance to similarity (ChromaDB uses L2 by default)
-                # For cosine distance: similarity = 1 - distance
-                similarity = max(0.0, 1.0 - distance)
+                # Convert distance to similarity score (0.0 to 1.0)
+                # ChromaDB cosine distance ranges from 0 (identical) to 2 (opposite)
+                # Formula: similarity = 1 - (distance / 2), clamped to [0, 1]
+                # This gives: distance=0 -> similarity=1.0, distance=2 -> similarity=0.0
+                similarity = max(0.0, min(1.0, 1.0 - (distance / 2.0)))
 
                 memory = Memory(
                     id=memory_id,
@@ -285,8 +287,16 @@ class ChromaMemoryStore:
         return self.collection.count()
 
     async def close(self) -> None:
-        """Close the ChromaDB client."""
-        # ChromaDB PersistentClient handles cleanup automatically
+        """Close the ChromaDB client.
+
+        ChromaDB PersistentClient handles cleanup automatically,
+        so this method clears references for consistency.
+        """
+        if self._client is None and self._collection is None:
+            logger.debug("ChromaDB store already closed")
+            return
+
         self._client = None
         self._collection = None
+        self._embedding_service = None
         logger.info("ChromaDB store closed")

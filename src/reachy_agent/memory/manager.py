@@ -6,6 +6,7 @@ and SQLite (user profiles, sessions) storage backends.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -60,6 +61,7 @@ class MemoryManager:
         self._current_session: SessionSummary | None = None
         self._current_user_id: str = "default"
         self._initialized = False
+        self._session_lock = asyncio.Lock()  # Thread safety for session operations
 
     @classmethod
     def from_config(
@@ -115,20 +117,24 @@ class MemoryManager:
 
         Returns:
             The new SessionSummary.
+
+        Note:
+            Thread-safe: uses asyncio.Lock to prevent concurrent session creation.
         """
-        if user_id:
-            self._current_user_id = user_id
+        async with self._session_lock:
+            if user_id:
+                self._current_user_id = user_id
 
-        session_id = str(uuid.uuid4())
-        self._current_session = SessionSummary(
-            session_id=session_id,
-            user_id=self._current_user_id,
-            start_time=datetime.now(),
-        )
+            session_id = str(uuid.uuid4())
+            self._current_session = SessionSummary(
+                session_id=session_id,
+                user_id=self._current_user_id,
+                start_time=datetime.now(),
+            )
 
-        await self.sqlite_store.save_session(self._current_session)
-        logger.info(f"Started session {session_id}")
-        return self._current_session
+            await self.sqlite_store.save_session(self._current_session)
+            logger.info(f"Started session {session_id}")
+            return self._current_session
 
     async def end_session(
         self,
@@ -143,22 +149,26 @@ class MemoryManager:
 
         Returns:
             The ended SessionSummary, or None if no active session.
+
+        Note:
+            Thread-safe: uses asyncio.Lock to prevent concurrent session modification.
         """
-        if not self._current_session:
-            logger.warning("No active session to end")
-            return None
+        async with self._session_lock:
+            if not self._current_session:
+                logger.warning("No active session to end")
+                return None
 
-        self._current_session.end_time = datetime.now()
-        self._current_session.summary_text = summary_text
-        self._current_session.key_topics = key_topics or []
-        self._current_session.memory_count = await self.chroma_store.count()
+            self._current_session.end_time = datetime.now()
+            self._current_session.summary_text = summary_text
+            self._current_session.key_topics = key_topics or []
+            self._current_session.memory_count = await self.chroma_store.count()
 
-        await self.sqlite_store.save_session(self._current_session)
-        logger.info(f"Ended session {self._current_session.session_id}")
+            await self.sqlite_store.save_session(self._current_session)
+            logger.info(f"Ended session {self._current_session.session_id}")
 
-        session = self._current_session
-        self._current_session = None
-        return session
+            session = self._current_session
+            self._current_session = None
+            return session
 
     @property
     def current_session(self) -> SessionSummary | None:

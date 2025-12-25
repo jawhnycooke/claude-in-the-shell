@@ -352,6 +352,14 @@ class SQLiteProfileStore:
         return count
 
     async def close(self) -> None:
-        """Close the store (no-op for SQLite, connections are per-operation)."""
+        """Close the store.
+
+        SQLite connections are managed per-operation via context manager,
+        so this method primarily updates state for consistency with other stores.
+        """
+        if not self._initialized:
+            logger.debug("SQLite profile store already closed")
+            return
+
         self._initialized = False
         logger.info("SQLite profile store closed")
