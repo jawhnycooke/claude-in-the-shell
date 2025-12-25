@@ -223,11 +223,11 @@ class ReachyAgentLoop:
             streams = await client_ctx.__aenter__()
             self._mcp_contexts.append(client_ctx)
 
-            # Create client session
+            # Create client session (use async context manager properly)
             read_stream, write_stream = streams
             session = ClientSession(read_stream, write_stream)
-            session_ctx = session.__aenter__()
-            await session_ctx
+            await session.__aenter__()
+            self._mcp_contexts.append(session)  # Track for proper __aexit__ cleanup
 
             # Initialize the session
             await session.initialize()
@@ -279,7 +279,7 @@ class ReachyAgentLoop:
 
         # Pause idle behavior during user interaction
         if self._idle_controller:
-            self._idle_controller.pause()
+            await self._idle_controller.pause()
 
         # Create context if not provided
         if context is None:
@@ -334,7 +334,7 @@ class ReachyAgentLoop:
             clear_context()
             # Resume idle behavior after processing completes
             if self._idle_controller:
-                self._idle_controller.resume()
+                await self._idle_controller.resume()
 
     async def _process_with_claude(
         self,
@@ -409,8 +409,8 @@ class ReachyAgentLoop:
                                 input=tool_input,
                             )
 
-                            # Execute the tool via MCP server
-                            result = await self._execute_mcp_tool(tool_name, tool_input)
+                            # Execute the tool with permission enforcement
+                            result = await self.execute_tool(tool_name, tool_input)
                             tool_calls_made.append({
                                 "tool": tool_name,
                                 "input": tool_input,
@@ -635,8 +635,7 @@ class ReachyAgentLoop:
 
         try:
             # Execute the tool via MCP server
-            # This is handled by the Agent SDK in production
-            result = {"status": "success", "message": f"Executed {tool_name}"}
+            result = await self._execute_mcp_tool(tool_name, tool_input)
 
             # Post-tool audit
             await self.permission_hooks.post_tool_use(

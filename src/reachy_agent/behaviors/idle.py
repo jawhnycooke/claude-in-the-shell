@@ -129,6 +129,7 @@ class IdleBehaviorController:
         self.client = daemon_client
         self.config = config or IdleBehaviorConfig()
         self._state = IdleState.STOPPED
+        self._state_lock = asyncio.Lock()  # Thread-safe state management
         self._task: asyncio.Task[None] | None = None
         self._last_interaction: datetime | None = None
         self._last_target: LookTarget | None = None
@@ -181,35 +182,42 @@ class IdleBehaviorController:
             total_movements=self._movement_count,
         )
 
-    def pause(self) -> None:
+    async def pause(self) -> None:
         """Pause idle behaviors (e.g., when user starts talking).
 
         The loop continues running but doesn't execute movements.
+        Uses async lock for thread-safe state modification.
         """
-        if self._state == IdleState.IDLE:
-            log.debug("Pausing idle behavior")
-            self._state = IdleState.PAUSED
-            self._last_interaction = datetime.now()
+        async with self._state_lock:
+            if self._state == IdleState.IDLE:
+                log.debug("Pausing idle behavior")
+                self._state = IdleState.PAUSED
+                self._last_interaction = datetime.now()
 
-    def resume(self) -> None:
+    async def resume(self) -> None:
         """Resume idle behaviors after a pause.
 
         Respects the interaction cooldown before starting movements again.
+        Uses async lock for thread-safe state modification.
         """
-        if self._state == IdleState.PAUSED:
-            log.debug("Resuming idle behavior")
-            self._state = IdleState.IDLE
-            self._last_interaction = datetime.now()
+        async with self._state_lock:
+            if self._state == IdleState.PAUSED:
+                log.debug("Resuming idle behavior")
+                self._state = IdleState.IDLE
+                self._last_interaction = datetime.now()
 
-    def notify_interaction(self) -> None:
+    async def notify_interaction(self) -> None:
         """Notify the controller that a user interaction occurred.
 
         Call this when user sends input or agent responds.
         Automatically pauses if configured to do so.
+        Uses async lock for thread-safe state modification.
         """
-        self._last_interaction = datetime.now()
-        if self.config.pause_on_interaction and self._state == IdleState.IDLE:
-            self.pause()
+        async with self._state_lock:
+            self._last_interaction = datetime.now()
+            if self.config.pause_on_interaction and self._state == IdleState.IDLE:
+                self._state = IdleState.PAUSED
+                log.debug("Pausing idle behavior due to interaction")
 
     async def _idle_loop(self) -> None:
         """Main loop that executes idle behaviors."""
@@ -225,7 +233,7 @@ class IdleBehaviorController:
                 await asyncio.sleep(interval)
 
                 # Check if we should execute movements
-                if not self._should_execute():
+                if not await self._should_execute():
                     continue
 
                 # Execute a look-around action
@@ -238,18 +246,22 @@ class IdleBehaviorController:
                 log.error("Error in idle behavior loop", error=str(e))
                 await asyncio.sleep(1.0)  # Brief pause before retrying
 
-    def _should_execute(self) -> bool:
-        """Check if we should execute an idle movement now."""
-        if self._state != IdleState.IDLE:
-            return False
+    async def _should_execute(self) -> bool:
+        """Check if we should execute an idle movement now.
 
-        # Check interaction cooldown
-        if self._last_interaction:
-            elapsed = datetime.now() - self._last_interaction
-            if elapsed < timedelta(seconds=self.config.interaction_cooldown):
+        Uses async lock for thread-safe state reading.
+        """
+        async with self._state_lock:
+            if self._state != IdleState.IDLE:
                 return False
 
-        return True
+            # Check interaction cooldown
+            if self._last_interaction:
+                elapsed = datetime.now() - self._last_interaction
+                if elapsed < timedelta(seconds=self.config.interaction_cooldown):
+                    return False
+
+            return True
 
     async def _execute_look_around(self) -> None:
         """Execute a single look-around action."""
