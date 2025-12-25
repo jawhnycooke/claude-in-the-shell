@@ -24,20 +24,31 @@ flowchart TB
     end
 
     subgraph Agent["Claude in the Shell"]
-        SDK["Agent SDK"]
-        PERM["Permissions"]
-        MCP["MCP Tools"]
+        SDK["Agent Loop"]
+        PERM["4-Tier Permissions"]
+
+        subgraph Interface["Interfaces"]
+            CLI["CLI REPL"]
+            WEB["Web Dashboard"]
+        end
+
+        subgraph MCP["MCP Layer (subprocess)"]
+            TOOLS["23 MCP Tools"]
+            IDLE["Idle Behaviors"]
+        end
     end
 
     subgraph Hardware["Reachy Mini"]
-        DAEMON["Daemon :8000"]
+        DAEMON["Daemon :8765"]
         ROBOT["Head • Body • Antennas"]
     end
 
     CLAUDE <--> SDK
     SDK --> PERM
     PERM --> MCP
-    MCP --> DAEMON
+    CLI --> SDK
+    WEB --> SDK
+    TOOLS -->|HTTP| DAEMON
     DAEMON --> ROBOT
 ```
 
@@ -96,34 +107,43 @@ python -m reachy_agent run
 ```
 claude-in-the-shell/
 ├── src/reachy_agent/
-│   ├── agent/              # Claude Agent SDK integration
+│   ├── agent/              # Agent loop with MCP client
+│   ├── behaviors/          # Idle behavior controller
+│   ├── cli/                # CLI REPL interface
+│   ├── errors/             # Error codes and responses
 │   ├── mcp_servers/        # MCP server implementations
-│   │   └── reachy/         # 16 robot control tools
+│   │   └── reachy/         # 23 robot control tools
 │   ├── permissions/        # 4-tier permission system
+│   │   ├── handlers/       # CLI and WebSocket handlers
+│   │   └── storage/        # SQLite audit logging
 │   ├── simulation/         # MuJoCo simulation bridge
+│   ├── web/                # FastAPI web dashboard
 │   └── utils/              # Config, logging
+├── ai_docs/                # AI agent reference materials
 ├── config/                 # Configuration files
-├── prompts/                # System prompts (externalized)
 ├── docs/                   # Documentation
 │   ├── tutorials/          # Getting started guides
 │   ├── architecture/       # System design
-│   └── api/                # API reference
-├── tests/                  # Test suite
+│   └── planning/           # PRD, TRD, implementation docs
+├── tests/                  # Test suite (167 tests)
 └── scripts/                # Validation & demo scripts
 ```
 
 ## MCP Tools
 
-The Reachy MCP server exposes 16 tools to Claude:
+The Reachy MCP server exposes **23 tools** to Claude, discovered dynamically via MCP protocol:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| **Movement** | `move_head`, `look_at`, `rotate` | Head and body positioning |
-| **Expression** | `play_emotion`, `set_antenna_state`, `nod`, `shake` | Emotional expression |
-| **Audio** | `speak`, `play_sound` | Speech and audio output |
-| **Perception** | `capture_image`, `get_sensor_data`, `look_at_sound` | Sensors and camera |
-| **Lifecycle** | `wake_up`, `sleep`, `rest` | Power management |
-| **Actions** | `dance` | Choreographed routines |
+| **Movement** (5) | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` | Head/body positioning, IK |
+| **Expression** (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` | Emotions from HuggingFace SDK |
+| **Audio** (2) | `speak`, `listen` | Speech I/O |
+| **Perception** (3) | `capture_image`, `get_sensor_data`, `look_at_sound` | Sensors and camera |
+| **Lifecycle** (3) | `wake_up`, `sleep`, `rest` | Power management |
+| **Status** (2) | `get_status`, `get_pose` | Robot state feedback |
+| **Control** (2) | `set_motor_mode`, `cancel_action` | Motor control, action cancellation |
+
+See [MCP Tools Quick Reference](ai_docs/mcp-tools-quick-ref.md) for full parameter details.
 
 ## Permission System
 
@@ -167,19 +187,22 @@ ruff check .
 | Document | Description |
 |----------|-------------|
 | [Getting Started Tutorial](docs/tutorials/getting-started.md) | Complete setup from scratch |
-| [Quick Reference](docs/tutorials/quick-reference.md) | Command cheat sheet |
 | [Architecture Overview](docs/architecture/overview.md) | System design with Mermaid diagrams |
-| [MCP Tools Reference](docs/api/mcp-tools.md) | All 16 available tools |
-| [Phase 2 Preparation](docs/guides/phase2-preparation.md) | Hardware integration guide |
+| [MCP Tools Reference](ai_docs/mcp-tools-quick-ref.md) | All 23 available tools |
+| [Development Commands](ai_docs/dev-commands.md) | Command cheat sheet |
+| [Agent Behavior Guide](ai_docs/agent-behavior.md) | Personality and expression patterns |
 
 ## Project Status
 
 ### Phase 1: Foundation ✅ Complete
 - [x] Project scaffolding and configuration
-- [x] Reachy MCP server (16 tools)
-- [x] Claude Agent SDK integration
-- [x] 4-tier permission system
-- [x] MuJoCo simulation testing
+- [x] Reachy MCP server (23 tools with native SDK emotions)
+- [x] Claude Agent SDK integration with MCP subprocess
+- [x] 4-tier permission system with audit logging
+- [x] MuJoCo simulation testing (167 tests)
+- [x] Web dashboard with real-time control
+- [x] CLI REPL interface
+- [x] Idle behavior controller
 - [x] End-to-end validation
 
 ### Phase 2: Hardware Integration (Next)

@@ -1,5 +1,13 @@
 # MCP Tools Reference
 
+> ⚠️ **DEPRECATED**: This document is outdated. The Reachy MCP server now provides **23 tools** including native SDK emotions from HuggingFace.
+>
+> **Please see the current reference:** [ai_docs/mcp-tools-quick-ref.md](../../ai_docs/mcp-tools-quick-ref.md)
+
+---
+
+*The following content is preserved for historical reference only.*
+
 The Reachy MCP server exposes 16 tools that Claude can use to control the robot. This document provides a complete reference for all available tools.
 
 ## Tool Categories

@@ -44,7 +44,7 @@ flowchart TB
 | Understand the system design | [Architecture Overview](architecture/overview.md) |
 | Test with MuJoCo simulation | [Simulation API](api/simulation.md) |
 | Prepare for hardware setup | [Phase 2 Guide](guides/phase2-preparation.md) |
-| See available MCP tools | [MCP Tools Reference](api/mcp-tools.md) |
+| See available MCP tools | [MCP Tools Reference](../ai_docs/mcp-tools-quick-ref.md) |
 | Configure permissions | [Permission System](api/permissions.md) |
 
 ## Documentation Structure
@@ -53,16 +53,24 @@ flowchart TB
 docs/
 ├── README.md                    # This file
 ├── tutorials/                   # Learning-oriented guides
-│   ├── getting-started.md       # Complete setup tutorial
-│   └── quick-reference.md       # Command cheat sheet
+│   └── getting-started.md       # Complete setup tutorial
 ├── architecture/
 │   └── overview.md              # System design with diagrams
 ├── api/
-│   ├── simulation.md            # SimulationAdapter, ReachyMiniClient
-│   ├── mcp-tools.md             # All 16 MCP tools
-│   └── permissions.md           # Permission tiers (TODO)
+│   └── mcp-tools.md             # Legacy (see ai_docs/ for current)
+├── planning/                    # Historical planning documents
+│   ├── PRD.md                   # Product requirements
+│   ├── TECH_REQ.md              # Technical requirements
+│   └── EPCC_*.md                # Implementation logs
 └── guides/
     └── phase2-preparation.md    # Hardware integration prep
+
+ai_docs/                         # Current AI agent reference
+├── mcp-tools-quick-ref.md       # All 23 MCP tools
+├── architecture.md              # System architecture
+├── dev-commands.md              # Development commands
+├── agent-behavior.md            # Personality guidelines
+└── code-standards.md            # Code quality standards
 ```
 
 ## Project Documents
@@ -73,9 +81,14 @@ These documents live in the project root:
 |----------|---------|
 | [README.md](../README.md) | Project overview and quick start |
 | [CLAUDE.md](../CLAUDE.md) | Instructions for Claude Code |
-| [EPCC_PLAN.md](../EPCC_PLAN.md) | Full implementation roadmap |
-| [TECH_REQ.md](../TECH_REQ.md) | Technical requirements and decisions |
-| [PRD.md](../PRD.md) | Product requirements document |
+
+Historical planning documents are in `docs/planning/`:
+
+| Document | Purpose |
+|----------|---------|
+| [EPCC_PLAN.md](planning/EPCC_PLAN.md) | Full implementation roadmap |
+| [TECH_REQ.md](planning/TECH_REQ.md) | Technical requirements and decisions |
+| [PRD.md](planning/PRD.md) | Product requirements document |
 
 ## Phase Status
 
@@ -85,10 +98,13 @@ timeline
 
     Phase 1 : Foundation
             : Project scaffolding
-            : MCP server (16 tools)
+            : MCP server (23 tools)
             : Agent SDK integration
             : Permission system
             : MuJoCo simulation
+            : Web dashboard
+            : CLI REPL
+            : Idle behaviors
             : ✅ COMPLETE
 
     Phase 2 : Hardware Integration

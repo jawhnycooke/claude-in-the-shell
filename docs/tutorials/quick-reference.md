@@ -158,7 +158,7 @@ curl -X POST http://localhost:8765/api/move/goto \
 | Path | Purpose |
 |------|---------|
 | `src/reachy_agent/simulation/reachy_client.py` | Robot client API |
-| `src/reachy_agent/mcp_servers/reachy/server.py` | MCP tool definitions |
+| `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` | MCP tool definitions (23 tools) |
 | `scripts/live_demo.py` | Interactive demo |
 | `scripts/validate_mcp_e2e.py` | MCP validation |
 | `scripts/validate_agent_e2e.py` | Full stack validation |
