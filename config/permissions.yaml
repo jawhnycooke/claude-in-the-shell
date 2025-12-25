@@ -36,10 +36,26 @@ tiers:
       require_confirmation: false
 
 rules:
-  # Tier 1: Autonomous (body control, observation)
+  # Tier 1: Autonomous (body control, observation, local memory)
   - pattern: "mcp__reachy__*"
     tier: 1
     reason: "Body control"
+
+  - pattern: "mcp__memory__search_memories"
+    tier: 1
+    reason: "Read-only memory search"
+
+  - pattern: "mcp__memory__store_memory"
+    tier: 1
+    reason: "Local memory storage"
+
+  - pattern: "mcp__memory__get_user_profile"
+    tier: 1
+    reason: "Read-only profile access"
+
+  - pattern: "mcp__memory__update_user_profile"
+    tier: 1
+    reason: "Local preference update"
 
   - pattern: "mcp__calendar__get_*"
     tier: 1

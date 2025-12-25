@@ -27,6 +27,8 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from reachy_agent.agent.options import create_agent_options
 from reachy_agent.behaviors.idle import IdleBehaviorConfig, IdleBehaviorController
 from reachy_agent.mcp_servers.reachy.daemon_client import ReachyDaemonClient
+from reachy_agent.memory import MemoryManager, build_memory_context
+from reachy_agent.memory.types import SessionSummary, UserProfile
 from reachy_agent.permissions.hooks import PermissionHooks, create_permission_hooks
 from reachy_agent.utils.logging import bind_context, clear_context, get_logger
 
@@ -99,6 +101,7 @@ class ReachyAgentLoop:
         api_key: str | None = None,
         enable_idle_behavior: bool = True,
         idle_config: IdleBehaviorConfig | None = None,
+        enable_memory: bool = True,
     ) -> None:
         """Initialize the agent loop.
 
@@ -109,6 +112,7 @@ class ReachyAgentLoop:
             api_key: Anthropic API key. Uses ANTHROPIC_API_KEY env var if not provided.
             enable_idle_behavior: Whether to enable idle look-around behavior.
             idle_config: Optional idle behavior configuration.
+            enable_memory: Whether to enable memory system for personalization.
         """
         self.config = config
         self.daemon_url = daemon_url
@@ -124,6 +128,7 @@ class ReachyAgentLoop:
         # MCP client connections (true MCP protocol)
         self._mcp_sessions: dict[str, ClientSession] = {}
         self._mcp_tools: list[Tool] = []  # Discovered tools from MCP servers
+        self._mcp_tool_server: dict[str, str] = {}  # Maps tool name -> server name
         self._mcp_contexts: list[Any] = []  # Context managers to clean up
         self._use_mcp_client: bool = True  # Use true MCP protocol
 
@@ -137,6 +142,12 @@ class ReachyAgentLoop:
         self._idle_config = idle_config
         self._idle_controller: IdleBehaviorController | None = None
         self._daemon_client: ReachyDaemonClient | None = None
+
+        # Memory system
+        self._enable_memory = enable_memory
+        self._memory_manager: MemoryManager | None = None
+        self._user_profile: UserProfile | None = None
+        self._last_session: SessionSummary | None = None
 
     @property
     def idle_controller(self) -> IdleBehaviorController | None:
@@ -186,11 +197,16 @@ class ReachyAgentLoop:
                 await self._idle_controller.start()
                 log.info("Idle behavior controller started")
 
+            # Initialize memory system if enabled
+            if self._enable_memory:
+                await self._initialize_memory()
+
             self.state = AgentState.READY
             log.info(
                 "Agent loop initialized successfully",
                 has_api_key=self._client is not None,
                 idle_behavior=self._enable_idle_behavior,
+                memory_enabled=self._enable_memory,
                 tool_count=len(self._mcp_tools),
             )
 
@@ -202,55 +218,186 @@ class ReachyAgentLoop:
     async def _connect_mcp_servers(self) -> None:
         """Connect to MCP servers and discover tools dynamically.
 
-        Launches the Reachy MCP server as a subprocess and connects
-        via stdio transport. Discovers available tools via ListTools.
+        Launches MCP servers as subprocesses and connects via stdio transport.
+        Discovers available tools via ListTools from each server.
         """
         log.info("Connecting to MCP servers", daemon_url=self.daemon_url)
 
         # Find python executable
         python_executable = sys.executable
 
-        # Create server parameters for the Reachy MCP server
-        server_params = StdioServerParameters(
-            command=python_executable,
-            args=["-m", "reachy_agent.mcp_servers.reachy", self.daemon_url],
+        # Define MCP servers to connect to
+        mcp_servers: list[tuple[str, list[str]]] = [
+            ("reachy", ["-m", "reachy_agent.mcp_servers.reachy", self.daemon_url]),
+        ]
+
+        # Add memory MCP server if memory is enabled
+        if self._enable_memory:
+            mcp_servers.append(
+                ("memory", ["-m", "reachy_agent.mcp_servers.memory"])
+            )
+
+        # Connect to each MCP server
+        for server_name, server_args in mcp_servers:
+            try:
+                await self._connect_single_mcp_server(
+                    name=server_name,
+                    command=python_executable,
+                    args=server_args,
+                )
+            except Exception as e:
+                log.error(
+                    "Failed to connect to MCP server",
+                    server=server_name,
+                    error=str(e),
+                )
+                # Memory server failure is non-fatal if memory is optional
+                if server_name == "reachy":
+                    self._use_mcp_client = False
+                    raise
+                else:
+                    log.warning(
+                        "Continuing without optional MCP server",
+                        server=server_name,
+                    )
+
+        log.info(
+            "All MCP servers connected",
+            servers=list(self._mcp_sessions.keys()),
+            total_tools=len(self._mcp_tools),
         )
 
-        # Connect to the MCP server
+    async def _connect_single_mcp_server(
+        self,
+        name: str,
+        command: str,
+        args: list[str],
+    ) -> None:
+        """Connect to a single MCP server.
+
+        Args:
+            name: Unique name for this server connection.
+            command: Command to execute (e.g., python executable).
+            args: Arguments for the command.
+
+        Note:
+            Uses local context tracking during initialization to prevent
+            resource leaks if initialization fails partway through.
+            Contexts are only added to _mcp_contexts after full success.
+        """
+        log.info("Connecting to MCP server", server=name, args=args)
+
+        # Create server parameters
+        server_params = StdioServerParameters(
+            command=command,
+            args=args,
+        )
+
+        # Track contexts locally during initialization
+        # Only add to global list after complete success to prevent leaks
+        local_contexts: list = []
+
         try:
             # Use stdio_client as async context manager
             client_ctx = stdio_client(server_params)
             streams = await client_ctx.__aenter__()
-            self._mcp_contexts.append(client_ctx)
+            local_contexts.append(client_ctx)
 
             # Create client session (use async context manager properly)
             read_stream, write_stream = streams
             session = ClientSession(read_stream, write_stream)
             await session.__aenter__()
-            self._mcp_contexts.append(session)  # Track for proper __aexit__ cleanup
+            local_contexts.append(session)
 
             # Initialize the session
             await session.initialize()
 
             # Store the session
-            self._mcp_sessions["reachy"] = session
+            self._mcp_sessions[name] = session
 
-            # Discover tools
+            # Discover tools and add to our tool list
             tools_result = await session.list_tools()
-            self._mcp_tools = list(tools_result.tools)
+            server_tools = list(tools_result.tools)
+            self._mcp_tools.extend(server_tools)
+
+            # Track which server each tool came from for routing
+            for tool in server_tools:
+                self._mcp_tool_server[tool.name] = name
+
+            # Success - transfer local contexts to global list for cleanup
+            self._mcp_contexts.extend(local_contexts)
 
             log.info(
                 "MCP server connected",
-                server="reachy",
-                tools_discovered=len(self._mcp_tools),
-                tool_names=[t.name for t in self._mcp_tools],
+                server=name,
+                tools_discovered=len(server_tools),
+                tool_names=[t.name for t in server_tools],
+            )
+
+        except Exception:
+            # Clean up any contexts that were entered before the failure
+            # Process in reverse order (LIFO) for proper cleanup
+            for ctx in reversed(local_contexts):
+                try:
+                    await ctx.__aexit__(None, None, None)
+                except Exception as cleanup_error:
+                    log.warning(
+                        "Error during MCP context cleanup",
+                        server=name,
+                        error=str(cleanup_error),
+                    )
+            raise
+
+    async def _initialize_memory(self) -> None:
+        """Initialize the memory system.
+
+        Loads user profile, last session, and starts a new session.
+        Memory context will be auto-injected into prompts.
+        """
+        log.info("Initializing memory system")
+
+        # Get memory paths from config or use defaults
+        # Config is optional and may be None, so check for memory attribute safely
+        memory_config = getattr(self.config, "memory", None) if self.config else None
+        if memory_config is not None:
+            chroma_path = memory_config.chroma_path
+            sqlite_path = memory_config.sqlite_path
+            embedding_model = memory_config.embedding_model
+            retention_days = memory_config.retention_days
+        else:
+            chroma_path = "~/.reachy/memory/chroma"
+            sqlite_path = "~/.reachy/memory/reachy.db"
+            embedding_model = "all-MiniLM-L6-v2"
+            retention_days = 90
+
+        try:
+            # Create and initialize memory manager
+            self._memory_manager = MemoryManager(
+                chroma_path=chroma_path,
+                sqlite_path=sqlite_path,
+                embedding_model=embedding_model,
+                retention_days=retention_days,
+            )
+            await self._memory_manager.initialize()
+
+            # Load user profile and last session for context injection
+            self._user_profile = await self._memory_manager.get_profile()
+            self._last_session = await self._memory_manager.get_last_session()
+
+            # Start a new session
+            await self._memory_manager.start_session()
+
+            log.info(
+                "Memory system initialized",
+                user_name=self._user_profile.name,
+                has_last_session=self._last_session is not None,
             )
 
         except Exception as e:
-            log.error("Failed to connect to MCP server", error=str(e))
-            # Fall back to direct daemon client
-            self._use_mcp_client = False
-            raise
+            log.warning("Memory system failed to initialize", error=str(e))
+            # Memory is optional - continue without it
+            self._memory_manager = None
+            self._enable_memory = False
 
     async def process_input(
         self,
@@ -489,9 +636,8 @@ class ReachyAgentLoop:
     ) -> dict[str, Any]:
         """Execute a tool via MCP protocol.
 
-        Uses the MCP ClientSession to call tools on the connected MCP server.
-        This is the key to true MCP architecture - tools are executed via
-        the protocol, not via direct method calls.
+        Routes tool calls to the correct MCP server based on where the tool
+        was discovered. This is the key to multi-server MCP architecture.
 
         Args:
             tool_name: Name of the tool to execute.
@@ -501,40 +647,44 @@ class ReachyAgentLoop:
             Tool execution result.
         """
         try:
-            # Use MCP protocol if available
-            if self._use_mcp_client and "reachy" in self._mcp_sessions:
-                session = self._mcp_sessions["reachy"]
+            # Find which server owns this tool
+            server_name = self._mcp_tool_server.get(tool_name)
 
-                log.debug(
-                    "Calling tool via MCP protocol",
-                    tool=tool_name,
-                    input=tool_input,
-                )
+            if not server_name:
+                # Tool not found in any server
+                log.error("Tool not found in any MCP server", tool=tool_name)
+                return {"error": f"Tool '{tool_name}' not found"}
 
-                # Call the tool via MCP protocol
-                result = await session.call_tool(tool_name, tool_input)
+            # Get the session for this server
+            if server_name not in self._mcp_sessions:
+                log.error("MCP server session not found", server=server_name)
+                return {"error": f"Server '{server_name}' not connected"}
 
-                # Extract content from MCP result
-                # MCP returns a CallToolResult with content list
-                if result.content:
-                    # Content is a list of TextContent or other content types
-                    for content in result.content:
-                        if hasattr(content, "text"):
-                            # Parse JSON text content
-                            try:
-                                return json.loads(content.text)
-                            except json.JSONDecodeError:
-                                return {"status": "success", "message": content.text}
+            session = self._mcp_sessions[server_name]
 
-                return {"status": "success", "message": "Tool executed"}
+            log.debug(
+                "Calling tool via MCP protocol",
+                tool=tool_name,
+                server=server_name,
+                input=tool_input,
+            )
 
-            else:
-                # Fallback: direct daemon client (deprecated path)
-                log.warning(
-                    "MCP client not available, using direct daemon client",
-                    tool=tool_name,
-                )
-                return await self._execute_tool_direct(tool_name, tool_input)
+            # Call the tool via MCP protocol
+            result = await session.call_tool(tool_name, tool_input)
+
+            # Extract content from MCP result
+            # MCP returns a CallToolResult with content list
+            if result.content:
+                # Content is a list of TextContent or other content types
+                for content in result.content:
+                    if hasattr(content, "text"):
+                        # Parse JSON text content
+                        try:
+                            return json.loads(content.text)
+                        except json.JSONDecodeError:
+                            return {"status": "success", "message": content.text}
+
+            return {"status": "success", "message": "Tool executed"}
 
         except Exception as e:
             log.error("Tool execution error", tool=tool_name, error=str(e))
@@ -598,6 +748,11 @@ class ReachyAgentLoop:
     ) -> str:
         """Build input with injected context.
 
+        Injects:
+        - Current time and conversation context
+        - User profile (name, preferences) if memory is enabled
+        - Last session summary if available
+
         Args:
             user_input: Original user input.
             context: Context to inject.
@@ -605,8 +760,24 @@ class ReachyAgentLoop:
         Returns:
             Augmented input string.
         """
-        context_str = context.to_context_string()
-        return f"{context_str}\n\nUser: {user_input}"
+        parts = []
+
+        # Add agent context (time, turn number)
+        parts.append(context.to_context_string())
+
+        # Add memory context if enabled
+        if self._enable_memory and (self._user_profile or self._last_session):
+            memory_context = build_memory_context(
+                profile=self._user_profile,
+                last_session=self._last_session,
+            )
+            if memory_context:
+                parts.append(memory_context)
+
+        # Add user input
+        parts.append(f"\nUser: {user_input}")
+
+        return "\n".join(parts)
 
     async def execute_tool(
         self,
@@ -657,8 +828,12 @@ class ReachyAgentLoop:
             )
             raise
 
-    async def shutdown(self) -> None:
-        """Shutdown the agent loop gracefully."""
+    async def shutdown(self, session_summary: str = "") -> None:
+        """Shutdown the agent loop gracefully.
+
+        Args:
+            session_summary: Optional summary of the session for memory.
+        """
         log.info("Shutting down agent loop")
         self.state = AgentState.SHUTDOWN
 
@@ -666,6 +841,18 @@ class ReachyAgentLoop:
         if self._idle_controller:
             await self._idle_controller.stop()
             log.info("Idle behavior controller stopped")
+
+        # Save session and close memory system
+        if self._memory_manager:
+            try:
+                await self._memory_manager.end_session(
+                    summary_text=session_summary,
+                    key_topics=[],  # Could be populated by conversation analysis
+                )
+                await self._memory_manager.close()
+                log.info("Memory system closed")
+            except Exception as e:
+                log.warning("Error closing memory system", error=str(e))
 
         # Clean up MCP client contexts (closes subprocess connections)
         for ctx in self._mcp_contexts:
@@ -676,6 +863,7 @@ class ReachyAgentLoop:
         self._mcp_contexts.clear()
         self._mcp_sessions.clear()
         self._mcp_tools.clear()
+        self._mcp_tool_server.clear()
         log.info("MCP client connections closed")
 
         # Close daemon client if used

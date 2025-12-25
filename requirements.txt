@@ -19,6 +19,7 @@ structlog>=24.0.0
 
 # Memory system
 chromadb>=0.5.0
+sentence-transformers>=2.0.0  # Text embeddings for semantic search
 
 # CLI and terminal UI
 rich>=13.0.0
