@@ -188,7 +188,8 @@ ruff check .
 |----------|-------------|
 | [Getting Started Tutorial](docs/tutorials/getting-started.md) | Complete setup from scratch |
 | [Architecture Overview](docs/architecture/overview.md) | System design with Mermaid diagrams |
-| [MCP Tools Reference](ai_docs/mcp-tools-quick-ref.md) | All 23 available tools |
+| [MCP Tools Reference](ai_docs/mcp-tools-quick-ref.md) | All 23 robot control tools |
+| [Memory System](ai_docs/memory-system.md) | Long-term memory with 4 MCP tools |
 | [Development Commands](ai_docs/dev-commands.md) | Command cheat sheet |
 | [Agent Behavior Guide](ai_docs/agent-behavior.md) | Personality and expression patterns |
 
@@ -211,9 +212,11 @@ ruff check .
 - [ ] Attention state machine (Passive/Alert/Engaged)
 - [ ] Privacy indicators via antennas
 
-### Phase 3: Memory & Personality
-- [ ] ChromaDB vector memory
-- [ ] SQLite structured storage
+### Phase 3: Memory & Personality (Partially Complete)
+- [x] ChromaDB vector memory
+- [x] SQLite structured storage (profiles, sessions)
+- [x] Memory MCP tools (4 tools)
+- [x] Auto-injection of user profile + last session
 - [ ] Expression system
 - [ ] Personality configuration
 

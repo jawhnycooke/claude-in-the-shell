@@ -27,6 +27,8 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from reachy_agent.agent.options import create_agent_options
 from reachy_agent.behaviors.idle import IdleBehaviorConfig, IdleBehaviorController
 from reachy_agent.mcp_servers.reachy.daemon_client import ReachyDaemonClient
+from reachy_agent.memory import MemoryManager, build_memory_context
+from reachy_agent.memory.types import SessionSummary, UserProfile
 from reachy_agent.permissions.hooks import PermissionHooks, create_permission_hooks
 from reachy_agent.utils.logging import bind_context, clear_context, get_logger
 
@@ -99,6 +101,7 @@ class ReachyAgentLoop:
         api_key: str | None = None,
         enable_idle_behavior: bool = True,
         idle_config: IdleBehaviorConfig | None = None,
+        enable_memory: bool = True,
     ) -> None:
         """Initialize the agent loop.
 
@@ -109,6 +112,7 @@ class ReachyAgentLoop:
             api_key: Anthropic API key. Uses ANTHROPIC_API_KEY env var if not provided.
             enable_idle_behavior: Whether to enable idle look-around behavior.
             idle_config: Optional idle behavior configuration.
+            enable_memory: Whether to enable memory system for personalization.
         """
         self.config = config
         self.daemon_url = daemon_url
@@ -137,6 +141,12 @@ class ReachyAgentLoop:
         self._idle_config = idle_config
         self._idle_controller: IdleBehaviorController | None = None
         self._daemon_client: ReachyDaemonClient | None = None
+
+        # Memory system
+        self._enable_memory = enable_memory
+        self._memory_manager: MemoryManager | None = None
+        self._user_profile: UserProfile | None = None
+        self._last_session: SessionSummary | None = None
 
     @property
     def idle_controller(self) -> IdleBehaviorController | None:
@@ -186,11 +196,16 @@ class ReachyAgentLoop:
                 await self._idle_controller.start()
                 log.info("Idle behavior controller started")
 
+            # Initialize memory system if enabled
+            if self._enable_memory:
+                await self._initialize_memory()
+
             self.state = AgentState.READY
             log.info(
                 "Agent loop initialized successfully",
                 has_api_key=self._client is not None,
                 idle_behavior=self._enable_idle_behavior,
+                memory_enabled=self._enable_memory,
                 tool_count=len(self._mcp_tools),
             )
 
@@ -251,6 +266,55 @@ class ReachyAgentLoop:
             # Fall back to direct daemon client
             self._use_mcp_client = False
             raise
+
+    async def _initialize_memory(self) -> None:
+        """Initialize the memory system.
+
+        Loads user profile, last session, and starts a new session.
+        Memory context will be auto-injected into prompts.
+        """
+        log.info("Initializing memory system")
+
+        # Get memory paths from config or use defaults
+        if self.config and hasattr(self.config, "memory"):
+            chroma_path = self.config.memory.chroma_path
+            sqlite_path = self.config.memory.sqlite_path
+            embedding_model = self.config.memory.embedding_model
+            retention_days = self.config.memory.retention_days
+        else:
+            chroma_path = "~/.reachy/memory/chroma"
+            sqlite_path = "~/.reachy/memory/reachy.db"
+            embedding_model = "all-MiniLM-L6-v2"
+            retention_days = 90
+
+        try:
+            # Create and initialize memory manager
+            self._memory_manager = MemoryManager(
+                chroma_path=chroma_path,
+                sqlite_path=sqlite_path,
+                embedding_model=embedding_model,
+                retention_days=retention_days,
+            )
+            await self._memory_manager.initialize()
+
+            # Load user profile and last session for context injection
+            self._user_profile = await self._memory_manager.get_profile()
+            self._last_session = await self._memory_manager.get_last_session()
+
+            # Start a new session
+            await self._memory_manager.start_session()
+
+            log.info(
+                "Memory system initialized",
+                user_name=self._user_profile.name,
+                has_last_session=self._last_session is not None,
+            )
+
+        except Exception as e:
+            log.warning("Memory system failed to initialize", error=str(e))
+            # Memory is optional - continue without it
+            self._memory_manager = None
+            self._enable_memory = False
 
     async def process_input(
         self,
@@ -598,6 +662,11 @@ class ReachyAgentLoop:
     ) -> str:
         """Build input with injected context.
 
+        Injects:
+        - Current time and conversation context
+        - User profile (name, preferences) if memory is enabled
+        - Last session summary if available
+
         Args:
             user_input: Original user input.
             context: Context to inject.
@@ -605,8 +674,24 @@ class ReachyAgentLoop:
         Returns:
             Augmented input string.
         """
-        context_str = context.to_context_string()
-        return f"{context_str}\n\nUser: {user_input}"
+        parts = []
+
+        # Add agent context (time, turn number)
+        parts.append(context.to_context_string())
+
+        # Add memory context if enabled
+        if self._enable_memory and (self._user_profile or self._last_session):
+            memory_context = build_memory_context(
+                profile=self._user_profile,
+                last_session=self._last_session,
+            )
+            if memory_context:
+                parts.append(memory_context)
+
+        # Add user input
+        parts.append(f"\nUser: {user_input}")
+
+        return "\n".join(parts)
 
     async def execute_tool(
         self,
@@ -657,8 +742,12 @@ class ReachyAgentLoop:
             )
             raise
 
-    async def shutdown(self) -> None:
-        """Shutdown the agent loop gracefully."""
+    async def shutdown(self, session_summary: str = "") -> None:
+        """Shutdown the agent loop gracefully.
+
+        Args:
+            session_summary: Optional summary of the session for memory.
+        """
         log.info("Shutting down agent loop")
         self.state = AgentState.SHUTDOWN
 
@@ -666,6 +755,18 @@ class ReachyAgentLoop:
         if self._idle_controller:
             await self._idle_controller.stop()
             log.info("Idle behavior controller stopped")
+
+        # Save session and close memory system
+        if self._memory_manager:
+            try:
+                await self._memory_manager.end_session(
+                    summary_text=session_summary,
+                    key_topics=[],  # Could be populated by conversation analysis
+                )
+                await self._memory_manager.close()
+                log.info("Memory system closed")
+            except Exception as e:
+                log.warning("Error closing memory system", error=str(e))
 
         # Clean up MCP client contexts (closes subprocess connections)
         for ctx in self._mcp_contexts:
