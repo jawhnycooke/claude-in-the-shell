@@ -6,14 +6,15 @@ Uses lazy loading to avoid importing the heavy ML libraries until needed.
 
 from __future__ import annotations
 
-import logging
 from functools import lru_cache
 from typing import TYPE_CHECKING
+
+from reachy_agent.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Default model produces 384-dimensional embeddings
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
@@ -45,13 +46,13 @@ class EmbeddingService:
     def model(self) -> SentenceTransformer:
         """Lazily load the sentence-transformers model."""
         if self._model is None:
-            logger.info(f"Loading embedding model: {self.model_name}")
+            log.info(f"Loading embedding model: {self.model_name}")
             try:
                 from sentence_transformers import SentenceTransformer
 
                 self._model = SentenceTransformer(self.model_name)
                 self._dimension = self._model.get_sentence_embedding_dimension()
-                logger.info(
+                log.info(
                     f"Loaded {self.model_name} with {self._dimension} dimensions"
                 )
             except ImportError as e:

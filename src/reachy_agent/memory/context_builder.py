@@ -6,12 +6,12 @@ providing personalized context without explicit tool calls.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 
 from reachy_agent.memory.types import SessionSummary, UserProfile
+from reachy_agent.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class MemoryContextBuilder:

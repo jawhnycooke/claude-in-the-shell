@@ -6,7 +6,6 @@ Memories are embedded and stored for semantic similarity search.
 
 from __future__ import annotations
 
-import logging
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,12 +13,13 @@ from typing import TYPE_CHECKING
 
 from reachy_agent.memory.embeddings import EmbeddingService, get_embedding_service
 from reachy_agent.memory.types import Memory, MemoryType, SearchResult
+from reachy_agent.utils.logging import get_logger
 
 if TYPE_CHECKING:
     import chromadb
     from chromadb.api.models.Collection import Collection
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 COLLECTION_NAME = "reachy_memories"
 
@@ -69,7 +69,7 @@ class ChromaMemoryStore:
 
         self.path.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Initializing ChromaDB at {self.path}")
+        log.info(f"Initializing ChromaDB at {self.path}")
         self._client = chromadb.PersistentClient(
             path=str(self.path),
             settings=Settings(
@@ -82,7 +82,7 @@ class ChromaMemoryStore:
             name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"},
         )
-        logger.info(f"ChromaDB collection '{COLLECTION_NAME}' ready")
+        log.info(f"ChromaDB collection '{COLLECTION_NAME}' ready")
 
     @property
     def collection(self) -> Collection:
@@ -139,7 +139,7 @@ class ChromaMemoryStore:
             embedding=embedding,
         )
 
-        logger.debug(f"Stored memory {memory_id}: {content[:50]}...")
+        log.debug(f"Stored memory {memory_id}: {content[:50]}...")
         return memory
 
     async def search(
@@ -249,10 +249,10 @@ class ChromaMemoryStore:
         """
         try:
             self.collection.delete(ids=[memory_id])
-            logger.debug(f"Deleted memory {memory_id}")
+            log.debug(f"Deleted memory {memory_id}")
             return True
         except Exception as e:
-            logger.warning(f"Failed to delete memory {memory_id}: {e}")
+            log.warning(f"Failed to delete memory {memory_id}: {e}")
             return False
 
     async def cleanup(self, retention_days: int) -> int:
@@ -279,7 +279,7 @@ class ChromaMemoryStore:
         # Delete old memories
         self.collection.delete(ids=results["ids"])
         count = len(results["ids"])
-        logger.info(f"Cleaned up {count} memories older than {retention_days} days")
+        log.info(f"Cleaned up {count} memories older than {retention_days} days")
         return count
 
     async def count(self) -> int:
@@ -293,10 +293,10 @@ class ChromaMemoryStore:
         so this method clears references for consistency.
         """
         if self._client is None and self._collection is None:
-            logger.debug("ChromaDB store already closed")
+            log.debug("ChromaDB store already closed")
             return
 
         self._client = None
         self._collection = None
         self._embedding_service = None
-        logger.info("ChromaDB store closed")
+        log.info("ChromaDB store closed")

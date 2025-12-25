@@ -27,20 +27,21 @@ async def main() -> None:
         "all-MiniLM-L6-v2",
     )
 
-    # Initialize memory manager
+    # Initialize memory manager with proper resource cleanup
     manager = MemoryManager(
         chroma_path=chroma_path,
         sqlite_path=sqlite_path,
         embedding_model=embedding_model,
     )
-    await manager.initialize()
-
-    # Create and run MCP server
-    mcp = create_memory_mcp_server(manager)
 
     try:
+        await manager.initialize()
+
+        # Create and run MCP server
+        mcp = create_memory_mcp_server(manager)
         await mcp.run_async()
     finally:
+        # Always close manager, even if initialization failed partway
         await manager.close()
 
 

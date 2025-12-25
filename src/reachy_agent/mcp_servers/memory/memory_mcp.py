@@ -9,17 +9,17 @@ Provides 4 tools for memory management:
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from mcp.server.fastmcp import FastMCP
 
 from reachy_agent.memory import MemoryManager, MemoryType
+from reachy_agent.utils.logging import get_logger
 
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def create_memory_mcp_server(
@@ -59,7 +59,7 @@ def create_memory_mcp_server(
             search_memories("user's coffee preferences") -> finds preferences about coffee
             search_memories("previous conversations about travel", memory_type="conversation")
         """
-        logger.info(f"Searching memories: {query}")
+        log.info(f"Searching memories: {query}")
 
         # Parse memory type if provided
         type_filter = None
@@ -91,7 +91,7 @@ def create_memory_mcp_server(
                 ],
             }
         except Exception as e:
-            logger.error(f"Memory search failed: {e}")
+            log.error(f"Memory search failed: {e}")
             return {"error": str(e)}
 
     @mcp.tool()
@@ -121,7 +121,7 @@ def create_memory_mcp_server(
             store_memory("User prefers morning meetings before 10am", "preference")
             store_memory("User mentioned they have a dog named Max", "fact")
         """
-        logger.info(f"Storing memory: {content[:50]}...")
+        log.info(f"Storing memory: {content[:50]}...")
 
         # Validate memory type
         try:
@@ -147,7 +147,7 @@ def create_memory_mcp_server(
                 "type": mem_type.value,
             }
         except Exception as e:
-            logger.error(f"Failed to store memory: {e}")
+            log.error(f"Failed to store memory: {e}")
             return {"error": str(e)}
 
     @mcp.tool()
@@ -160,7 +160,7 @@ def create_memory_mcp_server(
         Returns:
             User profile with all stored preferences.
         """
-        logger.info("Getting user profile")
+        log.info("Getting user profile")
 
         try:
             profile = await manager.get_profile()
@@ -176,7 +176,7 @@ def create_memory_mcp_server(
                 },
             }
         except Exception as e:
-            logger.error(f"Failed to get profile: {e}")
+            log.error(f"Failed to get profile: {e}")
             return {"error": str(e)}
 
     @mcp.tool()
@@ -202,7 +202,7 @@ def create_memory_mcp_server(
             update_user_profile("wake_time", "7:00 AM")
             update_user_profile("coffee_preference", "black, no sugar")
         """
-        logger.info(f"Updating preference: {key}={value}")
+        log.info(f"Updating preference: {key}={value}")
 
         # Validate inputs
         if not key or len(key.strip()) < 2:
@@ -221,7 +221,7 @@ def create_memory_mcp_server(
                 "preferences": profile.preferences,
             }
         except Exception as e:
-            logger.error(f"Failed to update preference: {e}")
+            log.error(f"Failed to update preference: {e}")
             return {"error": str(e)}
 
     return mcp

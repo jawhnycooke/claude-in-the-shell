@@ -7,17 +7,20 @@ Provides structured storage for:
 
 from __future__ import annotations
 
+import asyncio
 import json
-import logging
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator, TypeVar
 
 from reachy_agent.memory.types import SessionSummary, UserProfile
+from reachy_agent.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
+
+T = TypeVar("T")
 
 # SQL schema for tables
 SCHEMA = """
@@ -81,6 +84,20 @@ class SQLiteProfileStore:
         finally:
             conn.close()
 
+    async def _run_sync(self, fn: Callable[[], T]) -> T:
+        """Run a synchronous database operation in a thread pool.
+
+        This prevents blocking the asyncio event loop when performing
+        SQLite operations (which are inherently synchronous).
+
+        Args:
+            fn: A callable that performs the sync database operation.
+
+        Returns:
+            The result of the sync operation.
+        """
+        return await asyncio.to_thread(fn)
+
     async def initialize(self) -> None:
         """Initialize the database schema.
 
@@ -88,13 +105,16 @@ class SQLiteProfileStore:
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Initializing SQLite database at {self.path}")
-        with self._get_connection() as conn:
-            conn.executescript(SCHEMA)
-            conn.commit()
+        def _init_db() -> None:
+            with self._get_connection() as conn:
+                conn.executescript(SCHEMA)
+                conn.commit()
+
+        log.info(f"Initializing SQLite database at {self.path}")
+        await self._run_sync(_init_db)
 
         self._initialized = True
-        logger.info("SQLite profile store ready")
+        log.info("SQLite profile store ready")
 
     # ─────────────────────────────────────────────────────────────────
     # User Profile Operations
@@ -109,20 +129,25 @@ class SQLiteProfileStore:
         Returns:
             The UserProfile for the given user.
         """
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT * FROM user_profiles WHERE user_id = ?",
-                (user_id,),
-            )
-            row = cursor.fetchone()
 
-            if row is None:
-                # Create default profile
-                profile = UserProfile(user_id=user_id)
-                await self.save_profile(profile)
-                return profile
+        def _fetch() -> dict | None:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "SELECT * FROM user_profiles WHERE user_id = ?",
+                    (user_id,),
+                )
+                row = cursor.fetchone()
+                return dict(row) if row else None
 
-            return UserProfile.from_db_dict(dict(row))
+        row_dict = await self._run_sync(_fetch)
+
+        if row_dict is None:
+            # Create default profile
+            profile = UserProfile(user_id=user_id)
+            await self.save_profile(profile)
+            return profile
+
+        return UserProfile.from_db_dict(row_dict)
 
     async def save_profile(self, profile: UserProfile) -> None:
         """Save or update a user profile.
@@ -133,27 +158,29 @@ class SQLiteProfileStore:
         profile.updated_at = datetime.now()
         data = profile.to_db_dict()
 
-        with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO user_profiles
-                    (user_id, name, preferences, schedule_patterns,
-                     connected_services, created_at, updated_at)
-                VALUES
-                    (:user_id, :name, :preferences, :schedule_patterns,
-                     :connected_services, :created_at, :updated_at)
-                ON CONFLICT(user_id) DO UPDATE SET
-                    name = excluded.name,
-                    preferences = excluded.preferences,
-                    schedule_patterns = excluded.schedule_patterns,
-                    connected_services = excluded.connected_services,
-                    updated_at = excluded.updated_at
-                """,
-                data,
-            )
-            conn.commit()
+        def _save() -> None:
+            with self._get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO user_profiles
+                        (user_id, name, preferences, schedule_patterns,
+                         connected_services, created_at, updated_at)
+                    VALUES
+                        (:user_id, :name, :preferences, :schedule_patterns,
+                         :connected_services, :created_at, :updated_at)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        name = excluded.name,
+                        preferences = excluded.preferences,
+                        schedule_patterns = excluded.schedule_patterns,
+                        connected_services = excluded.connected_services,
+                        updated_at = excluded.updated_at
+                    """,
+                    data,
+                )
+                conn.commit()
 
-        logger.debug(f"Saved profile for user {profile.user_id}")
+        await self._run_sync(_save)
+        log.debug(f"Saved profile for user {profile.user_id}")
 
     async def update_preference(
         self,
@@ -185,16 +212,19 @@ class SQLiteProfileStore:
         Returns:
             True if deleted, False if not found.
         """
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                "DELETE FROM user_profiles WHERE user_id = ?",
-                (user_id,),
-            )
-            conn.commit()
-            deleted = cursor.rowcount > 0
 
+        def _delete() -> bool:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM user_profiles WHERE user_id = ?",
+                    (user_id,),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+
+        deleted = await self._run_sync(_delete)
         if deleted:
-            logger.debug(f"Deleted profile for user {user_id}")
+            log.debug(f"Deleted profile for user {user_id}")
         return deleted
 
     # ─────────────────────────────────────────────────────────────────
@@ -209,26 +239,28 @@ class SQLiteProfileStore:
         """
         data = session.to_db_dict()
 
-        with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO sessions
-                    (session_id, user_id, start_time, end_time,
-                     summary_text, key_topics, memory_count)
-                VALUES
-                    (:session_id, :user_id, :start_time, :end_time,
-                     :summary_text, :key_topics, :memory_count)
-                ON CONFLICT(session_id) DO UPDATE SET
-                    end_time = excluded.end_time,
-                    summary_text = excluded.summary_text,
-                    key_topics = excluded.key_topics,
-                    memory_count = excluded.memory_count
-                """,
-                data,
-            )
-            conn.commit()
+        def _save() -> None:
+            with self._get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO sessions
+                        (session_id, user_id, start_time, end_time,
+                         summary_text, key_topics, memory_count)
+                    VALUES
+                        (:session_id, :user_id, :start_time, :end_time,
+                         :summary_text, :key_topics, :memory_count)
+                    ON CONFLICT(session_id) DO UPDATE SET
+                        end_time = excluded.end_time,
+                        summary_text = excluded.summary_text,
+                        key_topics = excluded.key_topics,
+                        memory_count = excluded.memory_count
+                    """,
+                    data,
+                )
+                conn.commit()
 
-        logger.debug(f"Saved session {session.session_id}")
+        await self._run_sync(_save)
+        log.debug(f"Saved session {session.session_id}")
 
     async def get_session(self, session_id: str) -> SessionSummary | None:
         """Get a specific session by ID.
@@ -239,17 +271,20 @@ class SQLiteProfileStore:
         Returns:
             The SessionSummary if found, None otherwise.
         """
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT * FROM sessions WHERE session_id = ?",
-                (session_id,),
-            )
-            row = cursor.fetchone()
 
-            if row is None:
-                return None
+        def _fetch() -> dict | None:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "SELECT * FROM sessions WHERE session_id = ?",
+                    (session_id,),
+                )
+                row = cursor.fetchone()
+                return dict(row) if row else None
 
-            return SessionSummary.from_db_dict(dict(row))
+        row_dict = await self._run_sync(_fetch)
+        if row_dict is None:
+            return None
+        return SessionSummary.from_db_dict(row_dict)
 
     async def get_last_session(self, user_id: str = "default") -> SessionSummary | None:
         """Get the most recent completed session for a user.
@@ -260,22 +295,25 @@ class SQLiteProfileStore:
         Returns:
             The most recent SessionSummary with an end_time, or None.
         """
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT * FROM sessions
-                WHERE user_id = ? AND end_time IS NOT NULL
-                ORDER BY end_time DESC
-                LIMIT 1
-                """,
-                (user_id,),
-            )
-            row = cursor.fetchone()
 
-            if row is None:
-                return None
+        def _fetch() -> dict | None:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT * FROM sessions
+                    WHERE user_id = ? AND end_time IS NOT NULL
+                    ORDER BY end_time DESC
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                )
+                row = cursor.fetchone()
+                return dict(row) if row else None
 
-            return SessionSummary.from_db_dict(dict(row))
+        row_dict = await self._run_sync(_fetch)
+        if row_dict is None:
+            return None
+        return SessionSummary.from_db_dict(row_dict)
 
     async def get_recent_sessions(
         self,
@@ -291,19 +329,23 @@ class SQLiteProfileStore:
         Returns:
             List of SessionSummary objects, most recent first.
         """
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT * FROM sessions
-                WHERE user_id = ?
-                ORDER BY start_time DESC
-                LIMIT ?
-                """,
-                (user_id, limit),
-            )
-            rows = cursor.fetchall()
 
-            return [SessionSummary.from_db_dict(dict(row)) for row in rows]
+        def _fetch() -> list[dict]:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT * FROM sessions
+                    WHERE user_id = ?
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                    """,
+                    (user_id, limit),
+                )
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+
+        row_dicts = await self._run_sync(_fetch)
+        return [SessionSummary.from_db_dict(row) for row in row_dicts]
 
     async def delete_session(self, session_id: str) -> bool:
         """Delete a session.
@@ -314,16 +356,19 @@ class SQLiteProfileStore:
         Returns:
             True if deleted, False if not found.
         """
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                "DELETE FROM sessions WHERE session_id = ?",
-                (session_id,),
-            )
-            conn.commit()
-            deleted = cursor.rowcount > 0
 
+        def _delete() -> bool:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM sessions WHERE session_id = ?",
+                    (session_id,),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+
+        deleted = await self._run_sync(_delete)
         if deleted:
-            logger.debug(f"Deleted session {session_id}")
+            log.debug(f"Deleted session {session_id}")
         return deleted
 
     async def cleanup_old_sessions(self, retention_days: int) -> int:
@@ -339,16 +384,18 @@ class SQLiteProfileStore:
 
         cutoff = (datetime.now() - timedelta(days=retention_days)).isoformat()
 
-        with self._get_connection() as conn:
-            cursor = conn.execute(
-                "DELETE FROM sessions WHERE end_time < ?",
-                (cutoff,),
-            )
-            conn.commit()
-            count = cursor.rowcount
+        def _cleanup() -> int:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM sessions WHERE end_time < ?",
+                    (cutoff,),
+                )
+                conn.commit()
+                return cursor.rowcount
 
+        count = await self._run_sync(_cleanup)
         if count > 0:
-            logger.info(f"Cleaned up {count} sessions older than {retention_days} days")
+            log.info(f"Cleaned up {count} sessions older than {retention_days} days")
         return count
 
     async def close(self) -> None:
@@ -358,8 +405,8 @@ class SQLiteProfileStore:
         so this method primarily updates state for consistency with other stores.
         """
         if not self._initialized:
-            logger.debug("SQLite profile store already closed")
+            log.debug("SQLite profile store already closed")
             return
 
         self._initialized = False
-        logger.info("SQLite profile store closed")
+        log.info("SQLite profile store closed")

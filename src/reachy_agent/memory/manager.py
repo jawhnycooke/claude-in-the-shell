@@ -7,7 +7,6 @@ and SQLite (user profiles, sessions) storage backends.
 from __future__ import annotations
 
 import asyncio
-import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -21,8 +20,9 @@ from reachy_agent.memory.types import (
     SessionSummary,
     UserProfile,
 )
+from reachy_agent.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class MemoryManager:
@@ -89,21 +89,27 @@ class MemoryManager:
         Args:
             user_id: The user to load profile for.
         """
-        logger.info("Initializing memory system...")
+        log.info("Initializing memory system...")
         await self.chroma_store.initialize()
         await self.sqlite_store.initialize()
         self._current_user_id = user_id
         self._initialized = True
-        logger.info("Memory system initialized")
+        log.info("Memory system initialized")
 
     async def close(self) -> None:
-        """Close both storage backends."""
-        if self._current_session:
-            await self.end_session()
+        """Close both storage backends.
+
+        Note:
+            Idempotent: safe to call multiple times.
+            Thread-safe: end_session() uses asyncio.Lock internally.
+        """
+        # Always call end_session() - it's idempotent and handles None case
+        # This avoids TOCTOU race condition from checking _current_session first
+        await self.end_session()
         await self.chroma_store.close()
         await self.sqlite_store.close()
         self._initialized = False
-        logger.info("Memory system closed")
+        log.info("Memory system closed")
 
     # ─────────────────────────────────────────────────────────────────
     # Session Lifecycle
@@ -133,7 +139,7 @@ class MemoryManager:
             )
 
             await self.sqlite_store.save_session(self._current_session)
-            logger.info(f"Started session {session_id}")
+            log.info(f"Started session {session_id}")
             return self._current_session
 
     async def end_session(
@@ -155,7 +161,7 @@ class MemoryManager:
         """
         async with self._session_lock:
             if not self._current_session:
-                logger.warning("No active session to end")
+                log.warning("No active session to end")
                 return None
 
             self._current_session.end_time = datetime.now()
@@ -164,7 +170,7 @@ class MemoryManager:
             self._current_session.memory_count = await self.chroma_store.count()
 
             await self.sqlite_store.save_session(self._current_session)
-            logger.info(f"Ended session {self._current_session.session_id}")
+            log.info(f"Ended session {self._current_session.session_id}")
 
             session = self._current_session
             self._current_session = None
