@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
-
 from reachy_agent.permissions.tiers import (
+    TIER_BEHAVIORS,
     PermissionConfig,
     PermissionDecision,
     PermissionEvaluator,
     PermissionRule,
     PermissionTier,
-    TIER_BEHAVIORS,
 )
 
 

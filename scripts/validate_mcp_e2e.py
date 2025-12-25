@@ -62,7 +62,7 @@ async def validate_mcp_tools():
     print("[2/8] Testing wake_up tool...")
     try:
         result = await client.wake_up()
-        print(f"   ✅ PASSED - Robot awake")
+        print("   ✅ PASSED - Robot awake")
         results.append(("wake_up", True))
         await asyncio.sleep(0.5)
     except Exception as e:
@@ -80,7 +80,7 @@ async def validate_mcp_tools():
                 raise Exception(f"move_head({direction}) failed: {result}")
             print(f"   → {direction}: uuid={result.get('uuid', 'N/A')[:8]}...")
             await asyncio.sleep(0.5)
-        print(f"   ✅ PASSED - All directions work")
+        print("   ✅ PASSED - All directions work")
         results.append(("move_head", True))
     except Exception as e:
         print(f"   ❌ FAILED - {e}")
@@ -101,7 +101,7 @@ async def validate_mcp_tools():
                 raise Exception(f"look_at({pose}) failed: {result}")
             print(f"   → roll={pose['roll']}, pitch={pose['pitch']}, yaw={pose['yaw']}: OK")
             await asyncio.sleep(0.4)
-        print(f"   ✅ PASSED - Precise positioning works")
+        print("   ✅ PASSED - Precise positioning works")
         results.append(("look_at", True))
     except Exception as e:
         print(f"   ❌ FAILED - {e}")
@@ -118,7 +118,7 @@ async def validate_mcp_tools():
                 raise Exception(f"set_antenna_state({left}, {right}) failed: {result}")
             print(f"   → L={left}°, R={right}°: OK")
             await asyncio.sleep(0.3)
-        print(f"   ✅ PASSED - Antenna control works")
+        print("   ✅ PASSED - Antenna control works")
         results.append(("set_antenna_state", True))
     except Exception as e:
         print(f"   ❌ FAILED - {e}")
@@ -176,7 +176,7 @@ async def validate_mcp_tools():
         # Return to neutral
         await client.rest()
 
-        print(f"   ✅ PASSED - Expression sequence complete")
+        print("   ✅ PASSED - Expression sequence complete")
         results.append(("expression_sequence", True))
     except Exception as e:
         print(f"   ❌ FAILED - {e}")

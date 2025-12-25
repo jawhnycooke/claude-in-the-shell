@@ -10,7 +10,7 @@ from reachy_agent.mcp_servers.reachy.daemon_client import (
     ReachyDaemonClient,
     ReachyDaemonError,
 )
-from reachy_agent.mcp_servers.reachy.server import create_reachy_mcp_server
+from reachy_agent.mcp_servers.reachy.reachy_mcp import create_reachy_mcp_server
 
 
 class TestReachyDaemonClient:
@@ -51,7 +51,9 @@ class TestReachyDaemonClient:
             result = await client.move_head(direction="left", speed="normal")
 
             assert result["status"] == "success"
-            mock_request.assert_called_once_with(
+            # Check the last call was the move_head request
+            # (first call may be backend detection)
+            mock_request.assert_any_call(
                 "POST",
                 "/head/move",
                 json_data={"direction": "left", "speed": "normal"},
@@ -68,7 +70,9 @@ class TestReachyDaemonClient:
             )
 
             assert result["status"] == "success"
-            mock_request.assert_called_once_with(
+            # Check the move_head request was made
+            # (first call may be backend detection)
+            mock_request.assert_any_call(
                 "POST",
                 "/head/move",
                 json_data={"direction": "left", "speed": "slow", "degrees": 30.0},

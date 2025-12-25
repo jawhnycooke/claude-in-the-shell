@@ -33,6 +33,7 @@ except ImportError:
     pass
 
 import anthropic
+
 from reachy_agent.simulation.reachy_client import ReachyMiniClient
 
 
@@ -210,7 +211,7 @@ async def validate_agent_with_claude():
                         "tool_use_id": tool_id,
                         "content": str(result)
                     })
-                    print(f"   ✅ Executed successfully")
+                    print("   ✅ Executed successfully")
 
                 except Exception as e:
                     tool_results.append({
@@ -258,7 +259,7 @@ async def validate_agent_with_claude():
     print("=" * 70)
     print("📊 Validation Summary")
     print("=" * 70)
-    print(f"   API calls to Claude: 1+")
+    print("   API calls to Claude: 1+")
     print(f"   Tool calls executed: {len(tool_calls_made)}")
     print(f"   Tools used: {', '.join(set(tool_calls_made)) if tool_calls_made else 'None'}")
     print()

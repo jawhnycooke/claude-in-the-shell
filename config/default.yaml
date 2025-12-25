@@ -6,7 +6,7 @@ version: "1.0"
 agent:
   name: Reachy
   wake_word: hey reachy
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-5-20250929
   max_tokens: 1024
 
 perception:
@@ -39,6 +39,26 @@ privacy:
   audit_retention_days: 7
   store_audio: false
   store_images: false
+
+# Idle behavior - autonomous movements when not engaged
+idle_behavior:
+  enabled: true
+  min_look_interval: 3.0      # Minimum seconds between look movements
+  max_look_interval: 8.0      # Maximum seconds between look movements
+  movement_duration: 1.5      # How long each look movement takes
+  yaw_range: [-35, 35]        # Left/right range in degrees
+  pitch_range: [-15, 20]      # Down/up range in degrees
+  roll_range: [-8, 8]         # Tilt range (subtle)
+  curiosity_chance: 0.15      # Probability to show curiosity emotion
+  double_look_chance: 0.10    # Probability to look at same spot twice
+  return_to_neutral_chance: 0.25  # Probability to return to center
+  curiosity_intensity: 0.6    # Intensity of curiosity expressions
+  curiosity_emotions:         # Emotions to use for curiosity
+    - curious
+    - thinking
+    - recognition
+  pause_on_interaction: true  # Pause when user is interacting
+  interaction_cooldown: 2.0   # Seconds to wait after interaction ends
 
 integrations:
   home_assistant:

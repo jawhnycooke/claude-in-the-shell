@@ -7,7 +7,10 @@ allowing development without physical hardware.
 from __future__ import annotations
 
 import asyncio
+import io
+import math
 import random
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -15,12 +18,20 @@ from pydantic import BaseModel, Field
 
 # Optional FastAPI import - only used when running the mock server
 try:
-    from fastapi import FastAPI, Query
-    from fastapi.responses import JSONResponse
+    from fastapi import FastAPI, Query, Response
+    from fastapi.middleware.cors import CORSMiddleware
 
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
+
+# Optional PIL for generating test images
+try:
+    from PIL import Image, ImageDraw, ImageFont
+
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 
 class HeadMoveRequest(BaseModel):
@@ -106,6 +117,13 @@ class GestureRequest(BaseModel):
     speed: str = "normal"
 
 
+class CancelActionRequest(BaseModel):
+    """Request model for canceling actions."""
+
+    action_id: str | None = None
+    all_actions: bool = False
+
+
 class MockDaemonState:
     """Simulated state of the robot."""
 
@@ -119,6 +137,11 @@ class MockDaemonState:
         self.is_dancing = False
         self.is_awake = True
         self.is_listening = False
+        # Animation state for enhanced visualization
+        self.frame_counter: int = 0
+        self.attention_state: str = "passive"  # passive, alert, engaged
+        self.last_blink_time: float = time.time()
+        self.blink_duration: float = 0.0  # Current blink progress (0 = open, 0.15 = closed)
 
 
 # Global mock state
@@ -141,7 +164,7 @@ def create_mock_daemon_app() -> Any:
         )
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(_app: FastAPI):
         """Reset state on startup."""
         global _mock_state
         _mock_state = MockDaemonState()
@@ -154,10 +177,524 @@ def create_mock_daemon_app() -> Any:
         lifespan=lifespan,
     )
 
+    # Add CORS middleware for cross-origin video feed requests
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    def generate_test_frame() -> bytes:
+        """Generate an enhanced test frame image for video streaming.
+
+        Creates a detailed robot visualization with:
+        - Body and neck below head
+        - Expressive face with emotion-based eyes/mouth
+        - Animated antennas with tips
+        - Activity indicators (speaking waves, dancing motion)
+        - Comprehensive status overlay panel
+        - Blink animation
+
+        Falls back to a minimal JPEG if PIL is not available.
+        """
+        if PIL_AVAILABLE:
+            # Dashboard color scheme
+            BG_PRIMARY = (26, 26, 46)       # #1a1a2e
+            BG_SECONDARY = (22, 33, 62)     # #16213e
+            BG_CARD = (15, 52, 96)          # #0f3460
+            TEXT_PRIMARY = (234, 234, 234)  # #eaeaea
+            TEXT_SECONDARY = (160, 160, 160)  # #a0a0a0
+            ACCENT_CYAN = (0, 217, 255)     # #00d9ff
+            ACCENT_GREEN = (0, 255, 136)    # #00ff88
+            ACCENT_YELLOW = (255, 204, 0)   # #ffcc00
+            ACCENT_RED = (255, 71, 87)      # #ff4757
+            BORDER_COLOR = (45, 58, 74)     # #2d3a4a
+
+            # Create 800x600 image (increased resolution)
+            WIDTH, HEIGHT = 800, 600
+            img = Image.new("RGB", (WIDTH, HEIGHT), color=BG_PRIMARY)
+            draw = ImageDraw.Draw(img)
+
+            # Update frame counter and handle blink animation
+            _mock_state.frame_counter += 1
+            current_time = time.time()
+
+            # Blink every 3-5 seconds for 0.15 seconds
+            if current_time - _mock_state.last_blink_time > random.uniform(3, 5):
+                _mock_state.last_blink_time = current_time
+                _mock_state.blink_duration = 0.15
+
+            is_blinking = (current_time - _mock_state.last_blink_time) < _mock_state.blink_duration
+
+            # Robot center position (moved up to make room for status panel)
+            center_x, center_y = WIDTH // 2, 220
+
+            # ===== BODY (no neck - small gap between head and body) =====
+            # Body is more vertically rectangular
+            body_width, body_height = 80, 110  # Taller than wide
+            body_y = center_y + 50  # Position with small gap from head (head bottom is at center_y + 35)
+            rotation_offset = int(_mock_state.body_rotation / 5)  # Visual hint of rotation
+
+            # Draw body shadow/depth
+            draw.rounded_rectangle(
+                [center_x - body_width // 2 + 3, body_y + 3,
+                 center_x + body_width // 2 + 3, body_y + body_height + 3],
+                radius=20,
+                fill=(10, 30, 50),
+            )
+            # Draw body
+            draw.rounded_rectangle(
+                [center_x - body_width // 2, body_y,
+                 center_x + body_width // 2, body_y + body_height],
+                radius=20,
+                fill=BG_CARD,
+                outline=ACCENT_CYAN,
+                width=2,
+            )
+
+            # Rotation indicator on body
+            if abs(_mock_state.body_rotation) > 5:
+                rot_text = f"{_mock_state.body_rotation:.0f}°"
+                draw.text((center_x - 15, body_y + 45), rot_text, fill=ACCENT_YELLOW)
+
+            # NOTE: No neck - small gap left between head and body for Reachy Mini style
+
+            # ===== HEAD =====
+            # Apply head position offsets for visualization
+            yaw = _mock_state.head_position.get("yaw", 0)
+            pitch = _mock_state.head_position.get("pitch", 0)
+            roll = _mock_state.head_position.get("roll", 0)
+
+            head_offset_x = int(yaw / 4)
+            head_offset_y = int(pitch / 4)
+
+            head_x = center_x + head_offset_x
+            head_y = center_y + head_offset_y
+
+            # Head shape - rounded rectangle matching body style
+            # Wider than tall, same corner radius style as body
+            head_width = 120   # Wide
+            head_height = 70   # Not too tall
+            head_radius_corner = 20  # Same corner radius as body
+
+            # Head shadow
+            draw.rounded_rectangle(
+                [head_x - head_width // 2 + 4, head_y - head_height // 2 + 4,
+                 head_x + head_width // 2 + 4, head_y + head_height // 2 + 4],
+                radius=head_radius_corner,
+                fill=(10, 30, 50),
+            )
+
+            # Head fill - matching body style
+            draw.rounded_rectangle(
+                [head_x - head_width // 2, head_y - head_height // 2,
+                 head_x + head_width // 2, head_y + head_height // 2],
+                fill=BG_CARD,
+                outline=ACCENT_CYAN,
+                width=2,
+            )
+
+            # Inner head highlight (top portion - subtle visor effect)
+            draw.rounded_rectangle(
+                [head_x - head_width // 2 + 8, head_y - head_height // 2 + 6,
+                 head_x + head_width // 2 - 8, head_y - 5],
+                radius=15,
+                fill=(20, 60, 100),
+            )
+
+            # ===== EYES (Reachy Mini goggle-style) =====
+            # Reachy has large circular goggle eyes with BLACK frames and dark lenses
+            # No mouth - expression is purely through eyes and antennas
+            eye_base_y = head_y
+            eye_spacing = 28  # Distance from center to each eye
+            eye_outer_radius = 24   # Black goggle frame (outer)
+            eye_inner_radius = 20   # Dark lens inside
+
+            # Eye position shifts with head movement
+            eye_shift_x = int(yaw / 6)
+            eye_shift_y = int(pitch / 6)
+
+            # Emotion affects eye appearance
+            emotion = _mock_state.current_emotion or "neutral"
+
+            # Draw both goggle eyes
+            for side in [-1, 1]:  # Left and right
+                ex = head_x + (side * eye_spacing) + eye_shift_x
+                ey = eye_base_y + eye_shift_y
+
+                if is_blinking:
+                    # Closed eyes - horizontal lines (black frames still visible)
+                    draw.ellipse(
+                        [ex - eye_outer_radius, ey - 4,
+                         ex + eye_outer_radius, ey + 4],
+                        fill=(20, 20, 30),  # Dark frame
+                        outline=ACCENT_CYAN,
+                        width=1,
+                    )
+                else:
+                    # Black goggle frame (like real Reachy)
+                    draw.ellipse(
+                        [ex - eye_outer_radius, ey - eye_outer_radius,
+                         ex + eye_outer_radius, ey + eye_outer_radius],
+                        fill=(20, 20, 30),  # Very dark frame
+                        outline=ACCENT_CYAN,
+                        width=2,
+                    )
+
+                    # Dark lens inside
+                    draw.ellipse(
+                        [ex - eye_inner_radius, ey - eye_inner_radius,
+                         ex + eye_inner_radius, ey + eye_inner_radius],
+                        fill=(8, 10, 18),  # Nearly black lens
+                    )
+
+                    # Lens reflection/highlight (subtle)
+                    highlight_x = ex - 6
+                    highlight_y = ey - 6
+                    draw.ellipse(
+                        [highlight_x - 4, highlight_y - 4,
+                         highlight_x + 4, highlight_y + 4],
+                        fill=(40, 50, 70),  # Subtle reflection
+                    )
+
+                    # Emotion-based eye glow/details inside lens
+                    if emotion == "happy":
+                        # Happy: upward arc like ^_^
+                        draw.arc(
+                            [ex - 12, ey - 8, ex + 12, ey + 12],
+                            start=200, end=340,
+                            fill=ACCENT_CYAN,
+                            width=2,
+                        )
+                    elif emotion == "sad":
+                        # Sad: downward droopy arc
+                        draw.arc(
+                            [ex - 12, ey - 4, ex + 12, ey + 14],
+                            start=20, end=160,
+                            fill=ACCENT_CYAN,
+                            width=2,
+                        )
+                    elif emotion == "surprised":
+                        # Surprised: bright ring inside
+                        draw.ellipse(
+                            [ex - 10, ey - 10, ex + 10, ey + 10],
+                            outline=ACCENT_CYAN,
+                            width=2,
+                        )
+                    elif emotion == "angry":
+                        # Angry: diagonal slash
+                        slant = -1 if side == -1 else 1
+                        draw.line(
+                            [(ex - 10, ey - 8 * slant),
+                             (ex + 10, ey + 8 * slant)],
+                            fill=ACCENT_RED,
+                            width=3,
+                        )
+                    elif emotion == "curious":
+                        # Curious: asymmetric - one brighter
+                        brightness = 10 if side == 1 else 6
+                        draw.ellipse(
+                            [ex - brightness, ey - brightness,
+                             ex + brightness, ey + brightness],
+                            outline=ACCENT_CYAN,
+                            width=2,
+                        )
+                    # Neutral: just the dark lens with highlight (no extra glow)
+
+            # Camera/sensor bar between eyes (like real Reachy - small dark strip)
+            sensor_width = 16
+            sensor_height = 5
+            draw.rounded_rectangle(
+                [head_x - sensor_width // 2, eye_base_y - sensor_height // 2 - 2,
+                 head_x + sensor_width // 2, eye_base_y + sensor_height // 2 - 2],
+                radius=2,
+                fill=(15, 15, 25),
+                outline=(40, 50, 70),
+                width=1,
+            )
+
+            # NOTE: Reachy Mini has NO mouth - expression is through eyes and antennas only
+
+            # ===== ANTENNAS (Reachy Mini style - thin wire with spring coil base) =====
+            left_ant = int(_mock_state.left_antenna_angle)
+            right_ant = int(_mock_state.right_antenna_angle)
+
+            # Antenna base points (on top of pill-shaped head)
+            ant_base_y = head_y - head_height // 2 - 5
+
+            for side, angle in [(-1, left_ant), (1, right_ant)]:
+                base_x = head_x + (side * 35)  # Closer together like real Reachy
+
+                # Calculate antenna tip position using angle
+                ant_length = 60  # Taller antennas
+                tip_x = base_x + int(side * 20 * math.cos(math.radians(90 - angle)))
+                tip_y = ant_base_y - int(ant_length * math.sin(math.radians(angle)))
+
+                # Spring coil at base (like real Reachy)
+                coil_height = 12
+                coil_segments = 4
+                for i in range(coil_segments):
+                    coil_y = ant_base_y - (i * coil_height // coil_segments)
+                    coil_offset = 4 * (1 if i % 2 == 0 else -1)
+                    draw.ellipse(
+                        [base_x + coil_offset - 3, coil_y - 2,
+                         base_x + coil_offset + 3, coil_y + 2],
+                        outline=ACCENT_GREEN,
+                        width=1,
+                    )
+
+                # Thin wire antenna line (thinner than before)
+                wire_start_y = ant_base_y - coil_height
+                draw.line(
+                    [(base_x, wire_start_y), (tip_x, tip_y)],
+                    fill=ACCENT_GREEN,
+                    width=2,  # Thinner wire
+                )
+
+                # Antenna tip (small ball)
+                draw.ellipse(
+                    [tip_x - 5, tip_y - 5, tip_x + 5, tip_y + 5],
+                    fill=ACCENT_GREEN,
+                )
+
+                # Antenna glow when awake
+                if _mock_state.is_awake:
+                    pulse = abs(math.sin(_mock_state.frame_counter * 0.1)) * 0.5 + 0.5
+                    glow_size = int(7 + pulse * 3)
+                    glow_color = (0, int(255 * pulse), int(136 * pulse))
+                    draw.ellipse(
+                        [tip_x - glow_size, tip_y - glow_size,
+                         tip_x + glow_size, tip_y + glow_size],
+                        outline=glow_color,
+                        width=2,
+                    )
+
+            # ===== ACTIVITY INDICATORS =====
+            # Speaking: sound waves near head (no mouth, so waves come from side)
+            if _mock_state.is_speaking:
+                wave_x = head_x + head_width // 2 + 15
+                wave_y = head_y + 10  # Near center of head
+                for i in range(3):
+                    offset = (_mock_state.frame_counter + i * 5) % 20
+                    alpha = 1.0 - (offset / 20)
+                    wave_color = (int(255 * alpha), int(204 * alpha), 0)
+                    draw.arc(
+                        [wave_x + offset, wave_y - 10 - offset,
+                         wave_x + offset + 15, wave_y + 10 + offset],
+                        start=-60, end=60,
+                        fill=wave_color,
+                        width=2,
+                    )
+
+            # Dancing: motion lines around body
+            if _mock_state.is_dancing:
+                dance_phase = _mock_state.frame_counter % 20
+                for i in range(4):
+                    angle = (i * 90 + dance_phase * 18) % 360
+                    mx = center_x + int(80 * math.cos(math.radians(angle)))
+                    my = body_y + 40 + int(30 * math.sin(math.radians(angle)))
+                    line_len = 15
+                    draw.line(
+                        [(mx, my), (mx + int(line_len * math.cos(math.radians(angle))),
+                                    my + int(line_len * math.sin(math.radians(angle))))],
+                        fill=ACCENT_YELLOW,
+                        width=3,
+                    )
+
+            # Sleeping: Zzz
+            if not _mock_state.is_awake:
+                z_x = head_x + head_width // 2 + 10
+                z_y = head_y - head_height // 2
+                for i, size in enumerate([12, 16, 20]):
+                    offset = (_mock_state.frame_counter // 10 + i) % 3
+                    draw.text(
+                        (z_x + i * 20, z_y - i * 15 - offset * 3),
+                        "Z",
+                        fill=TEXT_SECONDARY,
+                    )
+
+            # ===== STATUS OVERLAY PANEL =====
+            panel_height = 100
+            panel_y = HEIGHT - panel_height - 10
+            panel_margin = 20
+
+            # Panel background with border
+            draw.rounded_rectangle(
+                [panel_margin, panel_y,
+                 WIDTH - panel_margin, HEIGHT - 10],
+                radius=10,
+                fill=BG_SECONDARY,
+                outline=BORDER_COLOR,
+                width=2,
+            )
+
+            # Status text layout
+            timestamp = time.strftime("%H:%M:%S")
+            line_y = panel_y + 12
+            line_height = 18
+
+            # Row 1: Title and timestamp
+            draw.text((panel_margin + 15, line_y), "REACHY MOCK DAEMON", fill=ACCENT_CYAN)
+            draw.text((WIDTH - panel_margin - 80, line_y), timestamp, fill=TEXT_SECONDARY)
+            line_y += line_height + 5
+
+            # Separator line
+            draw.line(
+                [(panel_margin + 10, line_y), (WIDTH - panel_margin - 10, line_y)],
+                fill=BORDER_COLOR,
+                width=1,
+            )
+            line_y += 8
+
+            # Row 2: Mode and status
+            mode_text = "Mode: Simulator"
+            status_text = "AWAKE" if _mock_state.is_awake else "SLEEPING"
+            status_color = ACCENT_GREEN if _mock_state.is_awake else TEXT_SECONDARY
+            draw.text((panel_margin + 15, line_y), mode_text, fill=TEXT_PRIMARY)
+            draw.text((panel_margin + 180, line_y), f"Status: ", fill=TEXT_SECONDARY)
+            draw.text((panel_margin + 245, line_y), status_text, fill=status_color)
+            line_y += line_height
+
+            # Row 3: Head position and body rotation
+            roll = _mock_state.head_position.get('roll', 0)
+            pitch = _mock_state.head_position.get('pitch', 0)
+            yaw = _mock_state.head_position.get('yaw', 0)
+            head_text = f"Head: R:{roll:.1f} P:{pitch:.1f} Y:{yaw:.1f}"
+            body_text = f"Body: {_mock_state.body_rotation:.1f}°"
+            draw.text((panel_margin + 15, line_y), head_text, fill=TEXT_PRIMARY)
+            draw.text((panel_margin + 280, line_y), body_text, fill=TEXT_PRIMARY)
+            line_y += line_height
+
+            # Row 4: Antennas and emotion
+            ant_text = f"Antennas: L:{_mock_state.left_antenna_angle:.0f}° R:{_mock_state.right_antenna_angle:.0f}°"
+            draw.text((panel_margin + 15, line_y), ant_text, fill=TEXT_PRIMARY)
+
+            if _mock_state.current_emotion:
+                draw.text((panel_margin + 280, line_y), f"Emotion: {_mock_state.current_emotion}", fill=ACCENT_GREEN)
+
+            # Activity badges on right side
+            badge_x = WIDTH - panel_margin - 100
+            badge_y = panel_y + 45
+            if _mock_state.is_speaking:
+                draw.rounded_rectangle(
+                    [badge_x, badge_y, badge_x + 80, badge_y + 22],
+                    radius=11,
+                    fill=ACCENT_YELLOW,
+                )
+                draw.text((badge_x + 8, badge_y + 3), "Speaking", fill=BG_PRIMARY)
+            elif _mock_state.is_dancing:
+                draw.rounded_rectangle(
+                    [badge_x, badge_y, badge_x + 80, badge_y + 22],
+                    radius=11,
+                    fill=ACCENT_YELLOW,
+                )
+                draw.text((badge_x + 12, badge_y + 3), "Dancing", fill=BG_PRIMARY)
+            elif _mock_state.is_listening:
+                draw.rounded_rectangle(
+                    [badge_x, badge_y, badge_x + 80, badge_y + 22],
+                    radius=11,
+                    fill=ACCENT_CYAN,
+                )
+                draw.text((badge_x + 10, badge_y + 3), "Listening", fill=BG_PRIMARY)
+
+            # ===== STATUS INDICATOR DOT =====
+            # Top right corner
+            dot_x, dot_y = WIDTH - 35, 25
+            if _mock_state.is_awake:
+                dot_color = ACCENT_GREEN
+            else:
+                dot_color = TEXT_SECONDARY
+
+            # Pulsing effect when active
+            if _mock_state.is_awake and (_mock_state.is_speaking or _mock_state.is_dancing):
+                pulse = abs(math.sin(_mock_state.frame_counter * 0.15))
+                dot_size = int(8 + pulse * 4)
+            else:
+                dot_size = 8
+
+            draw.ellipse(
+                [dot_x - dot_size, dot_y - dot_size,
+                 dot_x + dot_size, dot_y + dot_size],
+                fill=dot_color,
+            )
+
+            # Convert to JPEG
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=85)
+            return buffer.getvalue()
+
+        else:
+            # Minimal 1x1 JPEG if PIL not available
+            # This is a valid minimal JPEG
+            return bytes([
+                0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+                0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+                0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
+                0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+                0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
+                0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
+                0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
+                0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
+                0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x1F, 0x00, 0x00,
+                0x01, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0A, 0x0B, 0xFF, 0xC4, 0x00, 0xB5, 0x10, 0x00, 0x02, 0x01, 0x03,
+                0x03, 0x02, 0x04, 0x03, 0x05, 0x05, 0x04, 0x04, 0x00, 0x00, 0x01, 0x7D,
+                0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12, 0x21, 0x31, 0x41, 0x06,
+                0x13, 0x51, 0x61, 0x07, 0x22, 0x71, 0x14, 0x32, 0x81, 0x91, 0xA1, 0x08,
+                0x23, 0x42, 0xB1, 0xC1, 0x15, 0x52, 0xD1, 0xF0, 0x24, 0x33, 0x62, 0x72,
+                0x82, 0x09, 0x0A, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x25, 0x26, 0x27, 0x28,
+                0x29, 0x2A, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x43, 0x44, 0x45,
+                0x46, 0x47, 0x48, 0x49, 0x4A, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
+                0x5A, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x73, 0x74, 0x75,
+                0x76, 0x77, 0x78, 0x79, 0x7A, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+                0x8A, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0xA2, 0xA3,
+                0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+                0xB7, 0xB8, 0xB9, 0xBA, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9,
+                0xCA, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xE1, 0xE2,
+                0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xF1, 0xF2, 0xF3, 0xF4,
+                0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01,
+                0x00, 0x00, 0x3F, 0x00, 0xFD, 0xFC, 0xA3, 0x1E, 0xB4, 0x00, 0xFF, 0xD9,
+            ])
+
+    @app.get("/camera/capture")
+    async def get_camera_frame() -> Response:
+        """Return a camera frame as JPEG for video streaming."""
+        frame_data = generate_test_frame()
+        return Response(
+            content=frame_data,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+
     @app.get("/health")
     async def health_check() -> dict[str, str]:
         """Check daemon health."""
         return {"status": "healthy", "mode": "mock"}
+
+    @app.get("/api/daemon/status")
+    async def daemon_status() -> dict[str, Any]:
+        """Get detailed daemon status for web dashboard."""
+        return {
+            "status": "connected",
+            "mode": "mock",
+            "connection_type": "Simulator",
+            "version": "1.0.0",
+            "head": _mock_state.head_position,
+            "body_rotation": _mock_state.body_rotation,
+            "left_antenna": _mock_state.left_antenna_angle,
+            "right_antenna": _mock_state.right_antenna_angle,
+            "current_emotion": _mock_state.current_emotion,
+            "is_awake": _mock_state.is_awake,
+            "is_speaking": _mock_state.is_speaking,
+            "is_dancing": _mock_state.is_dancing,
+        }
 
     @app.post("/head/move")
     async def move_head(request: HeadMoveRequest) -> dict[str, Any]:
@@ -496,6 +1033,33 @@ def create_mock_daemon_app() -> Any:
             "message": "Returned to rest pose",
         }
 
+    @app.post("/actions/cancel")
+    async def cancel_action(request: CancelActionRequest) -> dict[str, Any]:
+        """Simulate canceling an action."""
+        return {
+            "status": "success",
+            "action_id": request.action_id or "all",
+            "message": "Action cancelled (mock)",
+        }
+
+    @app.get("/pose")
+    async def get_pose() -> dict[str, Any]:
+        """Get current robot pose."""
+        return {
+            "status": "success",
+            "head": {
+                "roll": _mock_state.head_position.get("roll", 0.0),
+                "pitch": _mock_state.head_position.get("pitch", 0.0),
+                "yaw": _mock_state.head_position.get("yaw", 0.0),
+            },
+            "body_yaw": 0.0,
+            "antennas": {
+                "left": _mock_state.left_antenna_angle,
+                "right": _mock_state.right_antenna_angle,
+            },
+            "timestamp": "mock",
+        }
+
     return app
 
 
@@ -508,11 +1072,11 @@ def run_mock_daemon(host: str = "127.0.0.1", port: int = 8000) -> None:
     """
     try:
         import uvicorn
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "uvicorn is required to run the mock daemon. "
             "Install with: pip install uvicorn"
-        )
+        ) from err
 
     app = create_mock_daemon_app()
     uvicorn.run(app, host=host, port=port)

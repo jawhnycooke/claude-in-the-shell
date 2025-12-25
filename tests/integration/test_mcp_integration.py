@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 
 from reachy_agent.mcp_servers.reachy.daemon_client import ReachyDaemonClient
 from reachy_agent.mcp_servers.reachy.daemon_mock import create_mock_daemon_app
-from reachy_agent.mcp_servers.reachy.server import create_reachy_mcp_server
+from reachy_agent.mcp_servers.reachy.reachy_mcp import create_reachy_mcp_server
 
 
 class TestMCPToolsWithMockDaemon:
@@ -54,19 +54,17 @@ class TestMCPToolsWithMockDaemon:
 
         # Patch the daemon client inside the MCP server to use our mock
         transport = ASGITransport(app=mock_daemon_app)
-        async with AsyncClient(transport=transport, base_url="http://test") as http:
+        async with AsyncClient(transport=transport, base_url="http://test"):
             # Get the client from the closure (it's created in create_reachy_mcp_server)
             # We need to patch at the module level
-            from reachy_agent.mcp_servers.reachy import server as server_module
+            from reachy_agent.mcp_servers.reachy import reachy_mcp as server_module
 
-            original_client = None
             for obj in server_module.__dict__.values():
                 if isinstance(obj, ReachyDaemonClient):
-                    original_client = obj
                     break
 
             # Create a new server with patched client
-            mcp = create_reachy_mcp_server()
+            _ = create_reachy_mcp_server()
 
             # Get reference to the client created in the server
             # The client is created in the function scope, so we need
@@ -138,8 +136,29 @@ class TestMCPServerToolRegistry:
         return create_reachy_mcp_server()
 
     def test_all_expected_tools_registered(self, mcp_server) -> None:
-        """Verify all 16 Reachy tools are registered."""
-        expected_tools = [
+        """Verify all expected Reachy tools are registered."""
+        # Single source of truth for expected tools
+        expected_tools = self._get_expected_tools()
+
+        tools = mcp_server._tool_manager._tools
+
+        for tool_name in expected_tools:
+            assert tool_name in tools, f"Tool '{tool_name}' not registered"
+
+    def test_tool_count(self, mcp_server) -> None:
+        """Verify tool count matches expected tools list."""
+        expected_tools = self._get_expected_tools()
+        tools = mcp_server._tool_manager._tools
+        assert len(tools) == len(expected_tools), (
+            f"Expected {len(expected_tools)} tools, got {len(tools)}. "
+            f"Missing: {set(expected_tools) - set(tools.keys())}. "
+            f"Extra: {set(tools.keys()) - set(expected_tools)}"
+        )
+
+    @staticmethod
+    def _get_expected_tools() -> list[str]:
+        """Single source of truth for expected MCP tools."""
+        return [
             # Original 8 tools
             "move_head",
             "speak",
@@ -149,7 +168,7 @@ class TestMCPServerToolRegistry:
             "get_sensor_data",
             "look_at_sound",
             "dance",
-            # New 8 tools for full SDK support
+            # 8 tools for full SDK support
             "rotate",
             "look_at",
             "listen",
@@ -158,17 +177,16 @@ class TestMCPServerToolRegistry:
             "nod",
             "shake",
             "rest",
+            # 3 status/control tools
+            "get_status",
+            "cancel_action",
+            "get_pose",
+            # 4 advanced SDK tools
+            "look_at_world",
+            "look_at_pixel",
+            "play_recorded_move",
+            "set_motor_mode",
         ]
-
-        tools = mcp_server._tool_manager._tools
-
-        for tool_name in expected_tools:
-            assert tool_name in tools, f"Tool '{tool_name}' not registered"
-
-    def test_tool_count(self, mcp_server) -> None:
-        """Verify exactly 16 tools are registered."""
-        tools = mcp_server._tool_manager._tools
-        assert len(tools) == 16, f"Expected 16 tools, got {len(tools)}"
 
 
 class TestMCPToolDescriptions:

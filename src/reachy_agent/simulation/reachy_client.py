@@ -148,15 +148,15 @@ class ReachyMiniClient:
         # Map direction to head pose (angles in radians)
         angle = math.radians(degrees if degrees is not None else 30)
 
-        pose_map = {
+        pose_map: dict[str, dict[str, float]] = {
             "left": {"yaw": angle},
             "right": {"yaw": -angle},
             "up": {"pitch": -angle},
             "down": {"pitch": angle},
-            "front": {"yaw": 0, "pitch": 0, "roll": 0},
+            "front": {"yaw": 0.0, "pitch": 0.0, "roll": 0.0},
         }
 
-        head_pose = {"x": 0, "y": 0, "z": 0, "roll": 0, "pitch": 0, "yaw": 0}
+        head_pose: dict[str, float] = {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
         head_pose.update(pose_map.get(direction, {}))
 
         return await self.goto(head_pose=head_pose, duration=duration)
@@ -166,7 +166,7 @@ class ReachyMiniClient:
         roll: float = 0.0,
         pitch: float = 0.0,
         yaw: float = 0.0,
-        z: float = 0.0,
+        _z: float = 0.0,
         duration: float = 1.0,
     ) -> dict[str, Any]:
         """Position head with precise angles.
@@ -175,7 +175,7 @@ class ReachyMiniClient:
             roll: Roll angle in degrees.
             pitch: Pitch angle in degrees.
             yaw: Yaw angle in degrees.
-            z: Vertical offset (not used in real daemon).
+            _z: Vertical offset (not used in real daemon).
             duration: Movement duration.
         """
         head_pose = {
@@ -192,7 +192,6 @@ class ReachyMiniClient:
         self,
         left_angle: float | None = None,
         right_angle: float | None = None,
-        wiggle: bool = False,
         duration_ms: int = 500,
     ) -> dict[str, Any]:
         """Set antenna positions.
@@ -200,7 +199,6 @@ class ReachyMiniClient:
         Args:
             left_angle: Left antenna angle in degrees (0-90).
             right_angle: Right antenna angle in degrees (0-90).
-            wiggle: Not directly supported, ignored.
             duration_ms: Duration in milliseconds.
         """
         # Convert degrees to radians and clamp
@@ -312,7 +310,7 @@ class ReachyMiniClient:
 
     async def get_sensor_data(
         self,
-        sensors: list[str] | None = None,
+        _sensors: list[str] | None = None,
     ) -> dict[str, Any]:
         """Get sensor data (from state endpoint)."""
         state = await self.get_full_state()

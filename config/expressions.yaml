@@ -1,0 +1,428 @@
+# Reachy Agent Expression Configuration
+# Emotion-to-motion mappings for the mock daemon and visualizations
+#
+# Based on the 12 built-in Reachy Mini emotions:
+# neutral, curious, uncertain, recognition, joy, thinking,
+# listening, agreeing, disagreeing, sleepy, surprised, focused
+#
+# Additional emotions for richer expression: happy, sad, angry, excited, confused
+
+version: "1.0"
+
+# Head position ranges (degrees)
+# pitch: -30 (down) to +30 (up)
+# yaw: -45 (left) to +45 (right)
+# roll: -20 (tilt left) to +20 (tilt right)
+#
+# Antenna ranges (degrees)
+# 0 = fully down/droopy, 90 = straight up, values 20-80 typical
+
+emotions:
+  # === CORE REACHY MINI EMOTIONS ===
+
+  neutral:
+    description: "Calm, default resting state"
+    head:
+      pitch: 0
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 45
+      right: 45
+    duration_ms: 500
+    sound: null
+    visualization:
+      eye_style: "default"
+
+  curious:
+    description: "Interest, wanting to learn more"
+    head:
+      pitch: 5          # Slight look up
+      yaw: 15           # Head turn to side
+      roll: 10          # Head tilt
+    antennas:
+      left: 55
+      right: 70         # Asymmetric - one perked more
+    duration_ms: 800
+    sound: "hmm.wav"
+    visualization:
+      eye_style: "asymmetric_glow"
+
+  uncertain:
+    description: "Confusion, not sure how to proceed"
+    head:
+      pitch: -5         # Slight look down
+      yaw: -10          # Small turn
+      roll: -8          # Slight tilt
+    antennas:
+      left: 35
+      right: 50         # Asymmetric
+    duration_ms: 1000
+    sound: "uhh.wav"
+    visualization:
+      eye_style: "dim_pulse"
+
+  recognition:
+    description: "Aha moment, understanding something"
+    head:
+      pitch: 8          # Head lifts up
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 70
+      right: 70         # Both perk up
+    duration_ms: 600
+    sound: "aha.wav"
+    visualization:
+      eye_style: "bright_flash"
+
+  joy:
+    description: "Happiness, delight"
+    head:
+      pitch: 10         # Head up
+      yaw: 0
+      roll: 5           # Slight playful tilt
+    antennas:
+      left: 75
+      right: 75         # High and perky
+    duration_ms: 1200
+    sound: "happy_chirp.wav"
+    visualization:
+      eye_style: "happy_arcs"
+
+  thinking:
+    description: "Processing, considering options"
+    head:
+      pitch: 5
+      yaw: 20           # Look to side (as if pondering)
+      roll: 5
+    antennas:
+      left: 50
+      right: 40         # Slightly asymmetric
+    duration_ms: 2000
+    sound: "thinking_hum.wav"
+    visualization:
+      eye_style: "slow_pulse"
+
+  listening:
+    description: "Attentive, focused on audio input"
+    head:
+      pitch: 3
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 60
+      right: 60         # Alert but not excited
+    duration_ms: 0       # Continuous state
+    sound: null
+    visualization:
+      eye_style: "listening_rings"
+
+  agreeing:
+    description: "Nodding, confirming"
+    head:
+      pitch: 10         # Nod sequence
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 65
+      right: 65
+    duration_ms: 400
+    animation:
+      type: "nod"
+      repetitions: 2
+      amplitude: 12
+    sound: "affirmative.wav"
+    visualization:
+      eye_style: "happy_arcs"
+
+  disagreeing:
+    description: "Shaking head, negating"
+    head:
+      pitch: 0
+      yaw: 0            # Shake sequence
+      roll: 0
+    antennas:
+      left: 40
+      right: 40
+    duration_ms: 500
+    animation:
+      type: "shake"
+      repetitions: 2
+      amplitude: 15
+    sound: "negative.wav"
+    visualization:
+      eye_style: "flat_lines"
+
+  sleepy:
+    description: "Tired, drowsy, winding down"
+    head:
+      pitch: -15        # Head droops down
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 20
+      right: 25         # Droopy
+    duration_ms: 2000
+    sound: "yawn.wav"
+    visualization:
+      eye_style: "droopy_half_closed"
+
+  surprised:
+    description: "Startled, unexpected event"
+    head:
+      pitch: -5         # Quick pull back
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 85
+      right: 85         # Both shoot up
+    duration_ms: 300
+    sound: "gasp.wav"
+    visualization:
+      eye_style: "wide_rings"
+
+  focused:
+    description: "Concentration, working on task"
+    head:
+      pitch: 5          # Slight forward lean
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 50
+      right: 50         # Neutral but alert
+    duration_ms: 0       # Continuous state
+    sound: null
+    visualization:
+      eye_style: "steady_glow"
+
+  # === EXTENDED EMOTIONS (aliases/variations) ===
+
+  happy:
+    alias: joy
+    description: "Alias for joy"
+
+  sad:
+    description: "Disappointment, melancholy"
+    head:
+      pitch: -20        # Head down
+      yaw: 0
+      roll: -5          # Slight droop tilt
+    antennas:
+      left: 15
+      right: 20         # Very droopy
+    duration_ms: 1500
+    sound: "sad_sigh.wav"
+    visualization:
+      eye_style: "droopy_arcs"
+
+  angry:
+    description: "Frustration, displeasure"
+    head:
+      pitch: -8         # Slight forward/down (confrontational)
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 30
+      right: 30         # Lowered, tense
+    duration_ms: 800
+    sound: "grumble.wav"
+    visualization:
+      eye_style: "angry_slashes"
+
+  excited:
+    description: "High energy enthusiasm"
+    head:
+      pitch: 15
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 80
+      right: 80
+    duration_ms: 1000
+    animation:
+      type: "wiggle"
+      repetitions: 3
+      amplitude: 8
+    sound: "excited_beep.wav"
+    visualization:
+      eye_style: "bright_pulse"
+
+  confused:
+    alias: uncertain
+    description: "Alias for uncertain"
+
+
+# Gesture definitions (non-emotion movements)
+gestures:
+  nod:
+    description: "Single affirmative nod"
+    animation:
+      type: "nod"
+      repetitions: 1
+      amplitude: 10
+    duration_ms: 400
+
+  double_nod:
+    description: "Emphatic agreement"
+    animation:
+      type: "nod"
+      repetitions: 2
+      amplitude: 12
+    duration_ms: 600
+
+  shake:
+    description: "Single head shake"
+    animation:
+      type: "shake"
+      repetitions: 1
+      amplitude: 12
+    duration_ms: 400
+
+  double_shake:
+    description: "Emphatic disagreement"
+    animation:
+      type: "shake"
+      repetitions: 2
+      amplitude: 15
+    duration_ms: 600
+
+  look_around:
+    description: "Scanning environment"
+    animation:
+      type: "scan"
+      pattern: [
+        { yaw: -30, duration: 500 },
+        { yaw: 30, duration: 800 },
+        { yaw: 0, duration: 400 }
+      ]
+    duration_ms: 1700
+
+  perk_up:
+    description: "Alert attention getter"
+    head:
+      pitch: 8
+    antennas:
+      left: 75
+      right: 75
+    duration_ms: 300
+
+  settle_down:
+    description: "Return to calm neutral"
+    head:
+      pitch: 0
+      yaw: 0
+      roll: 0
+    antennas:
+      left: 45
+      right: 45
+    duration_ms: 800
+
+
+# Antenna wiggle patterns
+antenna_patterns:
+  idle_breathing:
+    description: "Subtle idle movement (life-like)"
+    pattern: "sine"
+    amplitude: 5
+    period_ms: 3000
+    sync: true          # Both antennas move together
+
+  attention_wiggle:
+    description: "Quick wiggle for emphasis"
+    pattern: "triangle"
+    amplitude: 15
+    period_ms: 200
+    repetitions: 3
+
+  playful_alternating:
+    description: "Antennas alternate up/down"
+    pattern: "alternating"
+    amplitude: 20
+    period_ms: 400
+    repetitions: 4
+
+  alert_sweep:
+    description: "Both sweep up then settle"
+    pattern: "sweep_up"
+    amplitude: 30
+    duration_ms: 500
+
+
+# Visualization styles for mock daemon
+# These map to draw commands in daemon_mock.py
+visualization_styles:
+  default:
+    eye_color: [0, 217, 255]     # ACCENT_CYAN
+    eye_brightness: 0.5
+    effect: null
+
+  happy_arcs:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.8
+    effect: "arc_up"
+
+  droopy_arcs:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.4
+    effect: "arc_down"
+
+  wide_rings:
+    eye_color: [0, 217, 255]
+    eye_brightness: 1.0
+    effect: "concentric_rings"
+
+  angry_slashes:
+    eye_color: [255, 71, 87]     # ACCENT_RED
+    eye_brightness: 0.9
+    effect: "diagonal_slash"
+
+  asymmetric_glow:
+    eye_color: [0, 217, 255]
+    eye_brightness: [0.6, 0.9]  # Left, right different
+    effect: null
+
+  slow_pulse:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.6
+    effect: "pulse"
+    pulse_period_ms: 2000
+
+  bright_pulse:
+    eye_color: [0, 255, 136]    # ACCENT_GREEN
+    eye_brightness: 0.9
+    effect: "pulse"
+    pulse_period_ms: 500
+
+  bright_flash:
+    eye_color: [255, 255, 255]
+    eye_brightness: 1.0
+    effect: "flash"
+    flash_duration_ms: 200
+
+  listening_rings:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.7
+    effect: "ring_pulse"
+    pulse_period_ms: 1000
+
+  steady_glow:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.8
+    effect: null
+
+  dim_pulse:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.4
+    effect: "pulse"
+    pulse_period_ms: 1500
+
+  flat_lines:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.5
+    effect: "horizontal_line"
+
+  droopy_half_closed:
+    eye_color: [0, 217, 255]
+    eye_brightness: 0.3
+    effect: "squint"

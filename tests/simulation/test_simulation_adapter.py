@@ -143,7 +143,6 @@ class TestSimulationAdapterIntegration:
         result = await client.set_antenna_state(
             left_angle=45.0,
             right_angle=45.0,
-            wiggle=False,
         )
         # Daemon returns uuid on success, or error on failure
         assert "uuid" in result or "error" not in result

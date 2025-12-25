@@ -7,7 +7,7 @@ running on localhost:8000.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -21,7 +21,7 @@ log = get_logger(__name__)
 
 
 def create_reachy_mcp_server(
-    config: ReachyConfig | None = None,
+    config: ReachyConfig | None = None,  # noqa: ARG001
     daemon_url: str = "http://localhost:8000",
 ) -> FastMCP:
     """Create and configure the Reachy MCP server.
@@ -464,6 +464,245 @@ def create_reachy_mcp_server(
         """
         log.info("Returning to rest pose")
         result = await client.rest()
+        return result
+
+    @mcp.tool()
+    async def get_status() -> dict[str, Any]:
+        """Get comprehensive robot status.
+
+        Returns current state of all robot systems including:
+        - Motor positions and states
+        - Head orientation (roll, pitch, yaw)
+        - Body rotation angle
+        - Antenna positions
+        - Temperature readings
+        - Whether robot is awake or sleeping
+        - Any active actions in progress
+
+        Returns:
+            Comprehensive status dictionary.
+        """
+        log.info("Getting robot status")
+        result = await client.get_status()
+        return result
+
+    @mcp.tool()
+    async def cancel_action(
+        action_id: str | None = None,
+        all_actions: bool = False,
+    ) -> dict[str, str]:
+        """Cancel running actions.
+
+        Use this to stop any movement or action currently in progress.
+        Can cancel a specific action by ID or all running actions.
+
+        Args:
+            action_id: Optional ID of specific action to cancel.
+            all_actions: If True, cancels all running actions.
+
+        Returns:
+            Status with number of cancelled actions.
+        """
+        if not action_id and not all_actions:
+            return {"error": "Must specify action_id or set all_actions=True"}
+
+        log.info("Cancelling actions", action_id=action_id, all_actions=all_actions)
+        result = await client.cancel_action(
+            action_id=action_id,
+            all_actions=all_actions,
+        )
+        return result
+
+    @mcp.tool()
+    async def get_pose() -> dict[str, Any]:
+        """Get Reachy's current physical pose (proprioceptive feedback).
+
+        Use this to know your actual position before or after movements.
+        This is helpful for:
+        - Verifying a movement completed successfully
+        - Understanding your current state before planning next action
+        - Detecting if you are at a neutral or expressive pose
+
+        Returns:
+            Dictionary containing:
+            - head: {roll, pitch, yaw} in degrees
+              - roll: Head tilt side-to-side (-45 to 45)
+              - pitch: Looking up/down (-45 to 45)
+              - yaw: Looking left/right (-45 to 45)
+            - body_yaw: Body rotation in degrees
+            - antennas: {left, right} in degrees (0=droopy, 90=straight up)
+            - timestamp: When the reading was taken
+
+        Example response:
+            {"head": {"roll": 0.0, "pitch": 12.2, "yaw": -10.5},
+             "body_yaw": 0.0,
+             "antennas": {"left": 80.0, "right": 80.0}}
+        """
+        log.info("Getting current pose")
+        result = await client.get_current_pose()
+        return result
+
+    # ========== SDK COVERAGE EXPANSION TOOLS ==========
+
+    @mcp.tool()
+    async def look_at_world(
+        x: float,
+        y: float,
+        z: float,
+        duration: float = 1.0,
+    ) -> dict[str, str]:
+        """Look at a 3D point in world coordinates.
+
+        Orients Reachy's head to gaze at a specific point in 3D space.
+        Uses inverse kinematics to compute the required head orientation.
+
+        This is useful for spatial awareness tasks like:
+        - "Look at where the sound came from"
+        - "Look at the detected object"
+        - "Focus on a point in the room"
+
+        Args:
+            x: X coordinate in meters. Positive = right of robot.
+            y: Y coordinate in meters. Positive = forward/in front of robot.
+            z: Z coordinate in meters. Positive = up.
+            duration: Movement duration in seconds (0.1 to 5.0).
+
+        Returns:
+            Status of the operation.
+
+        Example:
+            # Look at a point 1 meter in front and 0.5m to the left
+            look_at_world(x=-0.5, y=1.0, z=0.3)
+        """
+        if not (0.1 <= duration <= 5.0):
+            return {"error": "Duration must be between 0.1 and 5.0 seconds"}
+
+        log.info("Looking at world coordinates", x=x, y=y, z=z, duration=duration)
+
+        result = await client.look_at_world(x=x, y=y, z=z, duration=duration)
+        return result
+
+    @mcp.tool()
+    async def look_at_pixel(
+        u: int,
+        v: int,
+        duration: float = 1.0,
+    ) -> dict[str, str]:
+        """Look at a pixel coordinate in the camera image.
+
+        Orients Reachy's head to center the camera view on a specific pixel.
+        This is extremely useful for visual tracking and attention tasks.
+
+        Common use cases:
+        - "Look at the detected face" (center on face bounding box)
+        - "Center on the object of interest"
+        - "Track the moving target"
+
+        Args:
+            u: Horizontal pixel coordinate (0 = left edge of image).
+            v: Vertical pixel coordinate (0 = top edge of image).
+            duration: Movement duration in seconds (0.1 to 5.0).
+
+        Returns:
+            Status of the operation.
+
+        Example:
+            # Look at the center of a 640x480 image
+            look_at_pixel(u=320, v=240)
+        """
+        if u < 0:
+            return {"error": "Pixel u coordinate must be non-negative"}
+        if v < 0:
+            return {"error": "Pixel v coordinate must be non-negative"}
+        if not (0.1 <= duration <= 5.0):
+            return {"error": "Duration must be between 0.1 and 5.0 seconds"}
+
+        log.info("Looking at pixel coordinates", u=u, v=v, duration=duration)
+
+        result = await client.look_at_pixel(u=u, v=v, duration=duration)
+        return result
+
+    @mcp.tool()
+    async def play_recorded_move(
+        dataset: str,
+        move_name: str,
+    ) -> dict[str, str]:
+        """Play a pre-recorded move from a HuggingFace dataset.
+
+        The Reachy Mini SDK includes professionally motion-captured animations
+        stored on HuggingFace. These include the official emotions library
+        with 19+ emotion animations that include synchronized audio.
+
+        Args:
+            dataset: HuggingFace dataset name.
+                Example: "pollen-robotics/reachy-mini-emotions-library"
+            move_name: Name of the move within the dataset.
+                Examples: "curious1", "dance1", "cheerful1", "amazed1"
+
+        Returns:
+            Status of the operation.
+
+        Available moves in the emotions library:
+        - Emotions: curious1, confused1, cheerful1, downcast1, amazed1,
+          exhausted1, attentive1, attentive2, contempt1, boredom1, fear1,
+          anxiety1, disgusted1, displeased1, calming1, dying1, electric1,
+          enthusiastic1, enthusiastic2, come1
+        - Dances: dance1, dance2, dance3
+
+        Example:
+            # Play the curious emotion
+            play_recorded_move(
+                dataset="pollen-robotics/reachy-mini-emotions-library",
+                move_name="curious1"
+            )
+        """
+        if not dataset:
+            return {"error": "Dataset name is required"}
+        if not move_name:
+            return {"error": "Move name is required"}
+
+        log.info("Playing recorded move", dataset=dataset, move_name=move_name)
+
+        result = await client.play_recorded_move(dataset=dataset, move_name=move_name)
+        return result
+
+    @mcp.tool()
+    async def set_motor_mode(
+        mode: str,
+    ) -> dict[str, str]:
+        """Set the motor control mode.
+
+        Controls motor torque and behavior. Essential for safety, teaching mode,
+        and enabling manual physical interaction with the robot.
+
+        Args:
+            mode: Motor mode to set:
+                - "enabled": Motors powered and holding position (normal operation).
+                  Use this for autonomous movement.
+                - "disabled": Motors powered off, robot can be moved freely by hand.
+                  Use for transport or when not in use.
+                - "gravity_compensation": Motors compensate for gravity only.
+                  Allows smooth manual positioning while preventing collapse.
+                  Ideal for teaching poses or physical interaction.
+
+        Returns:
+            Status of the operation.
+
+        Example:
+            # Enable teaching mode for manual positioning
+            set_motor_mode(mode="gravity_compensation")
+
+            # Return to normal autonomous operation
+            set_motor_mode(mode="enabled")
+        """
+        valid_modes = ["enabled", "disabled", "gravity_compensation"]
+
+        if mode not in valid_modes:
+            return {"error": f"Invalid mode. Must be one of: {valid_modes}"}
+
+        log.info("Setting motor mode", mode=mode)
+
+        result = await client.set_motor_mode(mode=mode)
         return result
 
     return mcp

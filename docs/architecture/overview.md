@@ -23,7 +23,7 @@ flowchart TB
         end
 
         subgraph MCP["MCP Servers"]
-            REACHY_MCP["Reachy MCP<br/>(16 tools)"]
+            REACHY_MCP["Reachy MCP<br/>(23 tools)"]
             HA_MCP["Home Assistant MCP"]
             GH_MCP["GitHub MCP"]
         end
@@ -137,41 +137,51 @@ stateDiagram-v2
     end note
 ```
 
-### Layer 3: MCP Protocol
+### Layer 3: MCP Protocol (True MCP Architecture)
 
-MCP (Model Context Protocol) provides a standardized interface between Claude and tools:
+MCP (Model Context Protocol) provides a standardized interface between Claude and tools.
+**Key change:** The agent now uses **true MCP protocol** with subprocess communication:
 
 ```mermaid
 flowchart LR
-    subgraph Claude["Claude Agent SDK"]
-        SDK["Agent Loop"]
+    subgraph Agent["Agent Core (agent.py)"]
+        SDK["ReachyAgentLoop"]
+        CLIENT["MCP ClientSession<br/>(stdio transport)"]
     end
 
-    subgraph MCP["MCP Layer"]
+    subgraph MCP["MCP Layer (subprocess)"]
         direction TB
         PROTO["MCP Protocol<br/>(JSON-RPC over stdio)"]
 
         subgraph Servers["MCP Servers"]
-            R["reachy-mcp"]
+            R["reachy-mcp<br/>(23 tools)"]
             H["homeassistant-mcp"]
             G["github-mcp"]
         end
     end
 
     subgraph Backends["Backend Services"]
-        RD["Reachy Daemon"]
+        RD["Reachy Daemon<br/>:8000"]
         HA["Home Assistant"]
         GH["GitHub API"]
     end
 
-    SDK <-->|"tools/list<br/>tools/call"| PROTO
+    SDK --> CLIENT
+    CLIENT <-->|"ListTools<br/>CallTool"| PROTO
     PROTO <--> Servers
-    R -->|HTTP :8000| RD
+    R -->|HTTP| RD
     H -->|REST API| HA
     G -->|REST API| GH
 
     style PROTO fill:#e1bee7
+    style CLIENT fill:#c8e6c9
 ```
+
+**MCP Protocol Flow:**
+1. Agent spawns MCP server as subprocess (`python -m reachy_agent.mcp_servers.reachy`)
+2. Agent discovers tools dynamically via `ListTools` (23 tools)
+3. Agent executes tools via `CallTool` over stdio transport
+4. MCP server calls Daemon HTTP API
 
 ### Layer 4: Permission System
 
@@ -361,7 +371,8 @@ flowchart LR
 | Wake Word | OpenWakeWord | Porcupine, Snowboy | Open source, no license costs |
 | Memory Store | ChromaDB + SQLite | PostgreSQL, Redis | Lightweight, embedded, no server |
 | Config Format | YAML | JSON, TOML | Human-readable, supports comments |
-| MCP Transport | stdio | HTTP, WebSocket | Simpler for local communication |
+| MCP Transport | stdio subprocess | HTTP, direct calls | True MCP protocol, dynamic discovery |
+| Tool Discovery | ListTools | Hardcoded schemas | Single source of truth, extensible |
 
 ## Security Model
 
@@ -399,6 +410,50 @@ flowchart TB
 2. **Defense in Depth**: Permission tiers + API validation + audit logging
 3. **Fail Secure**: Unknown tools default to highest restriction tier
 4. **Privacy by Design**: Antenna states indicate when agent is listening
+
+## MCP Tools Overview
+
+The Reachy MCP server provides 23 tools organized by category:
+
+| Category | Tools | Mock Support |
+|----------|-------|--------------|
+| Movement (5) | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` | 3/5 |
+| Expression (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` | 5/6 |
+| Audio (2) | `speak`, `listen` | 2/2 |
+| Perception (3) | `capture_image`, `get_sensor_data`, `look_at_sound` | 3/3 |
+| Lifecycle (3) | `wake_up`, `sleep`, `rest` | 3/3 |
+| Status (2) | `get_status`, `get_pose` | 2/2 |
+| Control (2) | `set_motor_mode`, `cancel_action` | 1/2 |
+
+### Native SDK Emotions
+
+The agent uses native SDK emotions from `pollen-robotics/reachy-mini-emotions-library` (HuggingFace) when available:
+
+```mermaid
+flowchart LR
+    subgraph Agent
+        EMO["play_emotion('happy')"]
+    end
+
+    subgraph Check["Emotion Lookup"]
+        NATIVE{"Native SDK<br/>Available?"}
+    end
+
+    subgraph SDK["HuggingFace"]
+        HF["cheerful1<br/>(with audio)"]
+    end
+
+    subgraph Custom
+        CUSTOM["Custom composition<br/>(head + antennas)"]
+    end
+
+    EMO --> NATIVE
+    NATIVE -->|Yes| HF
+    NATIVE -->|No| CUSTOM
+
+    style HF fill:#c8e6c9
+    style CUSTOM fill:#fff9c4
+```
 
 ## Next Steps
 
