@@ -24,17 +24,26 @@ flowchart TB
     end
 
     subgraph Agent["Claude in the Shell"]
-        SDK["Agent Loop"]
-        PERM["4-Tier Permissions"]
+        subgraph SDK["Claude Agent SDK"]
+            SESSION["Session Manager"]
+            MCPCLIENT["MCP Client"]
+            HOOKS["PreToolUse Hooks"]
+        end
+
+        subgraph Core["Agent Core"]
+            LOOP["ReachyAgentLoop"]
+            PERM["4-Tier Permissions"]
+            MEM["Memory System"]
+        end
 
         subgraph Interface["Interfaces"]
             CLI["CLI REPL"]
             WEB["Web Dashboard"]
         end
 
-        subgraph MCP["MCP Layer (subprocess)"]
-            TOOLS["27 MCP Tools"]
-            IDLE["Idle Behaviors"]
+        subgraph MCP["MCP Servers (stdio)"]
+            REACHY["Reachy MCP (23)"]
+            MEMORY["Memory MCP (4)"]
         end
     end
 
@@ -43,13 +52,21 @@ flowchart TB
         ROBOT["Head • Body • Antennas"]
     end
 
-    CLAUDE <--> SDK
-    SDK --> PERM
-    PERM --> MCP
-    CLI --> SDK
-    WEB --> SDK
-    TOOLS -->|HTTP| DAEMON
+    CLAUDE <-->|HTTPS| SESSION
+    SESSION --> LOOP
+    LOOP --> HOOKS
+    HOOKS --> PERM
+    PERM --> MCPCLIENT
+    MCPCLIENT -->|stdio| MCP
+    LOOP <--> MEM
+    CLI --> LOOP
+    WEB --> LOOP
+    REACHY -->|HTTP| DAEMON
     DAEMON --> ROBOT
+
+    style SDK fill:#7c4dff,color:#fff
+    style CLAUDE fill:#f9a825
+    style DAEMON fill:#4caf50
 ```
 
 See [Architecture Documentation](docs/architecture/overview.md) for detailed diagrams.
