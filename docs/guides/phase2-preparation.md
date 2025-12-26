@@ -62,7 +62,11 @@ python scripts/validate_simulation.py --headless
 python -c "from reachy_agent.mcp_servers.reachy import create_reachy_mcp_server; print('OK')"
 # Expected: OK
 
-# 4. Verify agent loop
+# 4. Verify GitHub MCP integration (optional)
+python -c "from reachy_agent.mcp_servers.integrations import is_binary_available; print('Binary:', is_binary_available())"
+# Expected: Binary: True (if installed) or False
+
+# 5. Verify agent loop
 python -c "from reachy_agent.agent import ReachyAgentLoop; print('OK')"
 # Expected: OK
 ```
@@ -158,6 +162,25 @@ uv pip install -r requirements.txt
 # Verify installation
 python -c "import reachy_agent; print('OK')"
 ```
+
+### Step 3.5: Install GitHub MCP (Optional)
+
+For GitHub integration (repos, issues, PRs, actions):
+
+```bash
+# Download ARM64 binary (only 4MB)
+mkdir -p ~/.reachy/bin
+curl -sL https://github.com/github/github-mcp-server/releases/latest/download/github-mcp-server_Linux_arm64.tar.gz | tar xzf - -C ~/.reachy/bin
+chmod +x ~/.reachy/bin/github-mcp-server
+
+# Verify
+~/.reachy/bin/github-mcp-server --version
+
+# Add token to .env
+echo "GITHUB_TOKEN=ghp_your_token_here" >> ~/.reachy/.env
+```
+
+The agent automatically detects the binary at `~/.reachy/bin/github-mcp-server` and uses it instead of Docker.
 
 ### Step 4: Configure systemd Service
 

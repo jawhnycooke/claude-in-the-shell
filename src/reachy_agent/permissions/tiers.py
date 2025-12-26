@@ -196,10 +196,21 @@ def _default_rules() -> list[PermissionRule]:
             tier=1,
             reason="Weather information",
         ),
+        # GitHub read-only operations (Tier 1)
         PermissionRule(
             pattern="mcp__github__get_*",
             tier=1,
             reason="Read-only GitHub access",
+        ),
+        PermissionRule(
+            pattern="mcp__github__list_*",
+            tier=1,
+            reason="Read-only GitHub listing",
+        ),
+        PermissionRule(
+            pattern="mcp__github__search_*",
+            tier=1,
+            reason="Read-only GitHub search",
         ),
         # Tier 2: Notify (reversible actions)
         PermissionRule(
@@ -222,16 +233,53 @@ def _default_rules() -> list[PermissionRule]:
             tier=2,
             reason="Media control",
         ),
+        # GitHub comment/notification operations (Tier 2)
+        PermissionRule(
+            pattern="mcp__github__add_issue_comment",
+            tier=2,
+            reason="GitHub comment (reversible)",
+        ),
+        PermissionRule(
+            pattern="mcp__github__mark_notification_*",
+            tier=2,
+            reason="GitHub notification management",
+        ),
         # Tier 3: Confirm (irreversible or sensitive)
         PermissionRule(
             pattern="mcp__calendar__create_*",
             tier=3,
             reason="Creates calendar data",
         ),
+        # GitHub create/update/push operations (Tier 3)
         PermissionRule(
             pattern="mcp__github__create_*",
             tier=3,
-            reason="Creates repository data",
+            reason="Creates GitHub data",
+        ),
+        PermissionRule(
+            pattern="mcp__github__update_*",
+            tier=3,
+            reason="Updates GitHub data",
+        ),
+        PermissionRule(
+            pattern="mcp__github__push_*",
+            tier=3,
+            reason="Pushes to GitHub repository",
+        ),
+        PermissionRule(
+            pattern="mcp__github__fork_*",
+            tier=3,
+            reason="Forks a GitHub repository",
+        ),
+        PermissionRule(
+            pattern="mcp__github__trigger_*",
+            tier=3,
+            reason="Triggers GitHub Actions",
+        ),
+        PermissionRule(
+            pattern="mcp__github__cancel_*",
+            tier=3,
+            reason="Cancels GitHub Actions",
         ),
         PermissionRule(
             pattern="mcp__homeassistant__unlock_*",
@@ -244,6 +292,17 @@ def _default_rules() -> list[PermissionRule]:
             reason="System access",
         ),
         # Tier 4: Forbidden
+        # GitHub destructive operations (Tier 4)
+        PermissionRule(
+            pattern="mcp__github__merge_*",
+            tier=4,
+            reason="Merge requires explicit confirmation",
+        ),
+        PermissionRule(
+            pattern="mcp__github__delete_*",
+            tier=4,
+            reason="Destructive GitHub operation",
+        ),
         PermissionRule(
             pattern="mcp__homeassistant__disarm_*",
             tier=4,

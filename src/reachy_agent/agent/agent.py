@@ -9,7 +9,6 @@ SDK hooks for 4-tier permission enforcement.
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -32,6 +31,13 @@ from claude_agent_sdk import (
 
 from reachy_agent.agent.options import load_system_prompt
 from reachy_agent.behaviors.idle import IdleBehaviorConfig, IdleBehaviorController
+from reachy_agent.mcp_servers.integrations import (
+    build_github_mcp_config,
+    get_all_github_tools,
+    get_github_token,
+    is_binary_available,
+    is_docker_available,
+)
 from reachy_agent.mcp_servers.reachy.daemon_client import ReachyDaemonClient
 from reachy_agent.memory import MemoryManager, build_memory_context
 from reachy_agent.memory.types import SessionSummary, UserProfile
@@ -118,6 +124,8 @@ class ReachyAgentLoop:
         enable_idle_behavior: bool = True,
         idle_config: IdleBehaviorConfig | None = None,
         enable_memory: bool = True,
+        enable_github: bool = False,
+        github_toolsets: list[str] | None = None,
     ) -> None:
         """Initialize the agent loop.
 
@@ -128,6 +136,8 @@ class ReachyAgentLoop:
             enable_idle_behavior: Whether to enable idle look-around behavior.
             idle_config: Optional idle behavior configuration.
             enable_memory: Whether to enable memory system for personalization.
+            enable_github: Whether to enable GitHub MCP server integration.
+            github_toolsets: List of GitHub toolsets to enable (repos, issues, etc.).
         """
         self.config = config
         self.daemon_url = daemon_url
@@ -155,6 +165,10 @@ class ReachyAgentLoop:
         self._memory_manager: MemoryManager | None = None
         self._user_profile: UserProfile | None = None
         self._last_session: SessionSummary | None = None
+
+        # GitHub MCP integration
+        self._enable_github = enable_github
+        self._github_toolsets = github_toolsets
 
     @property
     def idle_controller(self) -> IdleBehaviorController | None:
@@ -191,6 +205,34 @@ class ReachyAgentLoop:
                 "command": python_executable,
                 "args": ["-m", "reachy_agent.mcp_servers.memory"],
             }
+
+        # GitHub MCP server (if enabled)
+        # Prefers native binary over Docker for better Pi compatibility
+        if self._enable_github:
+            if not get_github_token():
+                log.warning(
+                    "GitHub MCP requested but no token found. "
+                    "Set GITHUB_PERSONAL_ACCESS_TOKEN, GITHUB_TOKEN, or GH_TOKEN."
+                )
+            elif not is_binary_available() and not is_docker_available():
+                log.warning(
+                    "GitHub MCP requested but neither binary nor Docker available. "
+                    "Install github-mcp-server binary or Docker."
+                )
+            else:
+                try:
+                    github_config = build_github_mcp_config(
+                        toolsets=self._github_toolsets
+                    )
+                    servers["github"] = github_config
+                    mode = "binary" if is_binary_available() else "docker"
+                    log.info(
+                        "GitHub MCP server configured",
+                        mode=mode,
+                        toolsets=self._github_toolsets or ["default"],
+                    )
+                except Exception as e:
+                    log.warning("Failed to configure GitHub MCP", error=str(e))
 
         return servers
 
@@ -248,13 +290,24 @@ class ReachyAgentLoop:
             for tool in memory_tools:
                 allowed.append(f"mcp__memory__{tool}")
 
+        # Add GitHub tools if enabled and configured
+        github_available = (is_binary_available() or is_docker_available()) and get_github_token()
+        if self._enable_github and github_available:
+            github_tools = get_all_github_tools(toolsets=self._github_toolsets)
+            for tool in github_tools:
+                allowed.append(f"mcp__github__{tool}")
+            log.debug(
+                "Added GitHub tools to allowlist",
+                count=len(github_tools),
+            )
+
         return allowed
 
     async def _permission_hook(
         self,
         input_data: HookInput,
-        tool_use_id: str | None,
-        context: HookContext,
+        tool_use_id: str | None,  # noqa: ARG002 - SDK hook signature
+        context: HookContext,  # noqa: ARG002 - SDK hook signature
     ) -> HookJSONOutput:
         """4-tier permission enforcement via SDK PreToolUse hook.
 

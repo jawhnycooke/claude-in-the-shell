@@ -58,6 +58,7 @@ uvx pytest -v --cov=. --cov-report=html
 | **Agent Loop** | ClaudeSDKClient-based Perceive → Think → Act cycle | `src/reachy_agent/agent/agent.py` |
 | **Reachy MCP Server** | Exposes robot body as MCP tools (23 tools) | `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` |
 | **Memory MCP Server** | Semantic memory + user profiles (4 tools) | `src/reachy_agent/mcp_servers/memory/memory_mcp.py` |
+| **GitHub MCP** | Optional GitHub integration (50+ tools) | `src/reachy_agent/mcp_servers/integrations/github_mcp.py` |
 | **Daemon Client** | HTTP client for Reachy daemon API | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` |
 | **Mock Daemon** | Testing without hardware | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` |
 | **Permission Hooks** | 4-tier permission enforcement (SDK hooks) | `src/reachy_agent/permissions/` |
@@ -102,6 +103,20 @@ The Memory MCP server provides semantic memory and user profile management:
 | `store_memory` | Save a new memory with type classification |
 | `get_user_profile` | Retrieve user preferences and info |
 | `update_user_profile` | Update user preferences |
+
+### GitHub MCP Integration (Optional, 50+ tools)
+
+External integration with the [official GitHub MCP server](https://github.com/github/github-mcp-server):
+
+```python
+# Enable in ReachyAgentLoop
+agent = ReachyAgentLoop(
+    enable_github=True,  # Requires GITHUB_TOKEN env var
+    github_toolsets=["repos", "issues", "pull_requests", "actions"],
+)
+```
+
+Binary preferred over Docker for Pi compatibility. Install at `~/.reachy/bin/github-mcp-server`.
 
 ### Native SDK Emotions
 

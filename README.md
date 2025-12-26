@@ -50,6 +50,7 @@ flowchart TB
         subgraph MCP["MCP Servers (stdio)"]
             REACHY["Reachy MCP (23)"]
             MEMMCP["Memory MCP (4)"]
+            GITHUB["GitHub MCP (50+)"]
         end
     end
 
@@ -222,6 +223,34 @@ The agent exposes **27 tools** to Claude via two MCP servers, discovered dynamic
 | `store_memory` | Save a new memory with type classification |
 | `get_user_profile` | Retrieve user preferences and info (SQLite) |
 | `update_user_profile` | Update user preferences |
+
+### GitHub MCP Integration (50+ tools)
+
+Optional integration with the [official GitHub MCP server](https://github.com/github/github-mcp-server):
+
+```bash
+# Install binary (recommended for Raspberry Pi)
+mkdir -p ~/.reachy/bin
+curl -sL https://github.com/github/github-mcp-server/releases/latest/download/github-mcp-server_Linux_arm64.tar.gz | tar xzf - -C ~/.reachy/bin
+
+# Set token
+export GITHUB_TOKEN=ghp_...
+```
+
+Enable in agent:
+```python
+agent = ReachyAgentLoop(
+    enable_github=True,
+    github_toolsets=["repos", "issues", "pull_requests", "actions"],
+)
+```
+
+| Toolset | Tier | Description |
+|---------|------|-------------|
+| `repos` | 1-3 | Read repos (T1), create/push (T3) |
+| `issues` | 1-3 | List/search (T1), comment (T2), create (T3) |
+| `pull_requests` | 1-4 | Read (T1), create (T3), merge (T4-forbidden) |
+| `actions` | 1-3 | List workflows (T1), trigger/cancel (T3) |
 
 See [MCP Tools Quick Reference](ai_docs/mcp-tools-quick-ref.md) for full parameter details.
 
