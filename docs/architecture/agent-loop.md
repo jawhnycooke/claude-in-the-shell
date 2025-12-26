@@ -5,6 +5,7 @@ The `ReachyAgentLoop` is the brain of your Reachy robot. It implements the **Per
 ## The Core Interaction Cycle
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryTextColor': '#000', 'secondaryTextColor': '#000', 'tertiaryTextColor': '#000', 'lineColor': '#666', 'primaryColor': '#e1bee7', 'secondaryColor': '#e3f2fd', 'tertiaryColor': '#fff3e0'}}}%%
 flowchart TB
     START[process_input Called] --> PERCEIVE
 
@@ -36,9 +37,9 @@ flowchart TB
     ACT --> RETURN[Return Response]
     RETURN --> RESUME[Resume idle behavior]
 
-    style PERCEIVE fill:#e3f2fd,color:#000
-    style THINK fill:#fff3e0,color:#000
-    style ACT fill:#e8f5e9,color:#000
+    style PERCEIVE fill:#e3f2fd
+    style THINK fill:#fff3e0
+    style ACT fill:#e8f5e9
 ```
 
 ## Key Components
@@ -108,6 +109,7 @@ def _build_mcp_servers(self) -> dict[str, dict[str, Any]]:
 The **4-tier permission system** is enforced via SDK hooks. When Claude wants to use a tool, the SDK calls the permission hook **before** execution.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryTextColor': '#000', 'secondaryTextColor': '#000', 'tertiaryTextColor': '#000', 'lineColor': '#666'}}}%%
 flowchart LR
     REQ[Tool Request] --> HOOK{Permission Hook}
     HOOK -->|Tier 1| AUTO["Allow<br/>{}"]
@@ -115,10 +117,10 @@ flowchart LR
     HOOK -->|Tier 3| CONFIRM["Ask User<br/>{ask}"]
     HOOK -->|Tier 4| BLOCK["Block<br/>{deny}"]
 
-    style AUTO fill:#c8e6c9,color:#000
-    style NOTIFY fill:#fff9c4,color:#000
-    style CONFIRM fill:#ffe0b2,color:#000
-    style BLOCK fill:#ffcdd2,color:#000
+    style AUTO fill:#c8e6c9
+    style NOTIFY fill:#fff9c4
+    style CONFIRM fill:#ffe0b2
+    style BLOCK fill:#ffcdd2
 ```
 
 The hook returns one of:
@@ -229,6 +231,7 @@ The profile and last session get injected into the system prompt so Claude knows
 ## Complete Architecture Flow
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryTextColor': '#000', 'secondaryTextColor': '#000', 'tertiaryTextColor': '#000', 'lineColor': '#666'}}}%%
 flowchart TB
     subgraph Input["User Input"]
         USER[User Message]
@@ -282,8 +285,8 @@ flowchart TB
     DAEMON --> ROBOT
 
     style SDK fill:#7c4dff,color:#fff
-    style Claude fill:#f9a825,color:#000
-    style Hardware fill:#4caf50,color:#000
+    style Claude fill:#f9a825
+    style Hardware fill:#4caf50
 ```
 
 ## Usage Examples
