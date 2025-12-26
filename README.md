@@ -124,26 +124,36 @@ python -m reachy_agent run --mock
 ```
 claude-in-the-shell/
 ├── src/reachy_agent/
-│   ├── agent/              # Agent loop with MCP client
+│   ├── agent/              # Agent loop with Claude SDK client
 │   ├── behaviors/          # Idle behavior controller
 │   ├── cli/                # CLI REPL interface
 │   ├── errors/             # Error codes and responses
+│   ├── expressions/        # Antenna/emotion sequences
 │   ├── mcp_servers/        # MCP server implementations
 │   │   ├── reachy/         # 23 robot control tools
-│   │   └── memory/         # 4 memory system tools
+│   │   ├── memory/         # 4 memory system tools
+│   │   └── integrations/   # External service MCP servers
+│   ├── memory/             # Memory manager (ChromaDB + SQLite)
+│   ├── perception/         # Wake word, audio, vision (Phase 2)
 │   ├── permissions/        # 4-tier permission system
 │   │   ├── handlers/       # CLI and WebSocket handlers
 │   │   └── storage/        # SQLite audit logging
+│   ├── privacy/            # Privacy indicators (Phase 2)
+│   ├── resilience/         # Error recovery (Phase 2)
 │   ├── simulation/         # MuJoCo simulation bridge
 │   ├── web/                # FastAPI web dashboard
-│   └── utils/              # Config, logging
+│   │   ├── routes/         # API and WebSocket routes
+│   │   └── static/         # CSS and JavaScript assets
+│   └── utils/              # Config, logging utilities
 ├── ai_docs/                # AI agent reference materials
-├── config/                 # Configuration files
-├── docs/                   # Documentation
+├── config/                 # Configuration files (YAML)
+├── docs/                   # MkDocs documentation
+│   ├── api/                # Auto-generated API reference
 │   ├── tutorials/          # Getting started guides
-│   ├── architecture/       # System design
+│   ├── architecture/       # System design diagrams
+│   ├── guides/             # How-to guides
 │   └── planning/           # PRD, TRD, implementation docs
-├── tests/                  # Test suite (238 tests)
+├── tests/                  # Test suite
 └── scripts/                # Validation & demo scripts
 ```
 
