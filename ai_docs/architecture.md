@@ -74,6 +74,8 @@ agent.py (ReachyAgent)
 
 ## Component Structure
 
+> **Deep Dive:** For a comprehensive walkthrough of how the agent loop works, see the [ReachyAgentLoop Deep Dive](../docs/architecture/agent-loop.md).
+
 | Component | Responsibility | Location |
 |-----------|---------------|----------|
 | **Agent Core** | ClaudeSDKClient-based Perceive → Think → Act cycle | `src/reachy_agent/agent/agent.py` |

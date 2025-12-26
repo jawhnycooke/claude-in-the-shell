@@ -158,6 +158,14 @@ See [MCP Tools Reference](api/mcp-tools.md) for complete documentation.
 
     [:octicons-arrow-right-24: Overview](architecture/overview.md)
 
+-   :material-brain:{ .lg .middle } **ReachyAgentLoop Deep Dive**
+
+    ---
+
+    Learn how the Perceive → Think → Act cycle works under the hood.
+
+    [:octicons-arrow-right-24: Deep Dive](architecture/agent-loop.md)
+
 -   :material-api:{ .lg .middle } **API Reference**
 
     ---
