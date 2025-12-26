@@ -1,9 +1,11 @@
 # MCP Tools Quick Reference
 
-Compact reference for all **23 Reachy MCP tools** with parameters and permission tiers.
+Compact reference for all **27 MCP tools** (23 Reachy + 4 Memory) with parameters and permission tiers.
 
 > **Note:** Tools are discovered dynamically via MCP `ListTools` protocol.
-> Source: `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py`
+> Sources:
+> - Reachy: `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py`
+> - Memory: `src/reachy_agent/mcp_servers/memory/memory_mcp.py`
 
 ## Tool Summary
 
@@ -355,6 +357,101 @@ From `config/permissions.yaml`:
 - pattern: "mcp__banking__*"
 ```
 
+## Memory MCP Server (4 tools)
+
+The Memory MCP server provides semantic memory and user profile management.
+
+> **Source:** `src/reachy_agent/mcp_servers/memory/memory_mcp.py`
+
+### search_memories
+Semantic search over stored memories using ChromaDB vector similarity.
+```python
+await client.search_memories(query="What did we discuss yesterday?", limit=5)
+```
+| Param | Type | Default |
+|-------|------|---------|
+| query | string | required |
+| limit | 1-20 | 5 |
+| memory_type | string (optional) | None (all types) |
+
+**Memory Types:** `conversation`, `fact`, `preference`, `event`
+
+**Returns:** List of memories with similarity scores
+
+### store_memory
+Save a new memory with automatic type classification and embedding.
+```python
+await client.store_memory(
+    content="User prefers morning meetings",
+    memory_type="preference",
+    metadata={"source": "conversation"}
+)
+```
+| Param | Type | Default |
+|-------|------|---------|
+| content | string | required |
+| memory_type | string | "conversation" |
+| metadata | dict (optional) | {} |
+
+### get_user_profile
+Retrieve user profile with preferences and connected services.
+```python
+await client.get_user_profile(user_id="default")
+```
+| Param | Type | Default |
+|-------|------|---------|
+| user_id | string | "default" |
+
+**Returns:**
+| Field | Description |
+|-------|-------------|
+| name | User's display name |
+| preferences | Key-value preferences |
+| schedule_patterns | Recurring schedule info |
+| connected_services | Linked external services |
+
+### update_user_profile
+Update user profile preferences.
+```python
+await client.update_user_profile(
+    user_id="default",
+    name="Alice",
+    preferences={"wake_time": "7:00 AM", "voice": "friendly"}
+)
+```
+| Param | Type | Default |
+|-------|------|---------|
+| user_id | string | "default" |
+| name | string (optional) | unchanged |
+| preferences | dict (optional) | merged with existing |
+
+### Memory System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Memory MCP Server                             │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │  search_memories │ store_memory │ get_profile │ update_profile││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+        ┌─────────────────┐   ┌─────────────────┐
+        │    ChromaDB     │   │     SQLite      │
+        │ (Vector Store)  │   │ (User Profiles) │
+        │                 │   │                 │
+        │ • Semantic      │   │ • Preferences   │
+        │   embeddings    │   │ • Sessions      │
+        │ • Similarity    │   │ • Schedule      │
+        │   search        │   │   patterns      │
+        └─────────────────┘   └─────────────────┘
+```
+
+### Memory Tool Permission Tier
+
+All memory tools are **Tier 1 (Autonomous)** - they read/write to local storage only.
+
 ## Error Codes
 
 | Code | Description |
@@ -364,3 +461,4 @@ From `config/permissions.yaml`:
 | `TIMEOUT` | Operation timed out |
 | `NOT_READY` | Robot not initialized |
 | `PERMISSION_DENIED` | Action blocked by tier |
+| `MEMORY_ERROR` | Memory system failure (ChromaDB/SQLite) |

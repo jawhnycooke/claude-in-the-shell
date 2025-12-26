@@ -33,7 +33,7 @@ flowchart TB
         end
 
         subgraph MCP["MCP Layer (subprocess)"]
-            TOOLS["23 MCP Tools"]
+            TOOLS["27 MCP Tools"]
             IDLE["Idle Behaviors"]
         end
     end
@@ -99,7 +99,24 @@ See the [Getting Started Tutorial](docs/tutorials/getting-started.md) for comple
 On the Raspberry Pi with Reachy daemon running:
 
 ```bash
+# Interactive agent (connects to daemon at :8000)
 python -m reachy_agent run
+
+# Rich terminal REPL with slash commands
+python -m reachy_agent repl --daemon-url http://localhost:8000
+
+# Web dashboard (browser interface)
+python -m reachy_agent web --daemon-url http://localhost:8000
+
+# Health check
+python -m reachy_agent check
+```
+
+### Testing Without Hardware
+
+```bash
+# Run with mock daemon (no hardware or MuJoCo needed)
+python -m reachy_agent run --mock
 ```
 
 ## Project Structure
@@ -112,7 +129,8 @@ claude-in-the-shell/
 │   ├── cli/                # CLI REPL interface
 │   ├── errors/             # Error codes and responses
 │   ├── mcp_servers/        # MCP server implementations
-│   │   └── reachy/         # 23 robot control tools
+│   │   ├── reachy/         # 23 robot control tools
+│   │   └── memory/         # 4 memory system tools
 │   ├── permissions/        # 4-tier permission system
 │   │   ├── handlers/       # CLI and WebSocket handlers
 │   │   └── storage/        # SQLite audit logging
@@ -125,23 +143,34 @@ claude-in-the-shell/
 │   ├── tutorials/          # Getting started guides
 │   ├── architecture/       # System design
 │   └── planning/           # PRD, TRD, implementation docs
-├── tests/                  # Test suite (167 tests)
+├── tests/                  # Test suite (238 tests)
 └── scripts/                # Validation & demo scripts
 ```
 
 ## MCP Tools
 
-The Reachy MCP server exposes **23 tools** to Claude, discovered dynamically via MCP protocol:
+The agent exposes **27 tools** to Claude via two MCP servers, discovered dynamically via MCP protocol:
+
+### Reachy MCP Server (23 tools)
 
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Movement** (5) | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` | Head/body positioning, IK |
-| **Expression** (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` | Emotions from HuggingFace SDK |
+| **Expression** (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `dance` | Emotions from HuggingFace SDK |
 | **Audio** (2) | `speak`, `listen` | Speech I/O |
 | **Perception** (3) | `capture_image`, `get_sensor_data`, `look_at_sound` | Sensors and camera |
 | **Lifecycle** (3) | `wake_up`, `sleep`, `rest` | Power management |
 | **Status** (2) | `get_status`, `get_pose` | Robot state feedback |
 | **Control** (2) | `set_motor_mode`, `cancel_action` | Motor control, action cancellation |
+
+### Memory MCP Server (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `search_memories` | Semantic search over stored memories (ChromaDB) |
+| `store_memory` | Save a new memory with type classification |
+| `get_user_profile` | Retrieve user preferences and info (SQLite) |
+| `update_user_profile` | Update user preferences |
 
 See [MCP Tools Quick Reference](ai_docs/mcp-tools-quick-ref.md) for full parameter details.
 
@@ -198,9 +227,9 @@ ruff check .
 ### Phase 1: Foundation ✅ Complete
 - [x] Project scaffolding and configuration
 - [x] Reachy MCP server (23 tools with native SDK emotions)
-- [x] Claude Agent SDK integration with MCP subprocess
-- [x] 4-tier permission system with audit logging
-- [x] MuJoCo simulation testing (167 tests)
+- [x] Official Claude Agent SDK integration (`ClaudeSDKClient`)
+- [x] 4-tier permission system with SDK PreToolUse hooks
+- [x] MuJoCo simulation testing (238 tests)
 - [x] Web dashboard with real-time control
 - [x] CLI REPL interface
 - [x] Idle behavior controller

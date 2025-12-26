@@ -1,0 +1,89 @@
+site_name: Reachy Agent Documentation
+site_description: An embodied AI agent for Reachy Mini robot powered by Claude Agent SDK
+site_url: https://jawhnycooke.github.io/claude-in-the-shell
+repo_url: https://github.com/jawhnycooke/claude-in-the-shell
+repo_name: jawhnycooke/claude-in-the-shell
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            docstring_style: google
+            merge_init_into_class: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Tutorial: tutorials/getting-started.md
+    - Troubleshooting: guides/troubleshooting.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Diagrams: diagrams/README.md
+  - API Reference:
+    - Agent: api/agent.md
+    - MCP Servers: api/mcp-servers.md
+    - Permissions: api/permissions.md
+    - Memory: api/memory.md
+    - Simulation: api/simulation.md
+    - MCP Tools: api/mcp-tools.md
+  - Guides:
+    - Phase 2 Preparation: guides/phase2-preparation.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jawhnycooke/claude-in-the-shell

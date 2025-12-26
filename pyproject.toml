@@ -83,9 +83,18 @@ dev = [
     "uvicorn>=0.30.0",
 ]
 
+# Documentation
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.26.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.0",
+]
+
 # All optional dependencies
 all = [
-    "reachy-agent[perception,offline,dev]",
+    "reachy-agent[perception,offline,dev,docs]",
 ]
 
 [project.scripts]

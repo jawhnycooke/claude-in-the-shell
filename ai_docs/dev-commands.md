@@ -30,6 +30,59 @@ python scripts/live_demo.py
 python -m reachy_mini.daemon.app.main --sim --scene minimal --headless --fastapi-port 8765
 ```
 
+## CLI Commands
+
+The agent provides five commands via `python -m reachy_agent`:
+
+### run - Interactive Agent
+```bash
+# Run agent with production daemon (default port 8000)
+python -m reachy_agent run
+
+# Run with simulation daemon
+python -m reachy_agent run --daemon-url http://localhost:8765
+
+# Run with mock daemon (no external daemon needed)
+python -m reachy_agent run --mock
+
+# Run in non-interactive mode (headless)
+python -m reachy_agent run --non-interactive
+```
+
+### repl - Rich Terminal Interface
+```bash
+# Start REPL (defaults to simulation port 8765)
+python -m reachy_agent repl
+
+# With production daemon
+python -m reachy_agent repl --daemon-url http://localhost:8000
+
+# REPL slash commands: /help, /status, /history, /clear, /permissions, /quit
+```
+
+### web - Browser Dashboard
+```bash
+# Start web dashboard on port 8080 (daemon defaults to 8765)
+python -m reachy_agent web
+
+# Custom host and port
+python -m reachy_agent web --host 127.0.0.1 --port 3000
+
+# With production daemon
+python -m reachy_agent web --daemon-url http://localhost:8000 --debug
+```
+
+### check - Health Check
+```bash
+# Check configuration, API key, and daemon connectivity
+python -m reachy_agent check
+```
+
+### version - Show Version
+```bash
+python -m reachy_agent version
+```
+
 ## Code Quality
 
 ```bash
@@ -117,11 +170,18 @@ await client.rotate("left", degrees=45, speed="normal")
 
 ## Direct API Calls
 
+> **Port Reference:**
+> - `:8765` - MuJoCo simulation daemon (via `mjpython`)
+> - `:8000` - Production daemon (real Reachy hardware)
+
 ```bash
-# Status check
+# Status check (simulation)
 curl -s http://localhost:8765/api/daemon/status | python3 -m json.tool
 
-# Move head
+# Status check (production)
+curl -s http://localhost:8000/api/daemon/status | python3 -m json.tool
+
+# Move head (adjust port as needed)
 curl -X POST http://localhost:8765/api/move/goto \
   -H "Content-Type: application/json" \
   -d '{"head_pose": {"x": 0, "y": 0, "z": 0, "roll": 0, "pitch": 0, "yaw": 0.5}, "duration": 1.0}'
@@ -133,6 +193,7 @@ curl -X POST http://localhost:8765/api/move/goto \
 |------|---------|
 | `src/reachy_agent/simulation/reachy_client.py` | Robot client API |
 | `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` | MCP tool definitions (23 tools) |
+| `src/reachy_agent/mcp_servers/memory/memory_mcp.py` | Memory MCP tools (4 tools) |
 | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` | Daemon HTTP client |
 | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` | Mock daemon for testing |
 | `src/reachy_agent/permissions/hooks.py` | Permission enforcement |
@@ -168,7 +229,29 @@ python -c "import reachy_agent; print(reachy_agent.__file__)"
 
 ## MCP Testing
 
-### Start Mock Daemon
+### Mock Daemon (Testing Without Hardware)
+
+The mock daemon simulates Reachy hardware for testing without physical robot or MuJoCo:
+
+```bash
+# Option 1: Run mock daemon standalone (port 8000)
+python -m reachy_agent.mcp_servers.reachy.daemon_mock
+
+# Option 2: Use --mock flag with agent (starts mock automatically)
+python -m reachy_agent run --mock
+```
+
+**Mock daemon capabilities:**
+- ✅ All movement tools (move_head, look_at, rotate, etc.)
+- ✅ All expression tools (play_emotion, nod, shake, set_antenna_state)
+- ✅ Audio tools (speak, listen - simulated)
+- ✅ Lifecycle tools (wake_up, sleep, rest)
+- ✅ Status/pose tools (get_status, get_pose)
+- ⚠️ IK tools (look_at_world, look_at_pixel) - return mock success
+- ⚠️ play_recorded_move - skips HuggingFace download
+- ⚠️ set_motor_mode - no-op (no real motors)
+
+### Start Mock Daemon (Manual)
 ```bash
 # Terminal 1: Start the mock daemon
 source .venv/bin/activate

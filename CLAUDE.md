@@ -55,12 +55,13 @@ uvx pytest -v --cov=. --cov-report=html
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| **Agent Loop** | Perceive → Think → Act cycle + MCP client | `src/reachy_agent/agent/agent.py` |
+| **Agent Loop** | ClaudeSDKClient-based Perceive → Think → Act cycle | `src/reachy_agent/agent/agent.py` |
 | **Reachy MCP Server** | Exposes robot body as MCP tools (23 tools) | `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` |
+| **Memory MCP Server** | Semantic memory + user profiles (4 tools) | `src/reachy_agent/mcp_servers/memory/memory_mcp.py` |
 | **Daemon Client** | HTTP client for Reachy daemon API | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` |
 | **Mock Daemon** | Testing without hardware | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` |
-| **Permission Hooks** | 4-tier permission enforcement | `src/reachy_agent/permissions/` |
-| **Simulation Client** | High-level robot control | `src/reachy_agent/simulation/reachy_client.py` |
+| **Permission Hooks** | 4-tier permission enforcement (SDK hooks) | `src/reachy_agent/permissions/` |
+| **Memory Manager** | ChromaDB + SQLite storage backends | `src/reachy_agent/memory/` |
 
 ### Permission Tiers
 
@@ -75,19 +76,32 @@ uvx pytest -v --cov=. --cov-report=html
 - **Alert** - Motion detected, periodic Claude check-ins
 - **Engaged** - Active listening, full Claude API interaction
 
-## Reachy MCP Tools (23 tools)
+## MCP Tools (27 tools total)
 
-The Reachy MCP server exposes these tools organized by category:
+### Reachy MCP Server (23 tools)
+
+The Reachy MCP server exposes robot control tools organized by category:
 
 | Category | Tools |
 |----------|-------|
 | **Movement** | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` |
-| **Expression** | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` |
+| **Expression** | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `dance` |
 | **Audio** | `speak`, `listen` |
 | **Perception** | `capture_image`, `get_sensor_data`, `look_at_sound` |
-| **Lifecycle** | `wake_up`, `sleep` |
+| **Lifecycle** | `wake_up`, `sleep`, `rest` |
 | **Status** | `get_status`, `get_pose` |
 | **Control** | `set_motor_mode`, `cancel_action` |
+
+### Memory MCP Server (4 tools)
+
+The Memory MCP server provides semantic memory and user profile management:
+
+| Tool | Description |
+|------|-------------|
+| `search_memories` | Semantic search over stored memories |
+| `store_memory` | Save a new memory with type classification |
+| `get_user_profile` | Retrieve user preferences and info |
+| `update_user_profile` | Update user preferences |
 
 ### Native SDK Emotions
 
@@ -107,13 +121,15 @@ See `ai_docs/mcp-tools-quick-ref.md` for complete parameter details.
 
 ## Key Dependencies
 
-- `claude-agent-sdk` - Agent loop and MCP integration
-- `mcp` - Model Context Protocol Python SDK
-- `chromadb` - Vector storage for memory
-- `porcupine` / `openwakeword` - Wake word detection
-- `pyroomacoustics` - Spatial audio (sound localization)
-- `piper-tts` - Local TTS fallback
-- `opencv-python` - Vision processing
+- `claude-agent-sdk` - Official Claude Agent SDK (ClaudeSDKClient, hooks, MCP integration)
+- `chromadb` - Vector storage for semantic memory
+- `sentence-transformers` - Text embeddings for memory search
+- `httpx` - Async HTTP client for daemon communication
+- `pydantic` - Configuration and data validation
+- `structlog` - Structured logging
+- `rich` - Terminal UI for CLI
+- (optional) `porcupine` / `openwakeword` - Wake word detection
+- (optional) `piper-tts` - Local TTS fallback
 
 ## AI Agent Reference (ai_docs/)
 
@@ -167,13 +183,37 @@ uvx pytest --cov=src --cov-report=html
 
 ## Running the Agent
 
+### CLI Commands
+
 ```bash
-# Start the agent
+# Interactive agent (production daemon at :8000)
 python -m reachy_agent run
+
+# Interactive agent with simulation daemon
+python -m reachy_agent run --daemon-url http://localhost:8765
+
+# Run with mock daemon (no external daemon needed)
+python -m reachy_agent run --mock
+
+# Rich terminal REPL with slash commands
+python -m reachy_agent repl
+
+# Web dashboard (browser interface at :8080)
+python -m reachy_agent web
+
+# Health check
+python -m reachy_agent check
+
+# Version info
+python -m reachy_agent version
 
 # With debug logging
 REACHY_DEBUG=1 python -m reachy_agent run
+```
 
+### MCP Server Standalone
+
+```bash
 # Start mock daemon for testing
 python -m reachy_agent.mcp_servers.reachy.daemon_mock
 
