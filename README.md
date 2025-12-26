@@ -39,7 +39,7 @@ flowchart TB
     end
 
     subgraph Hardware["Reachy Mini"]
-        DAEMON["Daemon :8765 (sim)"]
+        DAEMON["Daemon API"]
         ROBOT["Head • Body • Antennas"]
     end
 
@@ -99,14 +99,17 @@ See the [Getting Started Tutorial](docs/tutorials/getting-started.md) for comple
 On the Raspberry Pi with Reachy daemon running:
 
 ```bash
-# Interactive agent (connects to daemon at :8000)
+# Interactive agent (defaults to :8000 for production)
 python -m reachy_agent run
 
-# Rich terminal REPL with slash commands
-python -m reachy_agent repl --daemon-url http://localhost:8000
+# Rich terminal REPL (defaults to :8765 for simulation)
+python -m reachy_agent repl
 
-# Web dashboard (browser interface)
-python -m reachy_agent web --daemon-url http://localhost:8000
+# Web dashboard (defaults to :8765 for simulation)
+python -m reachy_agent web
+
+# For production hardware, specify :8000
+python -m reachy_agent repl --daemon-url http://localhost:8000
 
 # Health check
 python -m reachy_agent check

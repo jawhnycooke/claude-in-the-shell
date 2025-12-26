@@ -285,7 +285,7 @@ Returns: `{status, connected, control_mode, ...}`
 ### get_pose
 Get current physical pose (proprioceptive feedback).
 ```python
-await client.get_current_pose()
+await client.get_pose()
 ```
 Returns:
 | Field | Description |

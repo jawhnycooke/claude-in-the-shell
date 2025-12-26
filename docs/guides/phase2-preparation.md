@@ -59,7 +59,7 @@ python scripts/validate_simulation.py --headless
 # Expected: ALL TESTS PASSED
 
 # 3. Verify MCP server starts
-python -c "from reachy_agent.mcp_servers.reachy import create_reachy_server; print('OK')"
+python -c "from reachy_agent.mcp_servers.reachy import create_reachy_mcp_server; print('OK')"
 # Expected: OK
 
 # 4. Verify agent loop
