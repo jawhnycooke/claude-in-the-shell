@@ -2,13 +2,20 @@
 
 Configures the Claude Agent with appropriate settings for
 embodied AI operation on Reachy Mini.
+
+Now uses the official Claude Agent SDK (ClaudeAgentOptions) for
+configuration. Maintains backwards compatibility with existing
+dictionary-based options.
 """
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
+
+from claude_agent_sdk import ClaudeAgentOptions, HookContext, HookMatcher
 
 from reachy_agent.utils.config import ClaudeModel
 from reachy_agent.utils.logging import get_logger
@@ -17,6 +24,11 @@ if TYPE_CHECKING:
     from reachy_agent.utils.config import ReachyConfig
 
 log = get_logger(__name__)
+
+# Type aliases for SDK hooks
+HookInput = dict[str, Any]
+HookJSONOutput = dict[str, Any]
+HookFunction = Callable[[HookInput, str | None, HookContext], HookJSONOutput]
 
 # Default prompts directory relative to project root
 PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
@@ -313,3 +325,98 @@ def create_agent_options(
             builder.with_mcp_server(server)
 
     return builder.build()
+
+
+# ─────────────────────────────────────────────────────────────────
+# SDK-Specific Factory Functions
+# ─────────────────────────────────────────────────────────────────
+
+
+def build_mcp_server_config(
+    daemon_url: str = "http://localhost:8000",
+    enable_memory: bool = True,
+) -> dict[str, dict[str, Any]]:
+    """Build MCP server configuration for SDK.
+
+    Creates stdio-based MCP server configurations that the SDK
+    will manage (launch subprocesses, handle transport).
+
+    Args:
+        daemon_url: URL of the Reachy daemon for robot control.
+        enable_memory: Whether to include memory MCP server.
+
+    Returns:
+        Dictionary mapping server names to their stdio configurations.
+    """
+    python_executable = sys.executable
+    servers: dict[str, dict[str, Any]] = {}
+
+    # Reachy MCP server (robot control - 23 tools)
+    servers["reachy"] = {
+        "type": "stdio",
+        "command": python_executable,
+        "args": ["-m", "reachy_agent.mcp_servers.reachy", daemon_url],
+    }
+
+    # Memory MCP server (4 tools)
+    if enable_memory:
+        servers["memory"] = {
+            "type": "stdio",
+            "command": python_executable,
+            "args": ["-m", "reachy_agent.mcp_servers.memory"],
+        }
+
+    return servers
+
+
+def build_sdk_agent_options(
+    system_prompt: str,
+    mcp_servers: dict[str, dict[str, Any]] | None = None,
+    permission_hook: HookFunction | None = None,
+    allowed_tools: list[str] | None = None,
+    max_turns: int = 10,
+    daemon_url: str = "http://localhost:8000",
+    enable_memory: bool = True,
+) -> ClaudeAgentOptions:
+    """Build ClaudeAgentOptions for the SDK.
+
+    Creates a fully-configured ClaudeAgentOptions instance for use
+    with ClaudeSDKClient. This is the primary factory for SDK usage.
+
+    Args:
+        system_prompt: System prompt for Claude.
+        mcp_servers: MCP server configuration. Uses defaults if None.
+        permission_hook: Optional PreToolUse hook for permissions.
+        allowed_tools: List of allowed MCP tools. Uses all if None.
+        max_turns: Maximum agent turns per query.
+        daemon_url: Reachy daemon URL (used if mcp_servers is None).
+        enable_memory: Enable memory MCP server (used if mcp_servers is None).
+
+    Returns:
+        Configured ClaudeAgentOptions instance.
+
+    Example:
+        >>> options = build_sdk_agent_options(
+        ...     system_prompt="You are Reachy, a helpful robot.",
+        ...     permission_hook=my_permission_hook,
+        ... )
+        >>> async with ClaudeSDKClient(options=options) as client:
+        ...     await client.query("Hello!")
+    """
+    # Use provided servers or build defaults
+    servers = mcp_servers or build_mcp_server_config(daemon_url, enable_memory)
+
+    # Build hooks if permission_hook provided
+    hooks: dict[str, list[HookMatcher]] | None = None
+    if permission_hook is not None:
+        hooks = {
+            "PreToolUse": [HookMatcher(matcher=None, hooks=[permission_hook])]
+        }
+
+    return ClaudeAgentOptions(
+        system_prompt=system_prompt,
+        mcp_servers=servers,
+        hooks=hooks,
+        allowed_tools=allowed_tools or [],
+        max_turns=max_turns,
+    )
