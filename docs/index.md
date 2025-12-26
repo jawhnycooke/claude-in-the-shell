@@ -47,7 +47,13 @@ flowchart TB
         subgraph Core["Agent Core"]
             LOOP["ReachyAgentLoop"]
             PERM["4-Tier Permissions"]
-            MEM["Memory System"]
+        end
+
+        subgraph Memory["Memory System"]
+            MGR["MemoryManager"]
+            CHROMA[("ChromaDB<br/>Vector Store")]
+            SQLITE[("SQLite<br/>Profiles")]
+            EMBED["Embeddings<br/>(MiniLM)"]
         end
 
         subgraph Interface["Interfaces"]
@@ -57,7 +63,7 @@ flowchart TB
 
         subgraph MCP["MCP Servers (stdio)"]
             REACHY["Reachy MCP (23)"]
-            MEMORY["Memory MCP (4)"]
+            MEMMCP["Memory MCP (4)"]
         end
     end
 
@@ -72,13 +78,18 @@ flowchart TB
     HOOKS --> PERM
     PERM --> MCPCLIENT
     MCPCLIENT -->|stdio| MCP
-    LOOP <--> MEM
+    LOOP <-->|context| MGR
+    MGR --> CHROMA
+    MGR --> SQLITE
+    MGR --> EMBED
+    MEMMCP --> MGR
     CLI --> LOOP
     WEB --> LOOP
     REACHY -->|HTTP| DAEMON
     DAEMON --> ROBOT
 
     style SDK fill:#7c4dff,color:#fff
+    style Memory fill:#e1bee7
     style CLAUDE fill:#f9a825
     style DAEMON fill:#4caf50
 ```
