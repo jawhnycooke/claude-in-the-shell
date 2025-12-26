@@ -418,7 +418,7 @@ The Reachy MCP server provides 23 tools organized by category:
 | Category | Tools | Mock Support |
 |----------|-------|--------------|
 | Movement (5) | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` | 3/5 |
-| Expression (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` | 5/6 |
+| Expression (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `dance` | 5/6 |
 | Audio (2) | `speak`, `listen` | 2/2 |
 | Perception (3) | `capture_image`, `get_sensor_data`, `look_at_sound` | 3/3 |
 | Lifecycle (3) | `wake_up`, `sleep`, `rest` | 3/3 |
