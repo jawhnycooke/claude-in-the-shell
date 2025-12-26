@@ -36,9 +36,9 @@ flowchart TB
     ACT --> RETURN[Return Response]
     RETURN --> RESUME[Resume idle behavior]
 
-    style PERCEIVE fill:#e3f2fd
-    style THINK fill:#fff3e0
-    style ACT fill:#e8f5e9
+    style PERCEIVE fill:#e3f2fd,color:#000
+    style THINK fill:#fff3e0,color:#000
+    style ACT fill:#e8f5e9,color:#000
 ```
 
 ## Key Components
@@ -115,10 +115,10 @@ flowchart LR
     HOOK -->|Tier 3| CONFIRM["Ask User<br/>{ask}"]
     HOOK -->|Tier 4| BLOCK["Block<br/>{deny}"]
 
-    style AUTO fill:#c8e6c9
-    style NOTIFY fill:#fff9c4
-    style CONFIRM fill:#ffe0b2
-    style BLOCK fill:#ffcdd2
+    style AUTO fill:#c8e6c9,color:#000
+    style NOTIFY fill:#fff9c4,color:#000
+    style CONFIRM fill:#ffe0b2,color:#000
+    style BLOCK fill:#ffcdd2,color:#000
 ```
 
 The hook returns one of:
@@ -282,8 +282,8 @@ flowchart TB
     DAEMON --> ROBOT
 
     style SDK fill:#7c4dff,color:#fff
-    style Claude fill:#f9a825
-    style Hardware fill:#4caf50
+    style Claude fill:#f9a825,color:#000
+    style Hardware fill:#4caf50,color:#000
 ```
 
 ## Usage Examples
