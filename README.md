@@ -33,13 +33,13 @@ flowchart TB
         end
 
         subgraph MCP["MCP Layer (subprocess)"]
-            TOOLS["23 MCP Tools"]
+            TOOLS["27 MCP Tools"]
             IDLE["Idle Behaviors"]
         end
     end
 
     subgraph Hardware["Reachy Mini"]
-        DAEMON["Daemon :8765"]
+        DAEMON["Daemon API"]
         ROBOT["Head • Body • Antennas"]
     end
 
@@ -99,7 +99,27 @@ See the [Getting Started Tutorial](docs/tutorials/getting-started.md) for comple
 On the Raspberry Pi with Reachy daemon running:
 
 ```bash
+# Interactive agent (defaults to :8000 for production)
 python -m reachy_agent run
+
+# Rich terminal REPL (defaults to :8765 for simulation)
+python -m reachy_agent repl
+
+# Web dashboard (defaults to :8765 for simulation)
+python -m reachy_agent web
+
+# For production hardware, specify :8000
+python -m reachy_agent repl --daemon-url http://localhost:8000
+
+# Health check
+python -m reachy_agent check
+```
+
+### Testing Without Hardware
+
+```bash
+# Run with mock daemon (no hardware or MuJoCo needed)
+python -m reachy_agent run --mock
 ```
 
 ## Project Structure
@@ -107,41 +127,73 @@ python -m reachy_agent run
 ```
 claude-in-the-shell/
 ├── src/reachy_agent/
-│   ├── agent/              # Agent loop with MCP client
+│   ├── agent/              # Agent loop with Claude SDK client
 │   ├── behaviors/          # Idle behavior controller
 │   ├── cli/                # CLI REPL interface
 │   ├── errors/             # Error codes and responses
+│   ├── expressions/        # Antenna/emotion sequences
 │   ├── mcp_servers/        # MCP server implementations
-│   │   └── reachy/         # 23 robot control tools
+│   │   ├── reachy/         # 23 robot control tools
+│   │   ├── memory/         # 4 memory system tools
+│   │   └── integrations/   # External service MCP servers
+│   ├── memory/             # Memory manager (ChromaDB + SQLite)
+│   │   └── storage/        # ChromaDB and SQLite backends
+│   ├── perception/         # Wake word, audio, vision (Phase 2)
 │   ├── permissions/        # 4-tier permission system
 │   │   ├── handlers/       # CLI and WebSocket handlers
 │   │   └── storage/        # SQLite audit logging
+│   ├── privacy/            # Privacy indicators (Phase 2)
+│   ├── resilience/         # Error recovery (Phase 2)
 │   ├── simulation/         # MuJoCo simulation bridge
 │   ├── web/                # FastAPI web dashboard
-│   └── utils/              # Config, logging
+│   │   ├── routes/         # API and WebSocket routes
+│   │   └── static/         # CSS and JavaScript assets
+│   └── utils/              # Config, logging utilities
 ├── ai_docs/                # AI agent reference materials
-├── config/                 # Configuration files
-├── docs/                   # Documentation
-│   ├── tutorials/          # Getting started guides
-│   ├── architecture/       # System design
-│   └── planning/           # PRD, TRD, implementation docs
-├── tests/                  # Test suite (167 tests)
-└── scripts/                # Validation & demo scripts
+├── config/                 # Configuration files (YAML)
+├── docs/                   # MkDocs documentation
+│   ├── api/                # Auto-generated API reference
+│   ├── architecture/       # System design diagrams
+│   ├── diagrams/           # Mermaid diagram source files
+│   ├── guides/             # How-to guides
+│   ├── planning/           # PRD, TRD, implementation docs
+│   └── tutorials/          # Getting started guides
+├── prompts/                # System prompt templates
+│   ├── context/            # Context injection templates
+│   ├── expressions/        # Expression prompt templates
+│   ├── integrations/       # Integration prompts
+│   └── system/             # Core system prompts
+├── scripts/                # Validation & demo scripts
+└── tests/                  # Test suite
+    ├── integration/        # Integration tests
+    ├── simulation/         # MuJoCo simulation tests
+    └── unit/               # Unit tests
 ```
 
 ## MCP Tools
 
-The Reachy MCP server exposes **23 tools** to Claude, discovered dynamically via MCP protocol:
+The agent exposes **27 tools** to Claude via two MCP servers, discovered dynamically via MCP protocol:
+
+### Reachy MCP Server (23 tools)
 
 | Category | Tools | Description |
 |----------|-------|-------------|
 | **Movement** (5) | `move_head`, `look_at`, `look_at_world`, `look_at_pixel`, `rotate` | Head/body positioning, IK |
-| **Expression** (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `rest` | Emotions from HuggingFace SDK |
+| **Expression** (6) | `play_emotion`, `play_recorded_move`, `set_antenna_state`, `nod`, `shake`, `dance` | Emotions from HuggingFace SDK |
 | **Audio** (2) | `speak`, `listen` | Speech I/O |
 | **Perception** (3) | `capture_image`, `get_sensor_data`, `look_at_sound` | Sensors and camera |
 | **Lifecycle** (3) | `wake_up`, `sleep`, `rest` | Power management |
 | **Status** (2) | `get_status`, `get_pose` | Robot state feedback |
 | **Control** (2) | `set_motor_mode`, `cancel_action` | Motor control, action cancellation |
+
+### Memory MCP Server (4 tools)
+
+| Tool | Description |
+|------|-------------|
+| `search_memories` | Semantic search over stored memories (ChromaDB) |
+| `store_memory` | Save a new memory with type classification |
+| `get_user_profile` | Retrieve user preferences and info (SQLite) |
+| `update_user_profile` | Update user preferences |
 
 See [MCP Tools Quick Reference](ai_docs/mcp-tools-quick-ref.md) for full parameter details.
 
@@ -198,9 +250,9 @@ ruff check .
 ### Phase 1: Foundation ✅ Complete
 - [x] Project scaffolding and configuration
 - [x] Reachy MCP server (23 tools with native SDK emotions)
-- [x] Claude Agent SDK integration with MCP subprocess
-- [x] 4-tier permission system with audit logging
-- [x] MuJoCo simulation testing (167 tests)
+- [x] Official Claude Agent SDK integration (`ClaudeSDKClient`)
+- [x] 4-tier permission system with SDK PreToolUse hooks
+- [x] MuJoCo simulation testing (238 tests)
 - [x] Web dashboard with real-time control
 - [x] CLI REPL interface
 - [x] Idle behavior controller

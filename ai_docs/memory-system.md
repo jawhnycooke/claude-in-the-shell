@@ -196,6 +196,104 @@ Claude calls: store_memory(
 )
 ```
 
+## MemoryManager API
+
+The `MemoryManager` class provides a unified programmatic interface:
+
+```python
+from reachy_agent.memory.manager import MemoryManager
+from reachy_agent.memory.types import MemoryType
+
+# Initialize
+manager = MemoryManager(
+    chroma_path="~/.reachy/memory/chroma",
+    sqlite_path="~/.reachy/memory/reachy.db",
+)
+await manager.initialize()
+
+# Session lifecycle
+session = await manager.start_session(user_id="alice")
+await manager.end_session(
+    summary_text="Discussed home automation",
+    key_topics=["lights", "thermostat"]
+)
+
+# Memory operations
+memory = await manager.store_memory(
+    "User has a cat named Luna",
+    MemoryType.FACT
+)
+results = await manager.search_memories("pets", n_results=5)
+count = await manager.memory_count()
+
+# Profile operations
+profile = await manager.get_profile()
+await manager.update_preference("greeting", "informal")
+
+# Cleanup old memories
+stats = await manager.cleanup()  # Returns {"memories_deleted": N, ...}
+
+# Close connections
+await manager.close()
+```
+
+## Data Models
+
+### Memory
+
+```python
+@dataclass
+class Memory:
+    id: str                    # Unique UUID
+    content: str               # Text content
+    memory_type: MemoryType    # Category enum
+    timestamp: datetime        # Creation time
+    metadata: dict[str, Any]   # Additional key-value data
+    embedding: list[float]     # Vector embedding (optional)
+```
+
+### SearchResult
+
+```python
+@dataclass
+class SearchResult:
+    memory: Memory
+    score: float  # Similarity score (0-1, higher = more similar)
+```
+
+## Troubleshooting
+
+### "ChromaDB initialization failed"
+
+```bash
+# Check disk space
+df -h ~/.reachy
+
+# Reset ChromaDB (loses memories)
+rm -rf ~/.reachy/memory/chroma
+python -m reachy_agent run  # Recreates on startup
+```
+
+### "Embedding model not found"
+
+```bash
+# Install sentence-transformers
+uv pip install sentence-transformers
+
+# Pre-download model
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+```
+
+### "SQLite database locked"
+
+```bash
+# Find processes using the database
+lsof ~/.reachy/memory/reachy.db
+
+# Kill conflicting processes
+kill <PID>
+```
+
 ## Disabling Memory
 
 To disable memory for a session:

@@ -327,3 +327,127 @@ def create_permission_hooks(
         evaluator = PermissionEvaluator()
 
     return PermissionHooks(evaluator=evaluator)
+
+
+# ─────────────────────────────────────────────────────────────────
+# Claude Agent SDK Hook Factory
+# ─────────────────────────────────────────────────────────────────
+
+# Type aliases for SDK hook compatibility
+SDKHookInput = dict[str, Any]
+SDKHookJSONOutput = dict[str, Any]
+
+
+def create_sdk_permission_hook(
+    evaluator: PermissionEvaluator | None = None,
+    config_path: str | None = None,
+) -> Callable[[SDKHookInput, str | None, Any], Awaitable[SDKHookJSONOutput]]:
+    """Create an SDK-compatible PreToolUse hook for permission enforcement.
+
+    This factory creates a hook function that can be used directly with
+    the Claude Agent SDK's HookMatcher. It implements the 4-tier permission
+    system (AUTONOMOUS, NOTIFY, CONFIRM, FORBIDDEN).
+
+    Args:
+        evaluator: Pre-configured PermissionEvaluator. Uses default if None.
+        config_path: Path to permissions.yaml. Used if evaluator is None.
+
+    Returns:
+        Async hook function compatible with SDK's PreToolUse hook format.
+
+    Example:
+        >>> hook = create_sdk_permission_hook()
+        >>> options = ClaudeAgentOptions(
+        ...     hooks={
+        ...         "PreToolUse": [HookMatcher(matcher=None, hooks=[hook])]
+        ...     }
+        ... )
+
+    Hook Return Values:
+        - Empty dict `{}`: Allow execution (AUTONOMOUS, NOTIFY tiers)
+        - `{"hookSpecificOutput": {..., "permissionDecision": "deny"}}`: Block (FORBIDDEN)
+        - `{"hookSpecificOutput": {..., "permissionDecision": "ask"}}`: Confirm (CONFIRM tier)
+    """
+    from pathlib import Path
+
+    from reachy_agent.permissions.tiers import PermissionConfig
+
+    # Create or use provided evaluator
+    if evaluator is None:
+        if config_path:
+            config = PermissionConfig.from_yaml(Path(config_path))
+            evaluator = PermissionEvaluator(config=config)
+        else:
+            evaluator = PermissionEvaluator()
+
+    # Capture evaluator in closure
+    perm_evaluator = evaluator
+
+    async def sdk_permission_hook(
+        input_data: SDKHookInput,
+        tool_use_id: str | None,
+        context: Any,
+    ) -> SDKHookJSONOutput:
+        """SDK-compatible PreToolUse hook for 4-tier permissions.
+
+        Args:
+            input_data: Contains tool_name and tool_input.
+            tool_use_id: Optional tool use ID for tracking.
+            context: SDK hook context.
+
+        Returns:
+            Hook output with permission decision.
+        """
+        tool_name = input_data.get("tool_name", "")
+        tool_input = input_data.get("tool_input", {})
+
+        # Strip SDK prefix to get original tool name
+        # SDK format: mcp__server__tool → extract tool
+        original_tool = tool_name
+        if tool_name.startswith("mcp__"):
+            parts = tool_name.split("__")
+            if len(parts) >= 3:
+                original_tool = parts[2]
+
+        # Evaluate permission tier
+        decision = perm_evaluator.evaluate(original_tool)
+
+        log.info(
+            "SDK permission hook evaluation",
+            tool_name=tool_name,
+            original_tool=original_tool,
+            tier=decision.tier.name,
+            allowed=decision.allowed,
+            reason=decision.reason,
+        )
+
+        # Handle based on tier
+        if decision.tier == PermissionTier.FORBIDDEN:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": f"Tool {original_tool} is forbidden: {decision.reason}",
+                }
+            }
+
+        if decision.needs_confirmation:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "ask",
+                    "permissionDecisionReason": f"Confirm {original_tool}? {decision.reason}",
+                }
+            }
+
+        if decision.should_notify:
+            log.info(
+                "NOTIFY tier: Executing tool",
+                tool=original_tool,
+                input=tool_input,
+            )
+
+        # AUTONOMOUS or NOTIFY: allow without blocking
+        return {}
+
+    return sdk_permission_hook

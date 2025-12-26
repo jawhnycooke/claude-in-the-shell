@@ -6,7 +6,7 @@ Consolidated system design reference for the Reachy Agent codebase.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Claude Agent SDK                              │
+│                    Claude Agent SDK (ClaudeSDKClient)            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
 │  │  Agent Loop  │  │    Hooks     │  │  Permissions │           │
 │  │  (Perceive → │  │ (PreToolUse) │  │    Tiers     │           │
@@ -15,41 +15,59 @@ Consolidated system design reference for the Reachy Agent codebase.
 │  └──────────────┘  └──────────────┘  └──────────────┘           │
 └─────────────────────────────────────────────────────────────────┘
                               │ MCP Protocol (stdio)
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              Reachy MCP Server (subprocess)                      │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  ListTools → 23 tools discovered dynamically                │ │
-│  │  CallTool  → Protocol execution via JSON-RPC                │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              │ HTTP :8000
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              Reachy Daemon (FastAPI) - Pollen Robotics          │
-│  Motors/Servos  │  Camera/IMU  │  Audio (4-mic array, speaker)  │
-└─────────────────────────────────────────────────────────────────┘
+            ┌─────────────────┼─────────────────┐
+            ▼                                   ▼
+┌─────────────────────────────────┐  ┌─────────────────────────────┐
+│    Reachy MCP Server (23)       │  │    Memory MCP Server (4)     │
+│  ┌─────────────────────────────┐│  │  ┌─────────────────────────┐│
+│  │  ListTools → 23 tools       ││  │  │ search_memories         ││
+│  │  CallTool  → Protocol exec  ││  │  │ store_memory            ││
+│  └─────────────────────────────┘│  │  │ get_user_profile        ││
+└─────────────────────────────────┘  │  │ update_user_profile     ││
+            │ HTTP :8000              │  └─────────────────────────┘│
+            ▼                         └────────────┬────────────────┘
+┌─────────────────────────────────┐               │
+│     Reachy Daemon (FastAPI)     │     ┌─────────┴─────────┐
+│  Motors  │  Camera  │   Audio   │     ▼                   ▼
+└─────────────────────────────────┘  ChromaDB            SQLite
+                                    (Vector)           (Profiles)
 ```
 
-### MCP Protocol Architecture (True MCP)
+### MCP Protocol Architecture (True MCP via SDK)
 
-The agent uses **true MCP protocol** for tool communication, not direct function calls:
+The agent uses the **official Claude Agent SDK** (`ClaudeSDKClient`) which manages MCP servers as subprocesses:
 
 ```
-agent.py (ReachyAgentLoop)
+agent.py (ReachyAgent)
     │
-    ├── MCP ClientSession (stdio transport)
-    │     │ subprocess spawn
-    │     ▼
-    └── reachy_mcp.py (MCP Server subprocess)
-          ├── ListTools → 23 tools discovered dynamically
-          ├── CallTool → Protocol execution
-          │     ▼
-          └── ReachyDaemonClient → Daemon HTTP API
+    ├── ClaudeSDKClient (manages MCP lifecycle)
+    │     │
+    │     ├── MCP Server: reachy (subprocess)
+    │     │     │ stdio transport
+    │     │     ▼
+    │     │   reachy_mcp.py → 23 tools
+    │     │     │
+    │     │     └── ReachyDaemonClient → Daemon HTTP API
+    │     │
+    │     └── MCP Server: memory (subprocess)
+    │           │ stdio transport
+    │           ▼
+    │         memory_mcp.py → 4 tools
+    │           │
+    │           ├── ChromaDB (semantic vectors)
+    │           └── SQLite (structured profiles)
+    │
+    └── PreToolUse Hook → 4-tier permission enforcement
 ```
+
+**SDK manages:**
+- **Subprocess lifecycle** - Spawns/terminates MCP servers automatically
+- **Tool discovery** - Calls `ListTools` at startup, prefixes with `mcp__<server>__`
+- **Hook execution** - Runs PreToolUse hooks before each tool call
+- **Session continuity** - Maintains context across multiple queries
 
 **Key Benefits:**
-- **Single source of truth** - Tools defined only in `reachy_mcp.py`
+- **Single source of truth** - Tools defined only in MCP servers
 - **Dynamic discovery** - Agent discovers tools at runtime via `ListTools`
 - **Community publishable** - `reachy-mcp` can be pip-installed as standalone
 - **Easy integrations** - Add Home Assistant MCP, GitHub MCP, etc.
@@ -58,10 +76,12 @@ agent.py (ReachyAgentLoop)
 
 | Component | Responsibility | Location |
 |-----------|---------------|----------|
-| **Agent Core** | Perceive → Think → Act cycle + MCP client | `src/reachy_agent/agent/agent.py` |
+| **Agent Core** | ClaudeSDKClient-based Perceive → Think → Act cycle | `src/reachy_agent/agent/agent.py` |
 | **Reachy MCP Server** | Robot body control tools (23 tools) | `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` |
+| **Memory MCP Server** | Semantic memory + user profiles (4 tools) | `src/reachy_agent/mcp_servers/memory/memory_mcp.py` |
 | **MCP Entry Point** | Standalone subprocess launcher | `src/reachy_agent/mcp_servers/reachy/__main__.py` |
-| **Permission Hooks** | 4-tier permission enforcement | `src/reachy_agent/permissions/` |
+| **Permission Hooks** | 4-tier permission enforcement (SDK PreToolUse) | `src/reachy_agent/permissions/hooks.py` |
+| **Memory Manager** | ChromaDB + SQLite storage backends | `src/reachy_agent/memory/` |
 | **Daemon Client** | HTTP client for hardware API | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` |
 | **Simulation Client** | High-level robot client | `src/reachy_agent/simulation/reachy_client.py` |
 
@@ -158,14 +178,25 @@ State transitions:
 | `src/reachy_agent/agent/agent.py` | Main agent loop + MCP client implementation |
 | `src/reachy_agent/agent/options.py` | Agent SDK configuration |
 
-### MCP Server
+### MCP Servers
 
 | File | Purpose |
 |------|---------|
-| `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` | MCP tool definitions (23 tools) |
-| `src/reachy_agent/mcp_servers/reachy/__main__.py` | Standalone subprocess entry point |
+| `src/reachy_agent/mcp_servers/reachy/reachy_mcp.py` | Reachy tool definitions (23 tools) |
+| `src/reachy_agent/mcp_servers/reachy/__main__.py` | Reachy subprocess entry point |
 | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` | HTTP client for daemon API |
 | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` | Mock server for testing |
+| `src/reachy_agent/mcp_servers/memory/memory_mcp.py` | Memory tool definitions (4 tools) |
+| `src/reachy_agent/mcp_servers/memory/__main__.py` | Memory subprocess entry point |
+
+### Memory System
+
+| File | Purpose |
+|------|---------|
+| `src/reachy_agent/memory/manager.py` | High-level MemoryManager facade |
+| `src/reachy_agent/memory/storage/vector_store.py` | ChromaDB vector storage |
+| `src/reachy_agent/memory/storage/sqlite_store.py` | SQLite profile/session storage |
+| `src/reachy_agent/memory/types.py` | Memory, UserProfile, SessionSummary types |
 
 ### Entry Points
 
@@ -195,12 +226,15 @@ State transitions:
 | Layer | Technology | Purpose |
 |-------|------------|---------|
 | LLM | Claude API | Reasoning, tool selection |
-| Agent SDK | `claude-agent-sdk` | Agent loop, hooks |
-| Protocol | MCP | Tool communication |
+| Agent SDK | `claude-agent-sdk` | ClaudeSDKClient, hooks, MCP integration |
+| Protocol | MCP (stdio) | Tool communication via subprocess |
 | HTTP | `httpx` | Async HTTP client |
 | Validation | `pydantic` | Type-safe config |
 | Logging | `structlog` | Structured logs |
-| Memory | ChromaDB + SQLite | Vector + structured storage |
+| Vector DB | `chromadb` | Semantic memory embeddings |
+| Embeddings | `sentence-transformers` | Text to vectors |
+| Structured DB | SQLite | User profiles, sessions |
+| CLI | `rich` + `typer` | Terminal UI |
 
 ## Hardware Reference
 
@@ -247,7 +281,9 @@ State transitions:
                         └───────────────┘
 ```
 
-## MCP Tools by Category
+## MCP Tools by Category (27 total)
+
+### Reachy MCP Server (23 tools)
 
 | Category | Tools | Mock Support |
 |----------|-------|--------------|
@@ -258,6 +294,13 @@ State transitions:
 | **Lifecycle** (3) | wake_up, sleep, rest | 3/3 |
 | **Status** (2) | get_status, get_pose | 2/2 |
 | **Control** (2) | set_motor_mode, cancel_action | 1/2 (motor mode needs real daemon) |
+
+### Memory MCP Server (4 tools)
+
+| Category | Tools | Storage |
+|----------|-------|---------|
+| **Semantic** (2) | search_memories, store_memory | ChromaDB (vectors) |
+| **Profile** (2) | get_user_profile, update_user_profile | SQLite (structured) |
 
 ### Native SDK Emotions
 
