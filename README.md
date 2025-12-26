@@ -39,7 +39,7 @@ flowchart TB
     end
 
     subgraph Hardware["Reachy Mini"]
-        DAEMON["Daemon :8765"]
+        DAEMON["Daemon :8765 (sim)"]
         ROBOT["Head • Body • Antennas"]
     end
 
@@ -134,6 +134,7 @@ claude-in-the-shell/
 │   │   ├── memory/         # 4 memory system tools
 │   │   └── integrations/   # External service MCP servers
 │   ├── memory/             # Memory manager (ChromaDB + SQLite)
+│   │   └── storage/        # ChromaDB and SQLite backends
 │   ├── perception/         # Wake word, audio, vision (Phase 2)
 │   ├── permissions/        # 4-tier permission system
 │   │   ├── handlers/       # CLI and WebSocket handlers
@@ -149,12 +150,21 @@ claude-in-the-shell/
 ├── config/                 # Configuration files (YAML)
 ├── docs/                   # MkDocs documentation
 │   ├── api/                # Auto-generated API reference
-│   ├── tutorials/          # Getting started guides
 │   ├── architecture/       # System design diagrams
+│   ├── diagrams/           # Mermaid diagram source files
 │   ├── guides/             # How-to guides
-│   └── planning/           # PRD, TRD, implementation docs
-├── tests/                  # Test suite
-└── scripts/                # Validation & demo scripts
+│   ├── planning/           # PRD, TRD, implementation docs
+│   └── tutorials/          # Getting started guides
+├── prompts/                # System prompt templates
+│   ├── context/            # Context injection templates
+│   ├── expressions/        # Expression prompt templates
+│   ├── integrations/       # Integration prompts
+│   └── system/             # Core system prompts
+├── scripts/                # Validation & demo scripts
+└── tests/                  # Test suite
+    ├── integration/        # Integration tests
+    ├── simulation/         # MuJoCo simulation tests
+    └── unit/               # Unit tests
 ```
 
 ## MCP Tools

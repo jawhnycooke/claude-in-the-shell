@@ -52,7 +52,7 @@ flowchart TB
     end
 
     subgraph Hardware["Reachy Mini"]
-        DAEMON["Daemon :8765"]
+        DAEMON["Daemon :8765 (sim)"]
         ROBOT["Head | Body | Antennas"]
     end
 
