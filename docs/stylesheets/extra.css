@@ -1,0 +1,81 @@
+/* Custom styles for Reachy Agent Documentation */
+
+/* Fix Mermaid diagram text colors in dark mode */
+/* The Material theme's dark mode (slate scheme) causes text to inherit light colors */
+/* This forces black text on the light-colored diagram backgrounds */
+
+/* Target all text elements inside Mermaid diagrams in dark mode */
+[data-md-color-scheme="slate"] .mermaid text {
+    fill: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid span {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .nodeLabel {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .label {
+    color: #000 !important;
+    fill: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .node .label {
+    color: #000 !important;
+    fill: #000 !important;
+}
+
+/* Subgraph titles */
+[data-md-color-scheme="slate"] .mermaid .cluster-label .nodeLabel {
+    color: #000 !important;
+    fill: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .cluster-label span {
+    color: #000 !important;
+}
+
+/* Edge labels (text on arrows) */
+[data-md-color-scheme="slate"] .mermaid .edgeLabel {
+    color: #000 !important;
+    fill: #000 !important;
+    background-color: transparent !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .edgeLabel span {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .edgeLabel .label {
+    color: #000 !important;
+    fill: #000 !important;
+}
+
+/* Ensure foreignObject content (used for labels) has black text */
+[data-md-color-scheme="slate"] .mermaid foreignObject {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid foreignObject div {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid foreignObject p {
+    color: #000 !important;
+}
+
+/* Flowchart specific selectors */
+[data-md-color-scheme="slate"] .mermaid .flowchart-link {
+    stroke: #333 !important;
+}
+
+/* Generic catch-all for any remaining text */
+[data-md-color-scheme="slate"] .mermaid g.label {
+    color: #000 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid g.label div {
+    color: #000 !important;
+}

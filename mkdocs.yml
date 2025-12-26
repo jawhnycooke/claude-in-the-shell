@@ -7,18 +7,18 @@ repo_name: jawhnycooke/claude-in-the-shell
 theme:
   name: material
   palette:
-    - scheme: slate
-      primary: deep purple
-      accent: purple
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
     - scheme: default
       primary: deep purple
       accent: purple
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
     - navigation.instant
     - navigation.tabs
@@ -93,3 +93,6 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/jawhnycooke/claude-in-the-shell
+
+extra_css:
+  - stylesheets/extra.css
