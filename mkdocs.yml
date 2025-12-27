@@ -83,6 +83,7 @@ nav:
   - API Reference:
     - Agent: api/agent.md
     - MCP Servers: api/mcp-servers.md
+    - Motion Blending: api/motion-blending.md
     - Permissions: api/permissions.md
     - Memory: api/memory.md
     - Simulation: api/simulation.md
