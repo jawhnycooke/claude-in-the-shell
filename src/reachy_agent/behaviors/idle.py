@@ -117,9 +117,9 @@ class IdleBehaviorController:
         controller = IdleBehaviorController(client)
         await controller.start()
         # ... later when user starts talking ...
-        controller.pause()
+        await controller.pause()
         # ... after conversation ends ...
-        controller.resume()
+        await controller.resume()
         # ... when shutting down ...
         await controller.stop()
 

@@ -309,6 +309,33 @@ class TestHeadWobble:
 # =============================================================================
 
 
+class FailingMotionSource:
+    """A motion source that raises exceptions for testing error handling."""
+
+    def __init__(self, fail_on_contribution: bool = True) -> None:
+        self._active = False
+        self._fail_on_contribution = fail_on_contribution
+
+    @property
+    def priority(self) -> MotionPriority:
+        return MotionPriority.PRIMARY
+
+    @property
+    def is_active(self) -> bool:
+        return self._active
+
+    async def start(self) -> None:
+        self._active = True
+
+    async def stop(self) -> None:
+        self._active = False
+
+    async def get_contribution(self, base_pose: HeadPose) -> HeadPose:
+        if self._fail_on_contribution:
+            raise RuntimeError("Simulated motion source failure")
+        return HeadPose.neutral()
+
+
 class TestMotionBlendController:
     """Tests for MotionBlendController orchestration."""
 
@@ -438,6 +465,113 @@ class TestMotionBlendController:
         assert "active_secondaries" in status
         assert "registered_sources" in status
         assert "breathing" in status["registered_sources"]
+
+    @pytest.mark.asyncio
+    async def test_control_loop_continues_on_source_exception(self) -> None:
+        """Test that control loop continues running when a motion source raises."""
+        sent_poses: list[HeadPose] = []
+
+        async def capture_pose(pose: HeadPose) -> None:
+            sent_poses.append(pose)
+
+        config = BlendControllerConfig(
+            tick_rate_hz=100.0,
+            command_rate_hz=50.0,
+        )
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=capture_pose,
+        )
+
+        # Register a failing source
+        failing_source = FailingMotionSource(fail_on_contribution=True)
+        controller.register_source("failing", failing_source)
+
+        # Start controller and activate failing source
+        await controller.start()
+        await controller.set_primary("failing")
+
+        # Let it run for a bit - should not crash
+        await asyncio.sleep(0.15)
+
+        # Controller should still be running despite exceptions
+        assert controller.is_running
+
+        await controller.stop()
+
+    @pytest.mark.asyncio
+    async def test_control_loop_continues_on_callback_exception(self) -> None:
+        """Test that control loop continues when pose callback raises."""
+        call_count = 0
+
+        async def failing_callback(pose: HeadPose) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError("Simulated daemon callback failure")
+
+        config = BlendControllerConfig(
+            tick_rate_hz=100.0,
+            command_rate_hz=50.0,
+        )
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=failing_callback,
+        )
+
+        # Register a working source
+        breathing = BreathingMotion()
+        controller.register_source("breathing", breathing)
+
+        await controller.start()
+        await controller.set_primary("breathing")
+
+        # Let it run - should continue despite callback failures
+        await asyncio.sleep(0.15)
+
+        assert controller.is_running
+        assert call_count >= 3  # Should have attempted multiple calls
+
+        await controller.stop()
+
+    @pytest.mark.asyncio
+    async def test_control_loop_recovers_after_source_fixed(self) -> None:
+        """Test that control loop recovers when source stops failing."""
+        sent_poses: list[HeadPose] = []
+
+        async def capture_pose(pose: HeadPose) -> None:
+            sent_poses.append(pose)
+
+        config = BlendControllerConfig(
+            tick_rate_hz=100.0,
+            command_rate_hz=50.0,
+        )
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=capture_pose,
+        )
+
+        # Register a source that initially fails
+        failing_source = FailingMotionSource(fail_on_contribution=True)
+        controller.register_source("failing", failing_source)
+
+        await controller.start()
+        await controller.set_primary("failing")
+
+        # Let it run with failures
+        await asyncio.sleep(0.1)
+
+        # Fix the source
+        failing_source._fail_on_contribution = False
+
+        # Let it run after fix
+        await asyncio.sleep(0.1)
+
+        assert controller.is_running
+        # Should have received poses after the fix
+        assert len(sent_poses) > 0
+
+        await controller.stop()
 
 
 # =============================================================================

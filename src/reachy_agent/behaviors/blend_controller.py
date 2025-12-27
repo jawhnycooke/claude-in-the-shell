@@ -15,7 +15,6 @@ Based on MovementManager pattern from Pollen Robotics' Conversation App.
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
@@ -27,8 +26,9 @@ from reachy_agent.behaviors.motion_types import (
     PoseLimits,
     PoseOffset,
 )
+from reachy_agent.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 @dataclass
@@ -52,8 +52,10 @@ class BlendControllerConfig:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BlendControllerConfig:
         """Create from dictionary."""
-        pose_limits_data = data.pop("pose_limits", None)
-        config = cls(**{k: v for k, v in data.items() if hasattr(cls, k)})
+        pose_limits_data = data.get("pose_limits")
+        # Filter out pose_limits when creating config to avoid passing it twice
+        filtered_data = {k: v for k, v in data.items() if hasattr(cls, k) and k != "pose_limits"}
+        config = cls(**filtered_data)
         if pose_limits_data:
             config.pose_limits = PoseLimits.from_dict(pose_limits_data)
         return config
@@ -149,7 +151,7 @@ class MotionBlendController:
             source: Motion source implementing the MotionSource protocol.
         """
         self._sources[name] = source
-        logger.debug(f"Registered motion source: {name} (priority: {source.priority})")
+        log.debug("Registered motion source", name=name, priority=source.priority)
 
     def unregister_source(self, name: str) -> None:
         """Unregister a motion source.
@@ -163,7 +165,7 @@ class MotionBlendController:
                 self._active_primary = None
             self._active_secondaries.discard(name)
             del self._sources[name]
-            logger.debug(f"Unregistered motion source: {name}")
+            log.debug("Unregistered motion source", name=name)
 
     async def set_primary(self, name: str | None) -> None:
         """Set the active primary motion source.
@@ -179,7 +181,7 @@ class MotionBlendController:
             source = self._sources.get(self._active_primary)
             if source:
                 await source.stop()
-                logger.info(f"Stopped primary motion: {self._active_primary}")
+                log.info("Stopped primary motion", name=self._active_primary)
 
         # Start new primary
         if name:
@@ -187,11 +189,11 @@ class MotionBlendController:
             if source and source.priority == MotionPriority.PRIMARY:
                 await source.start()
                 self._active_primary = name
-                logger.info(f"Started primary motion: {name}")
+                log.info("Started primary motion", name=name)
             elif source:
-                logger.warning(f"Source {name} is not PRIMARY priority")
+                log.warning("Source is not PRIMARY priority", name=name)
             else:
-                logger.warning(f"Unknown motion source: {name}")
+                log.warning("Unknown motion source", name=name)
         else:
             self._active_primary = None
 
@@ -207,11 +209,11 @@ class MotionBlendController:
         if source and source.priority == MotionPriority.SECONDARY:
             await source.start()
             self._active_secondaries.add(name)
-            logger.info(f"Enabled secondary motion: {name}")
+            log.info("Enabled secondary motion", name=name)
         elif source:
-            logger.warning(f"Source {name} is not SECONDARY priority")
+            log.warning("Source is not SECONDARY priority", name=name)
         else:
-            logger.warning(f"Unknown motion source: {name}")
+            log.warning("Unknown motion source", name=name)
 
     async def disable_secondary(self, name: str) -> None:
         """Disable a secondary motion source.
@@ -223,7 +225,7 @@ class MotionBlendController:
         if source:
             await source.stop()
             self._active_secondaries.discard(name)
-            logger.info(f"Disabled secondary motion: {name}")
+            log.info("Disabled secondary motion", name=name)
 
     def set_listening(self, listening: bool) -> None:
         """Set listening state (freezes antennas during user speech).
@@ -238,28 +240,28 @@ class MotionBlendController:
             # Entering listening state - capture current antenna positions
             self._frozen_antenna_left = self._current_pose.left_antenna
             self._frozen_antenna_right = self._current_pose.right_antenna
-            logger.debug("Entering listening state - antennas frozen")
+            log.debug("Entering listening state - antennas frozen")
         elif not listening and self._listening:
-            logger.debug("Exiting listening state - antennas unfrozen")
+            log.debug("Exiting listening state - antennas unfrozen")
 
         self._listening = listening
 
     async def start(self) -> None:
         """Start the motion blend control loop."""
         if self._running:
-            logger.warning("Blend controller already running")
+            log.warning("Blend controller already running")
             return
 
         if not self.config.enabled:
-            logger.info("Motion blending is disabled in config")
+            log.info("Motion blending is disabled in config")
             return
 
         self._running = True
         self._task = asyncio.create_task(self._control_loop())
-        logger.info(
-            f"Motion blend controller started "
-            f"(tick: {self.config.tick_rate_hz}Hz, "
-            f"command: {self.config.command_rate_hz}Hz)"
+        log.info(
+            "Motion blend controller started",
+            tick_rate_hz=self.config.tick_rate_hz,
+            command_rate_hz=self.config.command_rate_hz,
         )
 
     async def stop(self) -> None:
@@ -286,7 +288,7 @@ class MotionBlendController:
                 await source.stop()
 
         self._active_secondaries.clear()
-        logger.info("Motion blend controller stopped")
+        log.info("Motion blend controller stopped")
 
     async def _control_loop(self) -> None:
         """Main control loop - runs at tick_rate_hz."""
@@ -335,7 +337,7 @@ class MotionBlendController:
                     self._last_command_time = datetime.now()
 
             except Exception as e:
-                logger.exception(f"Error in blend control loop: {e}")
+                log.exception("Error in blend control loop", error=str(e))
 
             # Maintain tick rate
             elapsed = (datetime.now() - loop_start).total_seconds()
@@ -402,7 +404,7 @@ class MotionBlendController:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
-                logger.exception(f"Error sending pose to daemon: {e}")
+                log.exception("Error sending pose to daemon", error=str(e))
 
     def get_status(self) -> dict[str, Any]:
         """Get current controller status for debugging.
