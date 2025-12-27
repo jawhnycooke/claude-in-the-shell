@@ -434,3 +434,52 @@ await client.set_antenna_state(left_angle=60, right_angle=60)
 await client.nod(times=3)
 await client.set_antenna_state(left_angle=70, right_angle=70)
 ```
+
+## Local Emotions Library
+
+### Download/Update Bundled Emotions
+
+```bash
+# Download all 81 emotions from HuggingFace (one-time)
+python scripts/download_emotions.py
+```
+
+This creates `data/emotions/` with:
+- 78 emotion JSON files (curious1.json, cheerful1.json, etc.)
+- 3 dance JSON files (dance1.json, dance2.json, dance3.json)
+- Audio files (.wav) for each emotion
+- manifest.json index file
+
+### Using the EmotionLoader
+
+```python
+from reachy_agent.emotions.loader import EmotionLoader, get_emotion_loader
+
+# Get the singleton loader
+loader = get_emotion_loader()
+
+# List available emotions
+print(loader.list_emotions())  # ['amazed1', 'anxiety1', ...]
+print(loader.list_dances())    # ['dance1', 'dance2', 'dance3']
+
+# Load emotion data
+emotion = loader.get_emotion("curious1")
+print(f"Duration: {emotion.duration_ms}ms, Keyframes: {len(emotion.keyframes)}")
+
+# Check for audio
+if emotion.audio_file:
+    print(f"Audio: {emotion.audio_file}")
+```
+
+### Priority Order
+
+`play_emotion()` and `dance()` use this priority:
+1. **Local** (`data/emotions/`) - fastest, offline, **motion only**
+2. **HuggingFace** - network fallback, **includes audio**
+3. **Custom** - for emotions not in SDK
+
+### Audio Behavior
+
+- **Local playback**: Motion only (head, antennas, body) - no audio
+- **HuggingFace fallback**: Motion + audio on robot's speaker (requires network)
+- **Bundled .wav files**: Reserved for future daemon audio endpoint support

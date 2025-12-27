@@ -1,0 +1,495 @@
+{
+  "dances": {
+    "dance1": {
+      "audio": "dance1.wav",
+      "duration_ms": 3240.126848220825,
+      "file": "dance1.json",
+      "keyframe_count": 323
+    },
+    "dance2": {
+      "audio": "dance2.wav",
+      "duration_ms": 17276.817083358765,
+      "file": "dance2.json",
+      "keyframe_count": 1718
+    },
+    "dance3": {
+      "audio": "dance3.wav",
+      "duration_ms": 18376.26886367798,
+      "file": "dance3.json",
+      "keyframe_count": 1827
+    }
+  },
+  "downloaded_at": "2025-12-27T22:06:30.031276+00:00",
+  "emotions": {
+    "amazed1": {
+      "audio": "amazed1.wav",
+      "duration_ms": 3431.898355484009,
+      "file": "amazed1.json",
+      "keyframe_count": 342
+    },
+    "anxiety1": {
+      "audio": "anxiety1.wav",
+      "duration_ms": 8120.742082595825,
+      "file": "anxiety1.json",
+      "keyframe_count": 808
+    },
+    "attentive1": {
+      "audio": "attentive1.wav",
+      "duration_ms": 4286.602258682251,
+      "file": "attentive1.json",
+      "keyframe_count": 427
+    },
+    "attentive2": {
+      "audio": "attentive2.wav",
+      "duration_ms": 6461.090803146362,
+      "file": "attentive2.json",
+      "keyframe_count": 643
+    },
+    "boredom1": {
+      "audio": "boredom1.wav",
+      "duration_ms": 15709.056377410889,
+      "file": "boredom1.json",
+      "keyframe_count": 1562
+    },
+    "boredom2": {
+      "audio": "boredom2.wav",
+      "duration_ms": 14187.95132637024,
+      "file": "boredom2.json",
+      "keyframe_count": 1411
+    },
+    "calming1": {
+      "audio": "calming1.wav",
+      "duration_ms": 6066.950082778931,
+      "file": "calming1.json",
+      "keyframe_count": 604
+    },
+    "cheerful1": {
+      "audio": "cheerful1.wav",
+      "duration_ms": 2807.887315750122,
+      "file": "cheerful1.json",
+      "keyframe_count": 280
+    },
+    "come1": {
+      "audio": "come1.wav",
+      "duration_ms": 3169.8014736175537,
+      "file": "come1.json",
+      "keyframe_count": 316
+    },
+    "confused1": {
+      "audio": "confused1.wav",
+      "duration_ms": 7890.226364135742,
+      "file": "confused1.json",
+      "keyframe_count": 785
+    },
+    "contempt1": {
+      "audio": "contempt1.wav",
+      "duration_ms": 3562.4616146087646,
+      "file": "contempt1.json",
+      "keyframe_count": 355
+    },
+    "curious1": {
+      "audio": "curious1.wav",
+      "duration_ms": 11794.962882995605,
+      "file": "curious1.json",
+      "keyframe_count": 1173
+    },
+    "disgusted1": {
+      "audio": "disgusted1.wav",
+      "duration_ms": 6952.827453613281,
+      "file": "disgusted1.json",
+      "keyframe_count": 692
+    },
+    "displeased1": {
+      "audio": "displeased1.wav",
+      "duration_ms": 3370.830297470093,
+      "file": "displeased1.json",
+      "keyframe_count": 336
+    },
+    "displeased2": {
+      "audio": "displeased2.wav",
+      "duration_ms": 2957.369804382324,
+      "file": "displeased2.json",
+      "keyframe_count": 295
+    },
+    "downcast1": {
+      "audio": "downcast1.wav",
+      "duration_ms": 5896.173477172852,
+      "file": "downcast1.json",
+      "keyframe_count": 587
+    },
+    "dying1": {
+      "audio": "dying1.wav",
+      "duration_ms": 5695.227861404419,
+      "file": "dying1.json",
+      "keyframe_count": 567
+    },
+    "electric1": {
+      "audio": "electric1.wav",
+      "duration_ms": 3502.049207687378,
+      "file": "electric1.json",
+      "keyframe_count": 349
+    },
+    "enthusiastic1": {
+      "audio": "enthusiastic1.wav",
+      "duration_ms": 2726.6201972961426,
+      "file": "enthusiastic1.json",
+      "keyframe_count": 272
+    },
+    "enthusiastic2": {
+      "audio": "enthusiastic2.wav",
+      "duration_ms": 3431.1859607696533,
+      "file": "enthusiastic2.json",
+      "keyframe_count": 342
+    },
+    "exhausted1": {
+      "audio": "exhausted1.wav",
+      "duration_ms": 18263.383626937866,
+      "file": "exhausted1.json",
+      "keyframe_count": 1816
+    },
+    "fear1": {
+      "audio": "fear1.wav",
+      "duration_ms": 3482.346296310425,
+      "file": "fear1.json",
+      "keyframe_count": 347
+    },
+    "frustrated1": {
+      "audio": "frustrated1.wav",
+      "duration_ms": 5976.291656494141,
+      "file": "frustrated1.json",
+      "keyframe_count": 595
+    },
+    "furious1": {
+      "audio": "furious1.wav",
+      "duration_ms": 5725.651264190674,
+      "file": "furious1.json",
+      "keyframe_count": 570
+    },
+    "go_away1": {
+      "audio": "go_away1.wav",
+      "duration_ms": 4850.226402282715,
+      "file": "go_away1.json",
+      "keyframe_count": 483
+    },
+    "grateful1": {
+      "audio": "grateful1.wav",
+      "duration_ms": 2516.026496887207,
+      "file": "grateful1.json",
+      "keyframe_count": 251
+    },
+    "helpful1": {
+      "audio": "helpful1.wav",
+      "duration_ms": 4365.979433059692,
+      "file": "helpful1.json",
+      "keyframe_count": 435
+    },
+    "helpful2": {
+      "audio": "helpful2.wav",
+      "duration_ms": 3844.0709114074707,
+      "file": "helpful2.json",
+      "keyframe_count": 383
+    },
+    "impatient1": {
+      "audio": "impatient1.wav",
+      "duration_ms": 4024.7414112091064,
+      "file": "impatient1.json",
+      "keyframe_count": 401
+    },
+    "impatient2": {
+      "audio": "impatient2.wav",
+      "duration_ms": 3904.1597843170166,
+      "file": "impatient2.json",
+      "keyframe_count": 389
+    },
+    "incomprehensible2": {
+      "audio": "incomprehensible2.wav",
+      "duration_ms": 3442.0034885406494,
+      "file": "incomprehensible2.json",
+      "keyframe_count": 343
+    },
+    "indifferent1": {
+      "audio": "indifferent1.wav",
+      "duration_ms": 2577.057361602783,
+      "file": "indifferent1.json",
+      "keyframe_count": 257
+    },
+    "inquiring1": {
+      "audio": "inquiring1.wav",
+      "duration_ms": 2153.8288593292236,
+      "file": "inquiring1.json",
+      "keyframe_count": 215
+    },
+    "inquiring2": {
+      "audio": "inquiring2.wav",
+      "duration_ms": 2595.691442489624,
+      "file": "inquiring2.json",
+      "keyframe_count": 259
+    },
+    "inquiring3": {
+      "audio": "inquiring3.wav",
+      "duration_ms": 2938.7073516845703,
+      "file": "inquiring3.json",
+      "keyframe_count": 293
+    },
+    "irritated1": {
+      "audio": "irritated1.wav",
+      "duration_ms": 2484.901189804077,
+      "file": "irritated1.json",
+      "keyframe_count": 248
+    },
+    "irritated2": {
+      "audio": "irritated2.wav",
+      "duration_ms": 5272.380828857422,
+      "file": "irritated2.json",
+      "keyframe_count": 525
+    },
+    "laughing1": {
+      "audio": "laughing1.wav",
+      "duration_ms": 4658.566236495972,
+      "file": "laughing1.json",
+      "keyframe_count": 464
+    },
+    "laughing2": {
+      "audio": "laughing2.wav",
+      "duration_ms": 2927.704334259033,
+      "file": "laughing2.json",
+      "keyframe_count": 292
+    },
+    "lonely1": {
+      "audio": "lonely1.wav",
+      "duration_ms": 10233.729600906372,
+      "file": "lonely1.json",
+      "keyframe_count": 1018
+    },
+    "lost1": {
+      "audio": "lost1.wav",
+      "duration_ms": 8130.6116580963135,
+      "file": "lost1.json",
+      "keyframe_count": 809
+    },
+    "loving1": {
+      "audio": "loving1.wav",
+      "duration_ms": 5614.666700363159,
+      "file": "loving1.json",
+      "keyframe_count": 559
+    },
+    "no1": {
+      "audio": "no1.wav",
+      "duration_ms": 2697.0388889312744,
+      "file": "no1.json",
+      "keyframe_count": 269
+    },
+    "no_excited1": {
+      "audio": "no_excited1.wav",
+      "duration_ms": 4498.217344284058,
+      "file": "no_excited1.json",
+      "keyframe_count": 448
+    },
+    "no_sad1": {
+      "audio": "no_sad1.wav",
+      "duration_ms": 7053.982973098755,
+      "file": "no_sad1.json",
+      "keyframe_count": 702
+    },
+    "oops1": {
+      "audio": "oops1.wav",
+      "duration_ms": 2465.099811553955,
+      "file": "oops1.json",
+      "keyframe_count": 246
+    },
+    "oops2": {
+      "audio": "oops2.wav",
+      "duration_ms": 2717.1120643615723,
+      "file": "oops2.json",
+      "keyframe_count": 271
+    },
+    "proud1": {
+      "audio": "proud1.wav",
+      "duration_ms": 3773.487329483032,
+      "file": "proud1.json",
+      "keyframe_count": 376
+    },
+    "proud2": {
+      "audio": "proud2.wav",
+      "duration_ms": 3199.3610858917236,
+      "file": "proud2.json",
+      "keyframe_count": 319
+    },
+    "proud3": {
+      "audio": "proud3.wav",
+      "duration_ms": 3360.69393157959,
+      "file": "proud3.json",
+      "keyframe_count": 335
+    },
+    "rage1": {
+      "audio": "rage1.wav",
+      "duration_ms": 5081.502914428711,
+      "file": "rage1.json",
+      "keyframe_count": 506
+    },
+    "relief1": {
+      "audio": "relief1.wav",
+      "duration_ms": 5011.729955673218,
+      "file": "relief1.json",
+      "keyframe_count": 499
+    },
+    "relief2": {
+      "audio": "relief2.wav",
+      "duration_ms": 6903.72371673584,
+      "file": "relief2.json",
+      "keyframe_count": 687
+    },
+    "reprimand1": {
+      "audio": "reprimand1.wav",
+      "duration_ms": 4710.043668746948,
+      "file": "reprimand1.json",
+      "keyframe_count": 469
+    },
+    "reprimand2": {
+      "audio": "reprimand2.wav",
+      "duration_ms": 11159.969568252563,
+      "file": "reprimand2.json",
+      "keyframe_count": 1110
+    },
+    "reprimand3": {
+      "audio": "reprimand3.wav",
+      "duration_ms": 4296.041488647461,
+      "file": "reprimand3.json",
+      "keyframe_count": 428
+    },
+    "resigned1": {
+      "audio": "resigned1.wav",
+      "duration_ms": 4749.156951904297,
+      "file": "resigned1.json",
+      "keyframe_count": 473
+    },
+    "sad1": {
+      "audio": "sad1.wav",
+      "duration_ms": 9026.247024536133,
+      "file": "sad1.json",
+      "keyframe_count": 898
+    },
+    "sad2": {
+      "audio": "sad2.wav",
+      "duration_ms": 7355.913400650024,
+      "file": "sad2.json",
+      "keyframe_count": 732
+    },
+    "scared1": {
+      "audio": "scared1.wav",
+      "duration_ms": 7214.080333709717,
+      "file": "scared1.json",
+      "keyframe_count": 718
+    },
+    "serenity1": {
+      "audio": "serenity1.wav",
+      "duration_ms": 4598.057985305786,
+      "file": "serenity1.json",
+      "keyframe_count": 458
+    },
+    "shy1": {
+      "audio": "shy1.wav",
+      "duration_ms": 7809.3225955963135,
+      "file": "shy1.json",
+      "keyframe_count": 777
+    },
+    "sleep1": {
+      "audio": "sleep1.wav",
+      "duration_ms": 19773.632049560547,
+      "file": "sleep1.json",
+      "keyframe_count": 1966
+    },
+    "success1": {
+      "audio": "success1.wav",
+      "duration_ms": 2274.0845680236816,
+      "file": "success1.json",
+      "keyframe_count": 227
+    },
+    "success2": {
+      "audio": "success2.wav",
+      "duration_ms": 2425.105094909668,
+      "file": "success2.json",
+      "keyframe_count": 242
+    },
+    "surprised1": {
+      "audio": "surprised1.wav",
+      "duration_ms": 2484.9777221679688,
+      "file": "surprised1.json",
+      "keyframe_count": 248
+    },
+    "surprised2": {
+      "audio": "surprised2.wav",
+      "duration_ms": 3038.564443588257,
+      "file": "surprised2.json",
+      "keyframe_count": 303
+    },
+    "thoughtful1": {
+      "audio": "thoughtful1.wav",
+      "duration_ms": 5916.6975021362305,
+      "file": "thoughtful1.json",
+      "keyframe_count": 589
+    },
+    "thoughtful2": {
+      "audio": "thoughtful2.wav",
+      "duration_ms": 5464.45369720459,
+      "file": "thoughtful2.json",
+      "keyframe_count": 544
+    },
+    "tired1": {
+      "audio": "tired1.wav",
+      "duration_ms": 7456.466436386108,
+      "file": "tired1.json",
+      "keyframe_count": 742
+    },
+    "uncertain1": {
+      "audio": "uncertain1.wav",
+      "duration_ms": 6157.91916847229,
+      "file": "uncertain1.json",
+      "keyframe_count": 613
+    },
+    "uncomfortable1": {
+      "audio": "uncomfortable1.wav",
+      "duration_ms": 6036.857843399048,
+      "file": "uncomfortable1.json",
+      "keyframe_count": 601
+    },
+    "understanding1": {
+      "audio": "understanding1.wav",
+      "duration_ms": 3954.1707038879395,
+      "file": "understanding1.json",
+      "keyframe_count": 394
+    },
+    "understanding2": {
+      "audio": "understanding2.wav",
+      "duration_ms": 2626.4939308166504,
+      "file": "understanding2.json",
+      "keyframe_count": 262
+    },
+    "welcoming1": {
+      "audio": "welcoming1.wav",
+      "duration_ms": 3461.6851806640625,
+      "file": "welcoming1.json",
+      "keyframe_count": 345
+    },
+    "welcoming2": {
+      "audio": "welcoming2.wav",
+      "duration_ms": 4326.314449310303,
+      "file": "welcoming2.json",
+      "keyframe_count": 431
+    },
+    "yes1": {
+      "audio": "yes1.wav",
+      "duration_ms": 3411.271572113037,
+      "file": "yes1.json",
+      "keyframe_count": 340
+    },
+    "yes_sad1": {
+      "audio": "yes_sad1.wav",
+      "duration_ms": 5091.651916503906,
+      "file": "yes_sad1.json",
+      "keyframe_count": 507
+    }
+  },
+  "source_dataset": "pollen-robotics/reachy-mini-emotions-library",
+  "version": "1.0"
+}
