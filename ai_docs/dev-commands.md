@@ -198,6 +198,10 @@ curl -X POST http://localhost:8765/api/move/goto \
 | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` | Mock daemon for testing |
 | `src/reachy_agent/permissions/hooks.py` | Permission enforcement |
 | `src/reachy_agent/agent/agent.py` | Main agent loop |
+| `src/reachy_agent/behaviors/blend_controller.py` | Motion blend controller |
+| `src/reachy_agent/behaviors/breathing.py` | Breathing animation |
+| `src/reachy_agent/behaviors/wobble.py` | Speech wobble |
+| `src/reachy_agent/behaviors/idle.py` | Idle look-around |
 | `scripts/validate_mcp_e2e.py` | MCP validation |
 | `scripts/validate_agent_e2e.py` | Full stack validation |
 | `config/default.yaml` | Default configuration |
@@ -328,6 +332,85 @@ from reachy_agent.agent.agent import ReachyAgentLoop, create_agent_loop
 from reachy_agent.permissions.hooks import PermissionHooks, create_permission_hooks
 from reachy_agent.permissions.tiers import PermissionTier, PermissionEvaluator
 ```
+
+## Motion Blending
+
+### Demo Commands
+
+```bash
+# Run breathing animation demo (30 seconds)
+python -c "
+import asyncio
+from reachy_agent.behaviors.breathing import run_breathing_demo
+asyncio.run(run_breathing_demo(daemon_url='http://localhost:8765', duration_seconds=30.0))
+"
+
+# Run idle look-around demo (30 seconds)
+python -c "
+import asyncio
+from reachy_agent.behaviors.idle import run_idle_demo
+asyncio.run(run_idle_demo(daemon_url='http://localhost:8765', duration_seconds=30.0))
+"
+```
+
+### Motion Blend Controller API
+
+```python
+from reachy_agent.behaviors.blend_controller import (
+    MotionBlendController,
+    BlendControllerConfig,
+)
+from reachy_agent.behaviors.breathing import BreathingMotion, BreathingConfig
+from reachy_agent.behaviors.wobble import HeadWobble, WobbleConfig
+from reachy_agent.behaviors.motion_types import HeadPose
+
+# Create controller with pose callback
+async def send_pose(pose: HeadPose) -> None:
+    await daemon_client.look_at(pitch=pose.pitch, yaw=pose.yaw, roll=pose.roll)
+    await daemon_client.set_antenna_state(
+        left_angle=pose.left_antenna, right_angle=pose.right_antenna
+    )
+
+config = BlendControllerConfig(tick_rate_hz=100.0, command_rate_hz=20.0)
+controller = MotionBlendController(config, send_pose_callback=send_pose)
+
+# Register and activate motion sources
+breathing = BreathingMotion(BreathingConfig())
+wobble = HeadWobble(WobbleConfig())
+controller.register_source("breathing", breathing)
+controller.register_source("wobble", wobble)
+
+await controller.start()
+await controller.set_primary("breathing")  # Primary: exclusive
+await controller.enable_secondary("wobble")  # Secondary: additive overlay
+
+# Freeze antennas while user speaks
+controller.set_listening(True)
+# ... user speaks ...
+controller.set_listening(False)
+
+await controller.stop()
+```
+
+### Motion Types
+
+| Type | Purpose | Priority |
+|------|---------|----------|
+| `HeadPose` | Complete pose snapshot (pitch, yaw, roll, z, antennas) | - |
+| `PoseOffset` | Delta values for additive motions | - |
+| `BreathingMotion` | Z-axis oscillation + antenna sway | PRIMARY |
+| `IdleBehaviorController` | Look-around when idle | PRIMARY |
+| `HeadWobble` | Audio-reactive speech animation | SECONDARY |
+
+### File Locations
+
+| Path | Purpose |
+|------|---------|
+| `src/reachy_agent/behaviors/motion_types.py` | Core types (HeadPose, PoseOffset, MotionSource) |
+| `src/reachy_agent/behaviors/blend_controller.py` | MotionBlendController (100Hz orchestrator) |
+| `src/reachy_agent/behaviors/breathing.py` | Breathing animation |
+| `src/reachy_agent/behaviors/wobble.py` | Speech wobble animation |
+| `src/reachy_agent/behaviors/idle.py` | Idle look-around behavior |
 
 ## Expression Presets
 

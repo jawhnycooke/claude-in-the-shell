@@ -63,6 +63,10 @@ uvx pytest -v --cov=. --cov-report=html
 | **Mock Daemon** | Testing without hardware | `src/reachy_agent/mcp_servers/reachy/daemon_mock.py` |
 | **Permission Hooks** | 4-tier permission enforcement (SDK hooks) | `src/reachy_agent/permissions/` |
 | **Memory Manager** | ChromaDB + SQLite storage backends | `src/reachy_agent/memory/` |
+| **Motion Blend Controller** | Orchestrates motion sources at 100Hz | `src/reachy_agent/behaviors/blend_controller.py` |
+| **Breathing Motion** | Idle breathing animation (Z-axis + antennas) | `src/reachy_agent/behaviors/breathing.py` |
+| **Head Wobble** | Audio-reactive speech animation | `src/reachy_agent/behaviors/wobble.py` |
+| **Idle Behavior** | Look-around behavior when idle | `src/reachy_agent/behaviors/idle.py` |
 
 ### Permission Tiers
 

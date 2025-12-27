@@ -86,6 +86,10 @@ agent.py (ReachyAgent)
 | **Memory Manager** | ChromaDB + SQLite storage backends | `src/reachy_agent/memory/` |
 | **Daemon Client** | HTTP client for hardware API | `src/reachy_agent/mcp_servers/reachy/daemon_client.py` |
 | **Simulation Client** | High-level robot client | `src/reachy_agent/simulation/reachy_client.py` |
+| **Motion Blend Controller** | Orchestrates motion sources at 100Hz | `src/reachy_agent/behaviors/blend_controller.py` |
+| **Breathing Motion** | Idle breathing animation (Z-axis + antennas) | `src/reachy_agent/behaviors/breathing.py` |
+| **Head Wobble** | Audio-reactive speech animation | `src/reachy_agent/behaviors/wobble.py` |
+| **Idle Behavior** | Look-around behavior when idle | `src/reachy_agent/behaviors/idle.py` |
 
 ## Data Flow
 
