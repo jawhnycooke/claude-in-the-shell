@@ -24,6 +24,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+class MatrixConversionError(ValueError):
+    """Raised when matrix conversion fails due to invalid input."""
+
+    pass
+
+
 def matrix_to_rpy(matrix: list[list[float]]) -> dict[str, float]:
     """Convert a 4x4 transformation matrix to roll, pitch, yaw.
 
@@ -35,10 +41,24 @@ def matrix_to_rpy(matrix: list[list[float]]) -> dict[str, float]:
 
     Returns:
         Dictionary with roll, pitch, yaw in radians.
+
+    Raises:
+        MatrixConversionError: If matrix is not 4x4 or has invalid values.
     """
+    # Validate matrix dimensions
+    if not isinstance(matrix, list) or len(matrix) < 3:
+        raise MatrixConversionError(
+            f"Matrix must have at least 3 rows, got: {len(matrix) if isinstance(matrix, list) else type(matrix)}"
+        )
+    for i, row in enumerate(matrix[:3]):
+        if not isinstance(row, list) or len(row) < 3:
+            raise MatrixConversionError(
+                f"Matrix row {i} must have at least 3 columns, got: {len(row) if isinstance(row, list) else type(row)}"
+            )
+
     # Extract rotation matrix elements
     r00, r01, r02 = matrix[0][0], matrix[0][1], matrix[0][2]
-    r10, r11, r12 = matrix[1][0], matrix[1][1], matrix[1][2]
+    r10, _, _ = matrix[1][0], matrix[1][1], matrix[1][2]
     r20, r21, r22 = matrix[2][0], matrix[2][1], matrix[2][2]
 
     # Calculate Euler angles (ZYX convention, commonly used in robotics)
@@ -70,6 +90,11 @@ def download_and_convert() -> None:
     """Download the HuggingFace dataset and convert to local JSON files."""
     try:
         from huggingface_hub import snapshot_download
+        from huggingface_hub.utils import (
+            EntryNotFoundError,
+            HfHubHTTPError,
+            RepositoryNotFoundError,
+        )
     except ImportError:
         print("Error: 'huggingface_hub' package not installed.")
         print("Install it with: pip install huggingface_hub")
@@ -82,8 +107,17 @@ def download_and_convert() -> None:
         # Download the raw dataset files (like the SDK does)
         cache_dir = snapshot_download(dataset_name, repo_type="dataset")
         print(f"Downloaded to cache: {cache_dir}")
-    except Exception as e:
-        print(f"Error downloading dataset: {e}")
+    except RepositoryNotFoundError:
+        print(f"Error: Dataset '{dataset_name}' not found on HuggingFace")
+        return
+    except EntryNotFoundError as e:
+        print(f"Error: Required file not found in dataset: {e}")
+        return
+    except HfHubHTTPError as e:
+        print(f"Error: HuggingFace API error: {e}")
+        return
+    except OSError as e:
+        print(f"Error: Disk/network error during download: {e}")
         return
 
     # Find all JSON files in the downloaded directory
@@ -120,8 +154,12 @@ def download_and_convert() -> None:
         try:
             with open(json_file) as f:
                 raw_data = json.load(f)
-        except Exception as e:
-            print(f"    Error loading {json_file}: {e}")
+        except json.JSONDecodeError as e:
+            print(f"    Error: Invalid JSON in {json_file}: {e}")
+            skipped_count += 1
+            continue
+        except OSError as e:
+            print(f"    Error: Cannot read {json_file}: {e}")
             skipped_count += 1
             continue
 
@@ -138,7 +176,7 @@ def download_and_convert() -> None:
 
         # Convert keyframes
         keyframes = []
-        for i, (t, target) in enumerate(zip(times, targets)):
+        for i, (t, target) in enumerate(zip(times, targets, strict=True)):
             try:
                 # Extract head matrix and convert to RPY
                 head_matrix = target.get("head", [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
@@ -156,8 +194,11 @@ def download_and_convert() -> None:
                     "antennas": antennas,
                     "body_yaw": body_yaw,
                 })
-            except Exception as e:
-                print(f"    Warning: Error processing keyframe {i}: {e}")
+            except MatrixConversionError as e:
+                print(f"    Warning: Invalid head matrix in keyframe {i}: {e}")
+                continue
+            except (KeyError, TypeError, IndexError) as e:
+                print(f"    Warning: Invalid keyframe {i} structure: {e}")
                 continue
 
         if not keyframes:
@@ -213,7 +254,7 @@ def download_and_convert() -> None:
     with open(manifest_file, "w") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
 
-    print(f"\nDone!")
+    print("\nDone!")
     print(f"  Processed: {processed_count} emotions/dances")
     print(f"  Skipped: {skipped_count}")
     print(f"  Output directory: {output_dir}")

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -12,6 +11,7 @@ from reachy_agent.emotions.loader import (
     EmotionData,
     EmotionLoader,
     Keyframe,
+    KeyframeValidationError,
     get_emotion_loader,
 )
 
@@ -34,8 +34,68 @@ class TestKeyframe:
         assert keyframe.head["roll"] == 0.1
         assert keyframe.head["pitch"] == 0.2
         assert keyframe.head["yaw"] == 0.3
-        assert keyframe.antennas == [0.5, 0.6]
+        # Keyframe now uses immutable tuple instead of list
+        assert keyframe.antennas == (0.5, 0.6)
         assert keyframe.body_yaw == 0.1
+
+    def test_from_dict_validation_missing_fields(self) -> None:
+        """Test that missing fields raise KeyframeValidationError."""
+        incomplete_data = {
+            "time_ms": 100.0,
+            "head": {"roll": 0.1, "pitch": 0.2, "yaw": 0.3},
+            # Missing "antennas" and "body_yaw"
+        }
+
+        with pytest.raises(KeyframeValidationError, match="Missing required fields"):
+            Keyframe.from_dict(incomplete_data)
+
+    def test_from_dict_validation_invalid_time(self) -> None:
+        """Test that negative time_ms raises KeyframeValidationError."""
+        data = {
+            "time_ms": -50.0,
+            "head": {"roll": 0.0, "pitch": 0.0, "yaw": 0.0},
+            "antennas": [0.5, 0.5],
+            "body_yaw": 0.0,
+        }
+
+        with pytest.raises(KeyframeValidationError, match="non-negative number"):
+            Keyframe.from_dict(data)
+
+    def test_from_dict_validation_invalid_head(self) -> None:
+        """Test that invalid head structure raises KeyframeValidationError."""
+        data = {
+            "time_ms": 100.0,
+            "head": {"roll": 0.1},  # Missing pitch and yaw
+            "antennas": [0.5, 0.6],
+            "body_yaw": 0.1,
+        }
+
+        with pytest.raises(KeyframeValidationError, match="head missing required key"):
+            Keyframe.from_dict(data)
+
+    def test_from_dict_validation_invalid_antennas(self) -> None:
+        """Test that wrong antenna count raises KeyframeValidationError."""
+        data = {
+            "time_ms": 100.0,
+            "head": {"roll": 0.1, "pitch": 0.2, "yaw": 0.3},
+            "antennas": [0.5],  # Only 1 element instead of 2
+            "body_yaw": 0.1,
+        }
+
+        with pytest.raises(KeyframeValidationError, match="list/tuple of 2 floats"):
+            Keyframe.from_dict(data)
+
+    def test_keyframe_is_immutable(self) -> None:
+        """Test that Keyframe is frozen (immutable)."""
+        keyframe = Keyframe(
+            time_ms=100.0,
+            head={"roll": 0.0, "pitch": 0.0, "yaw": 0.0},
+            antennas=(0.5, 0.5),
+            body_yaw=0.0,
+        )
+
+        with pytest.raises(AttributeError):
+            keyframe.time_ms = 200.0  # type: ignore[misc]
 
 
 class TestEmotionData:

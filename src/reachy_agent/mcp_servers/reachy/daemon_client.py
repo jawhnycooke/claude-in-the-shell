@@ -464,6 +464,11 @@ class ReachyDaemonClient:
         Reads keyframe data from data/emotions/ and plays it via /api/move/goto.
         This enables offline emotion playback without HuggingFace downloads.
 
+        Note:
+            This method requires the REAL daemon backend. It uses /api/move/goto
+            which is only available on the official reachy-mini daemon.
+            The MOCK backend doesn't support this endpoint structure.
+
         Args:
             move_name: Name of the emotion move (e.g., "curious1", "cheerful1").
             emotion_loader: Optional EmotionLoader instance. If None, uses default.
@@ -471,6 +476,19 @@ class ReachyDaemonClient:
         Returns:
             Operation status dict with "status" key.
         """
+        # Check backend type - local playback only works with REAL daemon
+        backend = await self.detect_backend()
+        if backend != DaemonBackend.REAL:
+            log.warning(
+                "Local emotion playback requires real daemon",
+                backend=backend.value,
+                move_name=move_name,
+            )
+            return {
+                "status": "error",
+                "message": "Local emotion playback only available on real daemon",
+            }
+
         loader = emotion_loader or get_emotion_loader()
 
         # Load emotion data
@@ -917,7 +935,7 @@ class ReachyDaemonClient:
                 loops=loops,
             )
 
-            for loop in range(loops):
+            for _ in range(loops):
                 for kf in keyframes:
                     head = kf["head"]
                     antennas = kf["antennas"]
@@ -1364,7 +1382,7 @@ class ReachyDaemonClient:
             # Real daemon: POST /api/motors/set_mode/{mode}
             log.info("Setting motor mode", mode=mode)
             try:
-                result = await self._request("POST", f"/api/motors/set_mode/{mode}")
+                await self._request("POST", f"/api/motors/set_mode/{mode}")
                 return {"status": "success", "mode": mode}
             except ReachyDaemonError as e:
                 return {"status": "error", "message": str(e)}

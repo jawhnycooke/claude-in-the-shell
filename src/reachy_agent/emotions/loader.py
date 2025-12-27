@@ -10,41 +10,125 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from reachy_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
 
 
-@dataclass
+class HeadPoseDict(TypedDict):
+    """Type definition for head pose angles in radians."""
+
+    roll: float
+    pitch: float
+    yaw: float
+
+
+class KeyframeValidationError(ValueError):
+    """Raised when keyframe data is invalid."""
+
+    pass
+
+
+@dataclass(frozen=True)
 class Keyframe:
     """Single keyframe in an emotion animation.
 
     Attributes:
-        time_ms: Time offset from start in milliseconds.
+        time_ms: Time offset from start in milliseconds (>= 0).
         head: Head pose with roll, pitch, yaw in radians.
         antennas: Antenna angles [left, right] in radians.
         body_yaw: Body rotation in radians.
+
+    Note:
+        body_yaw is stored but not currently applied during playback.
+        The daemon's /api/move/goto endpoint doesn't support body rotation.
+        This data is preserved for future use when body rotation is supported.
     """
 
     time_ms: float
-    head: dict[str, float]
-    antennas: list[float]
+    head: HeadPoseDict
+    antennas: tuple[float, float]  # Immutable tuple instead of list
     body_yaw: float
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Keyframe:
-        """Create a Keyframe from a dictionary."""
+        """Create a Keyframe from a dictionary.
+
+        Args:
+            data: Dictionary containing keyframe data with required keys:
+                - time_ms: Time offset in milliseconds
+                - head: Dict with roll, pitch, yaw keys
+                - antennas: List/tuple of 2 floats [left, right]
+                - body_yaw: Body rotation in radians
+
+        Returns:
+            Validated Keyframe instance.
+
+        Raises:
+            KeyframeValidationError: If required fields are missing or invalid.
+        """
+        # Validate required fields
+        required_fields = ["time_ms", "head", "antennas", "body_yaw"]
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            raise KeyframeValidationError(f"Missing required fields: {missing}")
+
+        # Validate time_ms
+        time_ms = data["time_ms"]
+        if not isinstance(time_ms, (int, float)) or time_ms < 0:
+            raise KeyframeValidationError(
+                f"time_ms must be a non-negative number, got: {time_ms}"
+            )
+
+        # Validate head pose
+        head = data["head"]
+        if not isinstance(head, dict):
+            raise KeyframeValidationError(f"head must be a dict, got: {type(head)}")
+        for key in ("roll", "pitch", "yaw"):
+            if key not in head:
+                raise KeyframeValidationError(f"head missing required key: {key}")
+            if not isinstance(head[key], (int, float)):
+                raise KeyframeValidationError(
+                    f"head.{key} must be a number, got: {type(head[key])}"
+                )
+
+        # Validate antennas
+        antennas = data["antennas"]
+        if not isinstance(antennas, (list, tuple)) or len(antennas) != 2:
+            raise KeyframeValidationError(
+                f"antennas must be a list/tuple of 2 floats, got: {antennas}"
+            )
+        for i, val in enumerate(antennas):
+            if not isinstance(val, (int, float)):
+                raise KeyframeValidationError(
+                    f"antennas[{i}] must be a number, got: {type(val)}"
+                )
+
+        # Validate body_yaw
+        body_yaw = data["body_yaw"]
+        if not isinstance(body_yaw, (int, float)):
+            raise KeyframeValidationError(
+                f"body_yaw must be a number, got: {type(body_yaw)}"
+            )
+
+        # Create typed head dict
+        head_typed: HeadPoseDict = {
+            "roll": float(head["roll"]),
+            "pitch": float(head["pitch"]),
+            "yaw": float(head["yaw"]),
+        }
+
         return cls(
-            time_ms=data["time_ms"],
-            head=data["head"],
-            antennas=data["antennas"],
-            body_yaw=data["body_yaw"],
+            time_ms=float(time_ms),
+            head=head_typed,
+            antennas=(float(antennas[0]), float(antennas[1])),
+            body_yaw=float(body_yaw),
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class EmotionData:
     """Complete emotion animation data.
 
@@ -52,14 +136,14 @@ class EmotionData:
         name: Emotion name (e.g., "curious1", "cheerful1").
         description: Human-readable description of the emotion.
         duration_ms: Total animation duration in milliseconds.
-        keyframes: List of animation keyframes.
+        keyframes: Tuple of animation keyframes (immutable).
         audio_file: Path to audio file, if available.
     """
 
     name: str
     description: str
     duration_ms: float
-    keyframes: list[Keyframe] = field(default_factory=list)
+    keyframes: tuple[Keyframe, ...] = field(default_factory=tuple)
     audio_file: Path | None = None
 
     @classmethod
@@ -76,11 +160,13 @@ class EmotionData:
             FileNotFoundError: If the JSON file doesn't exist.
             json.JSONDecodeError: If the file contains invalid JSON.
             KeyError: If required fields are missing.
+            KeyframeValidationError: If keyframe data is invalid.
         """
         with open(json_path) as f:
             data = json.load(f)
 
-        keyframes = [Keyframe.from_dict(kf) for kf in data.get("keyframes", [])]
+        # Convert list to immutable tuple
+        keyframes = tuple(Keyframe.from_dict(kf) for kf in data.get("keyframes", []))
 
         # Check for audio file
         audio_path = json_path.with_suffix(".wav")
