@@ -474,6 +474,12 @@ if emotion.audio_file:
 ### Priority Order
 
 `play_emotion()` and `dance()` use this priority:
-1. **Local** (`data/emotions/`) - fastest, offline
-2. **HuggingFace** - network fallback
+1. **Local** (`data/emotions/`) - fastest, offline, **motion only**
+2. **HuggingFace** - network fallback, **includes audio**
 3. **Custom** - for emotions not in SDK
+
+### Audio Behavior
+
+- **Local playback**: Motion only (head, antennas, body) - no audio
+- **HuggingFace fallback**: Motion + audio on robot's speaker (requires network)
+- **Bundled .wav files**: Reserved for future daemon audio endpoint support

@@ -99,8 +99,8 @@ await client.rotate(direction="left", degrees=90, speed="normal")
 
 ### play_emotion
 Trigger predefined emotion sequence with three-tier priority:
-1. **Local bundled emotions** (`data/emotions/`) - fastest, no network required
-2. **HuggingFace SDK emotions** - fallback if local fails
+1. **Local bundled emotions** (`data/emotions/`) - fastest, no network required, **motion only**
+2. **HuggingFace SDK emotions** - fallback if local fails, **includes audio**
 3. **Custom compositions** - for emotions not in the SDK
 
 ```python
@@ -110,7 +110,11 @@ await client.play_emotion(emotion="happy", intensity=0.7)
 > **Local Library**: 81 emotions/dances bundled in `data/emotions/` enable offline playback.
 > Download/update with: `python scripts/download_emotions.py`
 
-**Native SDK Emotions** (bundled locally, with synchronized audio):
+> **Audio Note**: Local playback provides motion only (head, antennas, body). For synchronized
+> audio on the robot's speaker, the system falls back to HuggingFace (requires network).
+> The bundled `.wav` files are preserved for future daemon audio endpoint support.
+
+**Native SDK Emotions** (bundled locally, motion only; HuggingFace fallback adds audio):
 | Emotion | SDK Move | Description |
 |---------|----------|-------------|
 | curious | curious1 | Head tilt, inquisitive |
@@ -269,8 +273,8 @@ await client.rest()
 
 ### dance
 Execute choreographed routine with three-tier priority (same as `play_emotion`):
-1. **Local bundled dances** (`data/emotions/`) - fastest, no network required
-2. **HuggingFace SDK dances** - fallback if local fails
+1. **Local bundled dances** (`data/emotions/`) - fastest, no network required, **motion only**
+2. **HuggingFace SDK dances** - fallback if local fails, **includes audio**
 3. **Custom routines** - for routines not in the SDK
 
 ```python
@@ -278,9 +282,9 @@ await client.dance(routine="celebrate", duration_seconds=5.0)
 ```
 | Routine | Native SDK | Description |
 |---------|------------|-------------|
-| celebrate | dance1 | Excited movement (bundled) |
-| party | dance2 | Energetic dance (bundled) |
-| groove | dance3 | Rhythmic motion (bundled) |
+| celebrate | dance1 | Excited movement (motion only locally) |
+| party | dance2 | Energetic dance (motion only locally) |
+| groove | dance3 | Rhythmic motion (motion only locally) |
 | greeting | (custom) | Welcome gesture |
 | thinking | (custom) | Contemplative motion |
 
