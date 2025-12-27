@@ -4,24 +4,34 @@ The motion blending system orchestrates multiple motion sources to create natura
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────┐
-│         MotionBlendController           │
-│    (100Hz control loop, 20Hz commands)  │
-└─────────────────────────────────────────┘
-              │
-   ┌──────────┼──────────┐
-   ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌────────┐
-│Breathing│ │  Idle  │ │ Wobble │
-│(Primary)│ │(Primary)│ │(Second)│
-└────────┘ └────────┘ └────────┘
-              │
-              ▼
-┌─────────────────────────────────────────┐
-│          ReachyDaemonClient             │
-│       (look_at, set_antenna_state)      │
-└─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Controller["MotionBlendController"]
+        direction TB
+        Loop["100Hz control loop"]
+        Commands["20Hz daemon commands"]
+    end
+
+    subgraph Primary["Primary Sources (exclusive)"]
+        direction LR
+        Breathing["BreathingMotion<br/>Z-axis + antennas"]
+        Idle["IdleBehavior<br/>look-around"]
+    end
+
+    subgraph Secondary["Secondary Sources (additive)"]
+        Wobble["HeadWobble<br/>speech animation"]
+    end
+
+    Controller --> Primary
+    Controller --> Secondary
+    Primary --> Compose["Compose Pose"]
+    Secondary --> Compose
+    Compose --> Daemon["ReachyDaemonClient<br/>look_at, set_antenna_state"]
+
+    style Controller fill:#7c3aed,color:#fff
+    style Primary fill:#a78bfa,color:#000
+    style Secondary fill:#c4b5fd,color:#000
+    style Daemon fill:#4c1d95,color:#fff
 ```
 
 ## Core Types
