@@ -98,12 +98,19 @@ await client.rotate(direction="left", degrees=90, speed="normal")
 ## Expression Tools
 
 ### play_emotion
-Trigger predefined emotion sequence. **Uses native SDK emotions when available** from the HuggingFace emotions library (`pollen-robotics/reachy-mini-emotions-library`), with fallback to custom compositions for emotions not in the SDK.
+Trigger predefined emotion sequence with three-tier priority:
+1. **Local bundled emotions** (`data/emotions/`) - fastest, no network required
+2. **HuggingFace SDK emotions** - fallback if local fails
+3. **Custom compositions** - for emotions not in the SDK
+
 ```python
 await client.play_emotion(emotion="happy", intensity=0.7)
 ```
 
-**Native SDK Emotions** (preferred, with synchronized audio):
+> **Local Library**: 81 emotions/dances bundled in `data/emotions/` enable offline playback.
+> Download/update with: `python scripts/download_emotions.py`
+
+**Native SDK Emotions** (bundled locally, with synchronized audio):
 | Emotion | SDK Move | Description |
 |---------|----------|-------------|
 | curious | curious1 | Head tilt, inquisitive |
@@ -261,15 +268,19 @@ await client.rest()
 ## Action Tools
 
 ### dance
-Execute choreographed routine. **Uses native SDK dances when available** from the HuggingFace emotions library.
+Execute choreographed routine with three-tier priority (same as `play_emotion`):
+1. **Local bundled dances** (`data/emotions/`) - fastest, no network required
+2. **HuggingFace SDK dances** - fallback if local fails
+3. **Custom routines** - for routines not in the SDK
+
 ```python
 await client.dance(routine="celebrate", duration_seconds=5.0)
 ```
 | Routine | Native SDK | Description |
 |---------|------------|-------------|
-| celebrate | dance1 | Excited movement |
-| party | dance2 | Energetic dance |
-| groove | dance3 | Rhythmic motion |
+| celebrate | dance1 | Excited movement (bundled) |
+| party | dance2 | Energetic dance (bundled) |
+| groove | dance3 | Rhythmic motion (bundled) |
 | greeting | (custom) | Welcome gesture |
 | thinking | (custom) | Contemplative motion |
 

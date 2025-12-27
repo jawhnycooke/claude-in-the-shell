@@ -122,9 +122,23 @@ agent = ReachyAgentLoop(
 
 Binary preferred over Docker for Pi compatibility. Install at `~/.reachy/bin/github-mcp-server`.
 
-### Native SDK Emotions
+### Local Emotions Library
 
-The `play_emotion` tool prefers native SDK emotions from `pollen-robotics/reachy-mini-emotions-library` (HuggingFace) with synchronized audio, falling back to custom compositions.
+The `play_emotion` and `dance` tools use a local-first approach:
+
+1. **Local bundled emotions** (`data/emotions/`) - 81 emotions/dances bundled for offline playback
+2. **HuggingFace fallback** - Downloads from `pollen-robotics/reachy-mini-emotions-library` if local fails
+3. **Custom compositions** - For emotions not in the SDK library
+
+To download/update the emotions library:
+```bash
+python scripts/download_emotions.py
+```
+
+Key files:
+- `src/reachy_agent/emotions/loader.py` - EmotionLoader class for loading bundled emotions
+- `data/emotions/manifest.json` - Index of all bundled emotions with metadata
+- `scripts/download_emotions.py` - One-time download script for HuggingFace dataset
 
 See `ai_docs/mcp-tools-quick-ref.md` for complete parameter details.
 
@@ -185,6 +199,7 @@ Historical planning and requirements documents are archived in `docs/planning/`:
 | `config/default.yaml` | Default configuration |
 | `config/permissions.yaml` | Permission tier rules |
 | `config/expressions.yaml` | Antenna/emotion definitions |
+| `data/emotions/manifest.json` | Bundled emotions index (81 emotions) |
 | `.env` | API keys and secrets (never commit) |
 
 ## Testing

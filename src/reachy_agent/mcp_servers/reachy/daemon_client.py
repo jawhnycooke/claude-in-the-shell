@@ -12,12 +12,14 @@ The client auto-detects which backend is running and adapts accordingly.
 
 from __future__ import annotations
 
+import asyncio
 import math
 from enum import Enum
 from typing import Any
 
 import httpx
 
+from reachy_agent.emotions.loader import EmotionLoader, get_emotion_loader
 from reachy_agent.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -452,6 +454,78 @@ class ReachyDaemonClient:
                 "message": "Recorded moves only available on real daemon",
             }
 
+    async def play_local_emotion(
+        self,
+        move_name: str,
+        emotion_loader: EmotionLoader | None = None,
+    ) -> dict[str, str]:
+        """Play an emotion from local bundled data.
+
+        Reads keyframe data from data/emotions/ and plays it via /api/move/goto.
+        This enables offline emotion playback without HuggingFace downloads.
+
+        Args:
+            move_name: Name of the emotion move (e.g., "curious1", "cheerful1").
+            emotion_loader: Optional EmotionLoader instance. If None, uses default.
+
+        Returns:
+            Operation status dict with "status" key.
+        """
+        loader = emotion_loader or get_emotion_loader()
+
+        # Load emotion data
+        emotion_data = loader.get_emotion(move_name)
+        if emotion_data is None:
+            log.warning("Local emotion not found", move_name=move_name)
+            return {"status": "error", "message": f"Emotion '{move_name}' not found"}
+
+        log.info(
+            "Playing local emotion",
+            move_name=move_name,
+            duration_ms=emotion_data.duration_ms,
+            keyframes=len(emotion_data.keyframes),
+            has_audio=emotion_data.audio_file is not None,
+        )
+
+        # Play keyframes sequentially
+        prev_time_ms = 0.0
+        for i, kf in enumerate(emotion_data.keyframes):
+            # Calculate wait time from previous keyframe
+            wait_time_s = (kf.time_ms - prev_time_ms) / 1000.0
+            prev_time_ms = kf.time_ms
+
+            # Skip very short waits (under 5ms)
+            if wait_time_s > 0.005:
+                await asyncio.sleep(wait_time_s)
+
+            # Build pose data - values are already in radians from the JSON
+            data = {
+                "head_pose": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "roll": kf.head["roll"],
+                    "pitch": kf.head["pitch"],
+                    "yaw": kf.head["yaw"],
+                },
+                "antennas": kf.antennas,
+                "duration": 0.01,  # Quick transition, keyframes are pre-timed
+                "interpolation": "linear",
+            }
+
+            try:
+                await self._request("POST", "/api/move/goto", json_data=data)
+            except ReachyDaemonError as e:
+                log.error(
+                    "Local emotion keyframe failed",
+                    move_name=move_name,
+                    keyframe=i,
+                    error=str(e),
+                )
+                return {"status": "error", "message": str(e)}
+
+        return {"status": "success", "move_name": move_name, "source": "local"}
+
     async def play_emotion(
         self,
         emotion: str,
@@ -459,8 +533,10 @@ class ReachyDaemonClient:
     ) -> dict[str, str]:
         """Play an emotional expression.
 
-        Prefers native SDK emotions from HuggingFace when available.
-        Falls back to custom EMOTION_MAPPINGS for emotions not in the SDK.
+        Priority order:
+        1. Local bundled emotions (data/emotions/) - fastest, no network
+        2. HuggingFace SDK emotions - fallback if local fails
+        3. Custom EMOTION_MAPPINGS - for emotions not in the SDK
 
         Native emotions include synchronized audio + motion, providing
         higher quality animations tuned by Pollen Robotics.
@@ -477,20 +553,38 @@ class ReachyDaemonClient:
         emotion_lower = emotion.lower()
 
         if backend == DaemonBackend.REAL:
-            # Check for native SDK emotion first (preferred)
+            # Check for native SDK emotion mapping
             native_move = self.NATIVE_EMOTION_MAPPING.get(emotion_lower)
             if native_move:
+                # Try local bundled emotion first (fastest)
+                loader = get_emotion_loader()
+                if loader.has_emotion(native_move):
+                    log.info(
+                        "Using local bundled emotion",
+                        emotion=emotion,
+                        native_move=native_move,
+                    )
+                    result = await self.play_local_emotion(native_move, loader)
+                    if result.get("status") == "success":
+                        return result
+                    log.warning(
+                        "Local emotion playback failed, trying HuggingFace",
+                        emotion=emotion,
+                        error=result.get("message"),
+                    )
+
+                # Fall back to HuggingFace SDK emotion
                 log.info(
-                    "Using native SDK emotion",
+                    "Using HuggingFace SDK emotion",
                     emotion=emotion,
                     native_move=native_move,
                 )
                 result = await self.play_recorded_move(self.EMOTIONS_DATASET, native_move)
                 if result.get("status") == "success":
                     return result
-                # If native emotion fails, fall back to custom composition
+                # If HuggingFace also fails, fall back to custom composition
                 log.warning(
-                    "Native emotion failed, falling back to custom",
+                    "HuggingFace emotion failed, falling back to custom",
                     emotion=emotion,
                     error=result.get("message"),
                 )
@@ -753,8 +847,10 @@ class ReachyDaemonClient:
     ) -> dict[str, str]:
         """Execute a dance routine.
 
-        Prefers native SDK dance routines from HuggingFace when available.
-        Falls back to custom DANCE_ROUTINES for routines not in the SDK.
+        Priority order:
+        1. Local bundled dances (data/emotions/) - fastest, no network
+        2. HuggingFace SDK dances - fallback if local fails
+        3. Custom DANCE_ROUTINES - for routines not in the SDK
 
         Args:
             routine: Dance routine name (celebrate, dance1, dance2, dance3, greeting, thinking, custom).
@@ -763,26 +859,42 @@ class ReachyDaemonClient:
         Returns:
             Operation status.
         """
-        import asyncio
-
         backend = await self.detect_backend()
         routine_lower = routine.lower()
 
         if backend == DaemonBackend.REAL:
-            # Check for native SDK dance routine first (preferred)
+            # Check for native SDK dance routine mapping
             native_dance = self.NATIVE_DANCE_MAPPING.get(routine_lower)
             if native_dance:
+                # Try local bundled dance first (fastest)
+                loader = get_emotion_loader()
+                if loader.has_emotion(native_dance):
+                    log.info(
+                        "Using local bundled dance",
+                        routine=routine,
+                        native_dance=native_dance,
+                    )
+                    result = await self.play_local_emotion(native_dance, loader)
+                    if result.get("status") == "success":
+                        return {"status": "success", "routine": routine, "source": "local"}
+                    log.warning(
+                        "Local dance playback failed, trying HuggingFace",
+                        routine=routine,
+                        error=result.get("message"),
+                    )
+
+                # Fall back to HuggingFace SDK dance
                 log.info(
-                    "Using native SDK dance routine",
+                    "Using HuggingFace SDK dance routine",
                     routine=routine,
                     native_dance=native_dance,
                 )
                 result = await self.play_recorded_move(self.EMOTIONS_DATASET, native_dance)
                 if result.get("status") == "success":
-                    return {"status": "success", "routine": routine, "native": True}
-                # If native dance fails, fall back to custom composition
+                    return {"status": "success", "routine": routine, "source": "huggingface"}
+                # If HuggingFace also fails, fall back to custom composition
                 log.warning(
-                    "Native dance failed, falling back to custom",
+                    "HuggingFace dance failed, falling back to custom",
                     routine=routine,
                     error=result.get("message"),
                 )
