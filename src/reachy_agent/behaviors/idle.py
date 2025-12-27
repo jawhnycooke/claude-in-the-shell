@@ -7,6 +7,8 @@ in what it sees.
 
 The design mimics how humans and pets behave when unstimulated -
 casually glancing around, sometimes with mild interest.
+
+Implements MotionSource protocol for integration with MotionBlendController.
 """
 
 from __future__ import annotations
@@ -18,6 +20,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from reachy_agent.behaviors.motion_types import (
+    HeadPose,
+    MotionPriority,
+)
 from reachy_agent.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -103,27 +109,35 @@ class IdleBehaviorController:
     look around naturally when not engaged in conversation.
     It can be paused during user interactions and resumed after.
 
+    Implements MotionSource protocol for integration with MotionBlendController.
+    As a PRIMARY motion source, it provides complete HeadPose values.
+
     Example usage:
         client = ReachyDaemonClient(base_url="http://localhost:8000")
         controller = IdleBehaviorController(client)
         await controller.start()
         # ... later when user starts talking ...
-        controller.pause()
+        await controller.pause()
         # ... after conversation ends ...
-        controller.resume()
+        await controller.resume()
         # ... when shutting down ...
         await controller.stop()
+
+    With MotionBlendController:
+        blend_controller.register_source("idle", idle_controller)
+        await blend_controller.set_primary("idle")
     """
 
     def __init__(
         self,
-        daemon_client: ReachyDaemonClient,
+        daemon_client: ReachyDaemonClient | None = None,
         config: IdleBehaviorConfig | None = None,
     ) -> None:
         """Initialize the idle behavior controller.
 
         Args:
             daemon_client: Client for sending commands to the robot.
+                          Optional when used with MotionBlendController.
             config: Configuration for idle behavior. Uses defaults if not provided.
         """
         self.client = daemon_client
@@ -134,6 +148,47 @@ class IdleBehaviorController:
         self._last_interaction: datetime | None = None
         self._last_target: LookTarget | None = None
         self._movement_count: int = 0
+
+        # MotionSource protocol support
+        self._current_pose = HeadPose.neutral()
+        self._target_pose = HeadPose.neutral()
+        self._pose_active = False
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # MotionSource Protocol Implementation
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @property
+    def priority(self) -> MotionPriority:
+        """Return PRIMARY priority - idle is an exclusive motion."""
+        return MotionPriority.PRIMARY
+
+    @property
+    def is_active(self) -> bool:
+        """Check if idle motion is currently active."""
+        return self._pose_active and self._state == IdleState.IDLE
+
+    async def get_contribution(self, base_pose: HeadPose) -> HeadPose:
+        """Get idle motion's contribution to the final pose.
+
+        As a PRIMARY source, returns complete HeadPose values.
+
+        Args:
+            base_pose: Current base pose for reference.
+
+        Returns:
+            HeadPose with current idle look target.
+        """
+        if not self.is_active:
+            return self._current_pose
+
+        # Smoothly interpolate toward target
+        # (blending is handled by MotionBlendController, but we track our target)
+        return self._current_pose
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Original API (maintained for backwards compatibility)
+    # ─────────────────────────────────────────────────────────────────────────
 
     @property
     def state(self) -> IdleState:
@@ -157,6 +212,8 @@ class IdleBehaviorController:
 
         log.info("Starting idle behavior controller")
         self._state = IdleState.IDLE
+        self._pose_active = True
+        self._current_pose = HeadPose.neutral()
         self._task = asyncio.create_task(self._idle_loop())
 
     async def stop(self) -> None:
@@ -165,10 +222,12 @@ class IdleBehaviorController:
         This cancels the background task and waits for cleanup.
         """
         if self._task is None:
+            self._pose_active = False
             return
 
         log.info("Stopping idle behavior controller")
         self._state = IdleState.STOPPED
+        self._pose_active = False
         self._task.cancel()
 
         try:
@@ -302,24 +361,39 @@ class IdleBehaviorController:
             roll=target.roll,
         )
 
-        try:
-            result = await self.client.look_at(
-                yaw=target.yaw,
-                pitch=target.pitch,
-                roll=target.roll,
-                duration=target.duration,
-            )
+        # Update current pose for MotionSource protocol
+        self._current_pose = HeadPose(
+            pitch=target.pitch,
+            yaw=target.yaw,
+            roll=target.roll,
+            z=0.0,  # Idle doesn't control Z-axis
+            left_antenna=45.0,  # Neutral antenna
+            right_antenna=45.0,
+        )
 
-            if result.get("status") == "error":
-                log.warning(
-                    "Look command failed",
-                    error=result.get("message"),
+        # If using direct daemon client (non-blend mode), execute command
+        if self.client is not None:
+            try:
+                result = await self.client.look_at(
+                    yaw=target.yaw,
+                    pitch=target.pitch,
+                    roll=target.roll,
+                    duration=target.duration,
                 )
-        except Exception as e:
-            log.error("Error executing look command", error=str(e))
+
+                if result.get("status") == "error":
+                    log.warning(
+                        "Look command failed",
+                        error=result.get("message"),
+                    )
+            except Exception as e:
+                log.error("Error executing look command", error=str(e))
 
     async def _express_curiosity(self) -> None:
         """Express a curiosity emotion occasionally."""
+        if self.client is None:
+            return  # Skip when using MotionBlendController
+
         emotion = random.choice(self.config.curiosity_emotions)
 
         log.debug("Expressing curiosity", emotion=emotion)
@@ -338,6 +412,9 @@ class IdleBehaviorController:
         This serves both as a verification mechanism and as a way
         to test the get_pose feature alongside idle behavior.
         """
+        if self.client is None:
+            return  # Skip when using MotionBlendController
+
         try:
             pose = await self.client.get_current_pose()
 

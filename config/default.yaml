@@ -60,6 +60,42 @@ idle_behavior:
   pause_on_interaction: true  # Pause when user is interacting
   interaction_cooldown: 2.0   # Seconds to wait after interaction ends
 
+# Motion blending - orchestrates all motion sources
+motion_blend:
+  enabled: true
+  tick_rate_hz: 100.0        # Internal control loop rate
+  command_rate_hz: 20.0      # Rate to send commands to daemon
+  smoothing_factor: 0.3      # Pose interpolation factor (0.0-1.0)
+  pose_limits:
+    pitch_range: [-45, 45]   # Pitch safety limits in degrees
+    yaw_range: [-45, 45]     # Yaw safety limits in degrees
+    roll_range: [-30, 30]    # Roll safety limits in degrees
+    z_range: [-50, 50]       # Vertical offset limits in mm
+    antenna_range: [0, 90]   # Antenna position limits in degrees
+
+# Breathing behavior - subtle idle animation
+breathing:
+  enabled: true
+  z_amplitude_mm: 5.0        # Vertical body oscillation amplitude
+  z_frequency_hz: 0.1        # 6 second breathing cycle
+  antenna_amplitude_deg: 15.0  # Antenna sway amplitude
+  antenna_frequency_hz: 0.5  # 2 second antenna cycle
+  antenna_base_angle: 45.0   # Neutral antenna position
+  pitch_amplitude_deg: 1.5   # Subtle head pitch
+  pitch_frequency_hz: 0.12   # Slightly offset from Z for organic feel
+  yaw_amplitude_deg: 0.8     # Very subtle yaw drift
+  yaw_frequency_hz: 0.07     # Very slow drift
+
+# Head wobble - speech-reactive animation for TTS
+wobble:
+  enabled: true
+  max_pitch_deg: 8.0         # Maximum pitch displacement during speech
+  max_yaw_deg: 6.0           # Maximum yaw displacement
+  max_roll_deg: 4.0          # Maximum roll displacement
+  latency_compensation_ms: 80.0  # Audio processing latency
+  smoothing_factor: 0.3      # Smoothing for transitions
+  noise_scale: 0.2           # Perlin-like noise overlay scale
+
 integrations:
   home_assistant:
     enabled: false

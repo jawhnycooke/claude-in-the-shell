@@ -30,7 +30,17 @@ from claude_agent_sdk import (
 )
 
 from reachy_agent.agent.options import load_system_prompt
-from reachy_agent.behaviors.idle import IdleBehaviorConfig, IdleBehaviorController
+from reachy_agent.behaviors import (
+    BlendControllerConfig,
+    BreathingConfig,
+    BreathingMotion,
+    HeadPose,
+    HeadWobble,
+    IdleBehaviorConfig,
+    IdleBehaviorController,
+    MotionBlendController,
+    WobbleConfig,
+)
 from reachy_agent.mcp_servers.integrations import (
     build_github_mcp_config,
     get_all_github_tools,
@@ -126,6 +136,10 @@ class ReachyAgentLoop:
         enable_memory: bool = True,
         enable_github: bool = False,
         github_toolsets: list[str] | None = None,
+        enable_motion_blend: bool = True,
+        blend_config: BlendControllerConfig | None = None,
+        breathing_config: BreathingConfig | None = None,
+        wobble_config: WobbleConfig | None = None,
     ) -> None:
         """Initialize the agent loop.
 
@@ -138,6 +152,10 @@ class ReachyAgentLoop:
             enable_memory: Whether to enable memory system for personalization.
             enable_github: Whether to enable GitHub MCP server integration.
             github_toolsets: List of GitHub toolsets to enable (repos, issues, etc.).
+            enable_motion_blend: Whether to enable motion blending system.
+            blend_config: Optional motion blend controller configuration.
+            breathing_config: Optional breathing motion configuration.
+            wobble_config: Optional head wobble configuration.
         """
         self.config = config
         self.daemon_url = daemon_url
@@ -160,6 +178,15 @@ class ReachyAgentLoop:
         self._idle_controller: IdleBehaviorController | None = None
         self._daemon_client: ReachyDaemonClient | None = None
 
+        # Motion blending system
+        self._enable_motion_blend = enable_motion_blend
+        self._blend_config = blend_config
+        self._breathing_config = breathing_config
+        self._wobble_config = wobble_config
+        self._blend_controller: MotionBlendController | None = None
+        self._breathing_motion: BreathingMotion | None = None
+        self._head_wobble: HeadWobble | None = None
+
         # Memory system
         self._enable_memory = enable_memory
         self._memory_manager: MemoryManager | None = None
@@ -176,11 +203,28 @@ class ReachyAgentLoop:
         return self._idle_controller
 
     @property
+    def blend_controller(self) -> MotionBlendController | None:
+        """Get the motion blend controller if enabled."""
+        return self._blend_controller
+
+    @property
+    def head_wobble(self) -> HeadWobble | None:
+        """Get the head wobble motion source if enabled."""
+        return self._head_wobble
+
+    @property
     def is_idle_behavior_active(self) -> bool:
         """Check if idle behavior is currently running (not paused)."""
         if self._idle_controller is None:
             return False
         return self._idle_controller.is_running
+
+    @property
+    def is_motion_blend_active(self) -> bool:
+        """Check if motion blending is currently running."""
+        if self._blend_controller is None:
+            return False
+        return self._blend_controller.is_running
 
     def _build_mcp_servers(self) -> dict[str, dict[str, Any]]:
         """Build MCP server configuration for SDK.
@@ -423,15 +467,20 @@ class ReachyAgentLoop:
                 if memory_context:
                     self._system_prompt = f"{self._system_prompt}\n\n{memory_context}"
 
-            # Initialize idle behavior controller if enabled
-            if self._enable_idle_behavior:
-                self._daemon_client = ReachyDaemonClient(base_url=self.daemon_url)
+            # Initialize daemon client (shared by behaviors)
+            self._daemon_client = ReachyDaemonClient(base_url=self.daemon_url)
+
+            # Initialize motion blending system if enabled
+            if self._enable_motion_blend:
+                await self._initialize_motion_blend()
+            elif self._enable_idle_behavior:
+                # Fallback: standalone idle behavior without blend controller
                 self._idle_controller = IdleBehaviorController(
                     daemon_client=self._daemon_client,
                     config=self._idle_config,
                 )
                 await self._idle_controller.start()
-                log.info("Idle behavior controller started")
+                log.info("Idle behavior controller started (standalone mode)")
 
             # Create SDK client (don't connect yet - connect on first query)
             options = self._build_sdk_options()
@@ -500,6 +549,92 @@ class ReachyAgentLoop:
             self._memory_manager = None
             self._enable_memory = False
 
+    async def _initialize_motion_blend(self) -> None:
+        """Initialize the motion blending system.
+
+        Sets up:
+        - MotionBlendController (orchestrator)
+        - BreathingMotion (primary, idle animation)
+        - IdleBehaviorController (primary, look-around)
+        - HeadWobble (secondary, speech animation)
+
+        The blend controller sends composed poses to the daemon.
+        """
+        log.info("Initializing motion blending system")
+
+        try:
+            # Create callback to send poses to daemon
+            async def send_pose_to_daemon(pose: HeadPose) -> None:
+                """Send composed pose to Reachy daemon."""
+                if self._daemon_client is None:
+                    return
+                try:
+                    await self._daemon_client.look_at(
+                        yaw=pose.yaw,
+                        pitch=pose.pitch,
+                        roll=pose.roll,
+                        duration=0.05,  # Quick updates (20Hz)
+                    )
+                    # Also update antennas
+                    await self._daemon_client.set_antenna_state(
+                        left_angle=pose.left_antenna,
+                        right_angle=pose.right_antenna,
+                    )
+                except Exception as e:
+                    log.debug("Error sending pose to daemon", error=str(e))
+
+            # Create blend controller
+            self._blend_controller = MotionBlendController(
+                config=self._blend_config,
+                send_pose_callback=send_pose_to_daemon,
+            )
+
+            # Create and register breathing motion (primary)
+            self._breathing_motion = BreathingMotion(config=self._breathing_config)
+            self._blend_controller.register_source("breathing", self._breathing_motion)
+
+            # Create and register idle behavior (primary)
+            if self._enable_idle_behavior:
+                # Use blend mode - don't give it daemon_client directly
+                self._idle_controller = IdleBehaviorController(
+                    daemon_client=None,  # Blend controller handles daemon
+                    config=self._idle_config,
+                )
+                self._blend_controller.register_source("idle", self._idle_controller)
+
+            # Create and register head wobble (secondary)
+            self._head_wobble = HeadWobble(config=self._wobble_config)
+            self._blend_controller.register_source("wobble", self._head_wobble)
+
+            # Start the blend controller
+            await self._blend_controller.start()
+
+            # Set breathing as default primary motion
+            await self._blend_controller.set_primary("breathing")
+
+            log.info(
+                "Motion blending system initialized",
+                sources=list(self._blend_controller._sources.keys()),
+                active_primary=self._blend_controller.active_primary,
+            )
+
+        except Exception as e:
+            log.warning("Motion blending failed to initialize", error=str(e))
+            # Motion blending is optional - continue without it
+            self._blend_controller = None
+            self._enable_motion_blend = False
+
+    def set_listening_state(self, listening: bool) -> None:
+        """Set whether the robot is listening to the user.
+
+        When listening, antenna motion is frozen to avoid distraction.
+
+        Args:
+            listening: Whether the robot is listening.
+        """
+        if self._blend_controller:
+            self._blend_controller.set_listening(listening)
+
     async def process_input(
         self,
         user_input: str,
@@ -532,7 +667,8 @@ class ReachyAgentLoop:
         self.state = AgentState.PROCESSING
         self._turn_counter += 1
 
-        # Pause idle behavior during user interaction
+        # Set listening state and pause idle behavior during user interaction
+        self.set_listening_state(True)
         if self._idle_controller:
             await self._idle_controller.pause()
 
@@ -575,7 +711,8 @@ class ReachyAgentLoop:
 
         finally:
             clear_context()
-            # Resume idle behavior after processing completes
+            # Exit listening state and resume idle behavior after processing
+            self.set_listening_state(False)
             if self._idle_controller:
                 await self._idle_controller.resume()
 
@@ -705,8 +842,13 @@ class ReachyAgentLoop:
         log.info("Shutting down agent loop")
         self.state = AgentState.SHUTDOWN
 
-        # Stop idle behavior controller
-        if self._idle_controller:
+        # Stop motion blend controller (also stops registered sources)
+        if self._blend_controller:
+            await self._blend_controller.stop()
+            log.info("Motion blend controller stopped")
+
+        # Stop idle behavior controller (if running standalone)
+        if self._idle_controller and not self._blend_controller:
             await self._idle_controller.stop()
             log.info("Idle behavior controller stopped")
 

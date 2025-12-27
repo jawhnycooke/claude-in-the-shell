@@ -117,6 +117,63 @@ class IntegrationsConfig(BaseModel):
     github: GitHubConfig = Field(default_factory=GitHubConfig)
 
 
+class PoseLimitsConfig(BaseModel):
+    """Safety limits for robot poses."""
+
+    pitch_range: tuple[float, float] = Field(default=(-45.0, 45.0))
+    yaw_range: tuple[float, float] = Field(default=(-45.0, 45.0))
+    roll_range: tuple[float, float] = Field(default=(-30.0, 30.0))
+    z_range: tuple[float, float] = Field(default=(-50.0, 50.0))
+    antenna_range: tuple[float, float] = Field(default=(0.0, 90.0))
+
+
+class MotionBlendConfig(BaseModel):
+    """Motion blending configuration."""
+
+    enabled: bool = Field(default=True)
+    tick_rate_hz: float = Field(default=100.0, ge=10.0, le=200.0)
+    command_rate_hz: float = Field(default=20.0, ge=5.0, le=50.0)
+    smoothing_factor: float = Field(default=0.3, ge=0.0, le=1.0)
+    pose_limits: PoseLimitsConfig = Field(default_factory=PoseLimitsConfig)
+
+
+class BreathingConfig(BaseModel):
+    """Breathing motion configuration."""
+
+    enabled: bool = Field(default=True)
+    z_amplitude_mm: float = Field(default=5.0, ge=0.0, le=20.0)
+    z_frequency_hz: float = Field(default=0.15, ge=0.05, le=1.0)
+    antenna_amplitude_deg: float = Field(default=10.0, ge=0.0, le=30.0)
+    antenna_frequency_hz: float = Field(default=0.2, ge=0.05, le=1.0)
+    antenna_base_angle: float = Field(default=45.0, ge=0.0, le=90.0)
+
+
+class WobbleConfig(BaseModel):
+    """Head wobble configuration."""
+
+    enabled: bool = Field(default=True)
+    max_pitch_deg: float = Field(default=8.0, ge=0.0, le=30.0)
+    max_yaw_deg: float = Field(default=5.0, ge=0.0, le=30.0)
+    pitch_scale: float = Field(default=1.0, ge=0.0, le=2.0)
+    yaw_scale: float = Field(default=0.6, ge=0.0, le=2.0)
+    smoothing_factor: float = Field(default=0.3, ge=0.0, le=1.0)
+    noise_frequency: float = Field(default=3.0, ge=0.5, le=10.0)
+
+
+class IdleBehaviorConfig(BaseModel):
+    """Idle behavior configuration."""
+
+    enabled: bool = Field(default=True)
+    min_look_interval: float = Field(default=3.0, ge=1.0, le=30.0)
+    max_look_interval: float = Field(default=8.0, ge=2.0, le=60.0)
+    movement_duration: float = Field(default=1.5, ge=0.5, le=5.0)
+    yaw_range: tuple[float, float] = Field(default=(-35.0, 35.0))
+    pitch_range: tuple[float, float] = Field(default=(-15.0, 20.0))
+    roll_range: tuple[float, float] = Field(default=(-8.0, 8.0))
+    curiosity_chance: float = Field(default=0.15, ge=0.0, le=1.0)
+    pause_on_interaction: bool = Field(default=True)
+
+
 class ReachyConfig(BaseModel):
     """Main Reachy Agent configuration.
 
@@ -131,6 +188,10 @@ class ReachyConfig(BaseModel):
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
     integrations: IntegrationsConfig = Field(default_factory=IntegrationsConfig)
+    motion_blend: MotionBlendConfig = Field(default_factory=MotionBlendConfig)
+    breathing: BreathingConfig = Field(default_factory=BreathingConfig)
+    wobble: WobbleConfig = Field(default_factory=WobbleConfig)
+    idle_behavior: IdleBehaviorConfig = Field(default_factory=IdleBehaviorConfig)
 
     @classmethod
     def from_yaml(cls, path: Path) -> ReachyConfig:
