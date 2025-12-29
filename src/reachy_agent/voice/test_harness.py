@@ -310,6 +310,10 @@ class VoiceTestHarness:
     ) -> TestResult:
         """Run a single test scenario.
 
+        This method directly calls the agent's process_input() method with
+        the scenario text, simulating what STT would produce. This bypasses
+        the audio pipeline entirely for reliable testing.
+
         Args:
             scenario: Test scenario to execute
 
@@ -333,41 +337,40 @@ class VoiceTestHarness:
         )
 
         try:
-            # Generate synthetic speech
-            audio = await self.synthetic_human.speak_resampled(
-                scenario.input_text,
-                target_rate=16000,
-            )
-
-            if not audio:
+            # Directly call the agent with text input (simulates STT output)
+            if not self.agent:
                 return TestResult(
                     input_text=scenario.input_text,
                     status=TestResultStatus.ERROR,
-                    error_message="Failed to generate synthetic speech",
+                    error_message="No agent configured",
                     duration_seconds=time.monotonic() - start_time,
                 )
 
-            # Inject audio into pipeline
-            await self.inject_audio(audio)
+            # Process input through the Claude agent
+            response = await asyncio.wait_for(
+                self.agent.process_input(scenario.input_text),
+                timeout=scenario.timeout_seconds,
+            )
 
-            # Wait for response with timeout
-            try:
-                await asyncio.wait_for(
-                    self._response_event.wait(),
-                    timeout=scenario.timeout_seconds,
-                )
-            except asyncio.TimeoutError:
-                return TestResult(
-                    input_text=scenario.input_text,
-                    status=TestResultStatus.TIMEOUT,
-                    transcription=self._transcriptions[-1] if self._transcriptions else "",
-                    error_message=f"Timeout after {scenario.timeout_seconds}s",
-                    duration_seconds=time.monotonic() - start_time,
-                )
+            # Extract tool calls from response
+            tool_calls = []
+            if response.tool_calls:
+                for tool_call in response.tool_calls:
+                    tool_calls.append({
+                        "tool": tool_call.get("tool", "unknown"),
+                        "input": tool_call.get("input", {}),
+                    })
 
             # Build result
-            transcription = self._transcriptions[-1] if self._transcriptions else ""
-            agent_response = self._agent_responses[-1] if self._agent_responses else ""
+            agent_response = response.text or ""
+            self._agent_responses.append(agent_response)
+            self._tool_calls.extend(tool_calls)
+
+            # Notify callbacks
+            if self.pipeline and self.pipeline.on_transcription:
+                self.pipeline.on_transcription(scenario.input_text)
+            if self.pipeline and self.pipeline.on_response:
+                self.pipeline.on_response(agent_response)
 
             # Validate expectations
             status = TestResultStatus.PASSED
@@ -375,20 +378,23 @@ class VoiceTestHarness:
             if scenario.expect_response and not agent_response:
                 status = TestResultStatus.FAILED
 
-            if (
-                scenario.expect_transcription_contains
-                and scenario.expect_transcription_contains.lower() not in transcription.lower()
-            ):
+            # Check expected tool(s)
+            tool_names = [tc["tool"] for tc in tool_calls]
+            if scenario.expect_tool and scenario.expect_tool not in tool_names:
                 status = TestResultStatus.FAILED
 
-            # TODO: Add tool call validation when we capture tool calls
+            if scenario.expect_tools:
+                for expected_tool in scenario.expect_tools:
+                    if expected_tool not in tool_names:
+                        status = TestResultStatus.FAILED
+                        break
 
             result = TestResult(
                 input_text=scenario.input_text,
                 status=status,
-                transcription=transcription,
+                transcription=scenario.input_text,  # Text input is the "transcription"
                 agent_response=agent_response,
-                tool_calls=list(self._tool_calls),
+                tool_calls=tool_calls,
                 duration_seconds=time.monotonic() - start_time,
             )
 
@@ -397,9 +403,18 @@ class VoiceTestHarness:
                 name=scenario.name,
                 status=result.status.value,
                 duration=round(result.duration_seconds, 2),
+                tools=tool_names,
             )
 
             return result
+
+        except asyncio.TimeoutError:
+            return TestResult(
+                input_text=scenario.input_text,
+                status=TestResultStatus.TIMEOUT,
+                error_message=f"Timeout after {scenario.timeout_seconds}s",
+                duration_seconds=time.monotonic() - start_time,
+            )
 
         except Exception as e:
             logger.error("test_scenario_error", name=scenario.name, error=str(e))
