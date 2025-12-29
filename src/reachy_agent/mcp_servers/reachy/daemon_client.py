@@ -179,6 +179,45 @@ class ReachyDaemonClient:
         except ReachyDaemonError:
             return {"status": "unhealthy", "error": "Cannot reach daemon"}
 
+    async def set_target(
+        self,
+        head_pose: dict[str, float] | None = None,
+        body_yaw: float | None = None,
+        antennas: list[float] | None = None,
+    ) -> dict[str, str]:
+        """Set target pose using smooth direct control (no snapping).
+
+        This is the preferred method for smooth movements on the real daemon.
+        Unlike `goto`, this doesn't snap to default x/y/z=0 positions.
+
+        Args:
+            head_pose: Head orientation {roll, pitch, yaw} in radians.
+            body_yaw: Body rotation in radians.
+            antennas: Antenna positions [left, right] in radians.
+
+        Returns:
+            Operation status.
+        """
+        backend = await self.detect_backend()
+
+        if backend == DaemonBackend.REAL:
+            data: dict[str, Any] = {}
+            if head_pose is not None:
+                data["target_head_pose"] = head_pose
+            if body_yaw is not None:
+                data["target_body_yaw"] = body_yaw
+            if antennas is not None:
+                data["target_antennas"] = antennas
+
+            try:
+                result = await self._request("POST", "/api/move/set_target", json_data=data)
+                return {"status": result.get("status", "ok")}
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
+        else:
+            # Mock daemon doesn't have set_target, use the existing endpoints
+            return {"status": "error", "message": "set_target only available on real daemon"}
+
     async def move_head(
         self,
         direction: str,
@@ -198,7 +237,7 @@ class ReachyDaemonClient:
         backend = await self.detect_backend()
 
         if backend == DaemonBackend.REAL:
-            # Real daemon uses /api/move/goto with head_pose
+            # Real daemon uses /api/move/set_target for smooth movements
             # Map direction to yaw/pitch angles (in degrees, will convert to radians)
             angle = degrees if degrees is not None else 20.0  # Default 20 degrees
             yaw_deg = 0.0
@@ -219,33 +258,27 @@ class ReachyDaemonClient:
                 yaw_deg = 0.0
                 pitch_deg = 0.0
 
-            # Map speed to duration
-            duration_map = {"slow": 2.0, "normal": 1.0, "fast": 0.5}
-            duration = duration_map.get(speed, 1.0)
-
-            data = {
-                "head_pose": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
-                    "roll": 0.0,
-                    "pitch": deg_to_rad(pitch_deg),
-                    "yaw": deg_to_rad(yaw_deg),
-                },
-                "duration": duration,
-                "interpolation": "minjerk",
-            }
             log.debug(
-                "move_head: sending to real daemon",
+                "move_head: using set_target for smooth movement",
                 direction=direction,
                 yaw_deg=yaw_deg,
                 pitch_deg=pitch_deg,
                 yaw_rad=deg_to_rad(yaw_deg),
                 pitch_rad=deg_to_rad(pitch_deg),
             )
+
+            # Use set_target for smooth movements (no snapping to x/y/z=0)
+            head_pose = {
+                "roll": 0.0,
+                "pitch": deg_to_rad(pitch_deg),
+                "yaw": deg_to_rad(yaw_deg),
+            }
+
             try:
-                result = await self._request("POST", "/api/move/goto", json_data=data)
-                return {"status": "success", "uuid": str(result.get("uuid", ""))}
+                result = await self._request(
+                    "POST", "/api/move/set_target", json_data={"target_head_pose": head_pose}
+                )
+                return {"status": "success", "result": str(result.get("status", "ok"))}
             except ReachyDaemonError as e:
                 return {"status": "error", "message": str(e)}
         else:
@@ -466,8 +499,9 @@ class ReachyDaemonClient:
 
         Note:
             This method requires the REAL daemon backend. It uses /api/move/goto
-            which is only available on the official reachy-mini daemon.
-            The MOCK backend doesn't support this endpoint structure.
+            for keyframe playback because timing control is essential for animations.
+            Unlike single-pose movements, keyframes specify all position values so
+            the snapping issue doesn't apply here.
 
         Args:
             move_name: Name of the emotion move (e.g., "curious1", "cheerful1").
@@ -517,22 +551,18 @@ class ReachyDaemonClient:
                 await asyncio.sleep(wait_time_s)
 
             # Build pose data - values are already in radians from the JSON
+            # Use set_target for smooth keyframe playback (no snapping)
             data = {
-                "head_pose": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
+                "target_head_pose": {
                     "roll": kf.head["roll"],
                     "pitch": kf.head["pitch"],
                     "yaw": kf.head["yaw"],
                 },
-                "antennas": kf.antennas,
-                "duration": 0.01,  # Quick transition, keyframes are pre-timed
-                "interpolation": "linear",
+                "target_antennas": kf.antennas,
             }
 
             try:
-                await self._request("POST", "/api/move/goto", json_data=data)
+                await self._request("POST", "/api/move/set_target", json_data=data)
             except ReachyDaemonError as e:
                 log.error(
                     "Local emotion keyframe failed",
@@ -632,21 +662,17 @@ class ReachyDaemonClient:
             left_antenna_rad = deg_to_rad(antennas["left"])
             right_antenna_rad = deg_to_rad(antennas["right"])
 
+            # Use set_target for smooth custom emotion (no snapping)
             data = {
-                "head_pose": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
+                "target_head_pose": {
                     "roll": deg_to_rad(roll_deg),
                     "pitch": deg_to_rad(hardware_pitch_deg),
                     "yaw": deg_to_rad(yaw_deg),
                 },
-                "antennas": [left_antenna_rad, right_antenna_rad],
-                "duration": max(duration_ms / 1000.0, 0.5),  # Min 0.5s, convert ms to s
-                "interpolation": "minjerk",
+                "target_antennas": [left_antenna_rad, right_antenna_rad],
             }
             log.debug(
-                "play_emotion: using custom composition",
+                "play_emotion: using custom composition with set_target",
                 emotion=emotion,
                 user_pitch_deg=pitch_deg,
                 hardware_pitch_deg=hardware_pitch_deg,
@@ -656,8 +682,8 @@ class ReachyDaemonClient:
                 right_antenna=antennas["right"],
             )
             try:
-                result = await self._request("POST", "/api/move/goto", json_data=data)
-                return {"status": "success", "uuid": str(result.get("uuid", ""))}
+                result = await self._request("POST", "/api/move/set_target", json_data=data)
+                return {"status": "success", "result": str(result.get("status", "ok"))}
             except ReachyDaemonError as e:
                 return {"status": "error", "message": str(e)}
         else:
@@ -732,10 +758,10 @@ class ReachyDaemonClient:
         """Set antenna positions.
 
         Args:
-            left_angle: Left antenna angle.
-            right_angle: Right antenna angle.
-            wiggle: Whether to wiggle.
-            duration_ms: Motion duration.
+            left_angle: Left antenna angle in degrees.
+            right_angle: Right antenna angle in degrees.
+            wiggle: Whether to wiggle (mock daemon only).
+            duration_ms: Motion duration (mock daemon only, set_target uses smooth interpolation).
 
         Returns:
             Operation status.
@@ -743,26 +769,23 @@ class ReachyDaemonClient:
         backend = await self.detect_backend()
 
         if backend == DaemonBackend.REAL:
-            # Real daemon uses /api/move/goto with antennas parameter
+            # Real daemon uses /api/move/set_target for smooth movements
             # Antenna angles come in as degrees, MuJoCo expects radians
             left_rad = deg_to_rad(left_angle) if left_angle is not None else 0.0
             right_rad = deg_to_rad(right_angle) if right_angle is not None else 0.0
             antennas = [left_rad, right_rad]
-            data = {
-                "antennas": antennas,
-                "duration": duration_ms / 1000.0,  # Convert ms to seconds
-                "interpolation": "minjerk",
-            }
             log.debug(
-                "set_antenna_state: sending to real daemon",
+                "set_antenna_state: using set_target for smooth movement",
                 left_deg=left_angle,
                 right_deg=right_angle,
                 left_rad=left_rad,
                 right_rad=right_rad,
             )
             try:
-                result = await self._request("POST", "/api/move/goto", json_data=data)
-                return {"status": "success", "uuid": str(result.get("uuid", ""))}
+                result = await self._request(
+                    "POST", "/api/move/set_target", json_data={"target_antennas": antennas}
+                )
+                return {"status": "success", "result": str(result.get("status", "ok"))}
             except ReachyDaemonError as e:
                 return {"status": "error", "message": str(e)}
         else:
@@ -944,29 +967,25 @@ class ReachyDaemonClient:
                     # Invert pitch for reachy-mini (positive = look up in user space)
                     hardware_pitch = -head["pitch"]
 
+                    # Use set_target for smooth dance keyframe playback (no snapping)
                     data = {
-                        "head_pose": {
-                            "x": 0.0,
-                            "y": 0.0,
-                            "z": 0.0,
+                        "target_head_pose": {
                             "roll": deg_to_rad(head["roll"]),
                             "pitch": deg_to_rad(hardware_pitch),
                             "yaw": deg_to_rad(head["yaw"]),
                         },
-                        "antennas": [deg_to_rad(antennas[0]), deg_to_rad(antennas[1])],
-                        "duration": kf_duration,
-                        "interpolation": "minjerk",
+                        "target_antennas": [deg_to_rad(antennas[0]), deg_to_rad(antennas[1])],
                     }
 
                     try:
-                        await self._request("POST", "/api/move/goto", json_data=data)
+                        await self._request("POST", "/api/move/set_target", json_data=data)
                         # Wait for the movement to complete before next keyframe
                         await asyncio.sleep(kf_duration)
                     except ReachyDaemonError as e:
                         log.error("Dance keyframe failed", error=str(e))
                         return {"status": "error", "message": str(e)}
 
-            return {"status": "success", "routine": routine, "loops": loops}
+            return {"status": "success", "routine": routine, "loops": str(loops)}
         else:
             # Mock daemon uses /expression/dance
             data = {
@@ -991,21 +1010,44 @@ class ReachyDaemonClient:
         Args:
             direction: Rotation direction (left, right).
             degrees: Rotation angle in degrees (0-360).
-            speed: Rotation speed (slow, normal, fast).
+            speed: Rotation speed (slow, normal, fast). Note: set_target uses smooth interpolation.
 
         Returns:
             Operation status.
         """
-        data = {
-            "direction": direction,
-            "degrees": degrees,
-            "speed": speed,
-        }
+        backend = await self.detect_backend()
 
-        try:
-            return await self._request("POST", "/body/rotate", json_data=data)
-        except ReachyDaemonError as e:
-            return {"status": "error", "message": str(e)}
+        if backend == DaemonBackend.REAL:
+            # Real daemon uses /api/move/set_target for smooth movements
+            # Convert direction and degrees to body_yaw in radians
+            # Positive yaw = rotate left, negative yaw = rotate right
+            yaw_deg = degrees if direction.lower() == "left" else -degrees
+            yaw_rad = deg_to_rad(yaw_deg)
+
+            log.debug(
+                "rotate: using set_target for smooth movement",
+                direction=direction,
+                degrees=degrees,
+                yaw_rad=yaw_rad,
+            )
+            try:
+                result = await self._request(
+                    "POST", "/api/move/set_target", json_data={"target_body_yaw": yaw_rad}
+                )
+                return {"status": "success", "result": str(result.get("status", "ok"))}
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
+        else:
+            # Mock daemon uses /body/rotate
+            data = {
+                "direction": direction,
+                "degrees": degrees,
+                "speed": speed,
+            }
+            try:
+                return await self._request("POST", "/body/rotate", json_data=data)
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
 
     async def look_at(
         self,
@@ -1021,8 +1063,8 @@ class ReachyDaemonClient:
             roll: Roll angle in degrees (-45 to 45).
             pitch: Pitch angle in degrees (-45 to 45). Positive = look up.
             yaw: Yaw angle in degrees (-45 to 45). Positive = look left.
-            z: Vertical offset in mm (-50 to 50).
-            duration: Movement duration in seconds.
+            z: Vertical offset in mm (-50 to 50). Note: z is ignored with set_target.
+            duration: Movement duration in seconds. Note: set_target uses smooth interpolation.
 
         Note:
             The user-facing convention is positive pitch = look UP.
@@ -1039,22 +1081,15 @@ class ReachyDaemonClient:
         hardware_pitch = -pitch
 
         if backend == DaemonBackend.REAL:
-            # Real daemon uses /api/move/goto with head_pose
+            # Real daemon uses /api/move/set_target for smooth movements
             # MuJoCo expects angles in RADIANS, convert from degrees
-            data = {
-                "head_pose": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": z / 1000.0,  # Convert mm to meters
-                    "roll": deg_to_rad(roll),
-                    "pitch": deg_to_rad(hardware_pitch),
-                    "yaw": deg_to_rad(yaw),
-                },
-                "duration": duration,
-                "interpolation": "minjerk",
+            head_pose = {
+                "roll": deg_to_rad(roll),
+                "pitch": deg_to_rad(hardware_pitch),
+                "yaw": deg_to_rad(yaw),
             }
             log.debug(
-                "look_at: sending to real daemon",
+                "look_at: using set_target for smooth movement",
                 roll_deg=roll,
                 pitch_deg_user=pitch,
                 pitch_deg_hardware=hardware_pitch,
@@ -1064,8 +1099,10 @@ class ReachyDaemonClient:
                 yaw_rad=deg_to_rad(yaw),
             )
             try:
-                result = await self._request("POST", "/api/move/goto", json_data=data)
-                return {"status": "success", "uuid": str(result.get("uuid", ""))}
+                result = await self._request(
+                    "POST", "/api/move/set_target", json_data={"target_head_pose": head_pose}
+                )
+                return {"status": "success", "result": str(result.get("status", "ok"))}
             except ReachyDaemonError as e:
                 return {"status": "error", "message": str(e)}
         else:
@@ -1159,12 +1196,48 @@ class ReachyDaemonClient:
         Returns:
             Operation status.
         """
-        data = {"times": times, "speed": speed}
+        backend = await self.detect_backend()
 
-        try:
-            return await self._request("POST", "/gesture/nod", json_data=data)
-        except ReachyDaemonError as e:
-            return {"status": "error", "message": str(e)}
+        if backend == DaemonBackend.REAL:
+            # Real daemon: implement nod using set_target for smooth movement
+            # Nod = pitch up, then down, back to center
+            speed_delays = {"slow": 0.4, "normal": 0.25, "fast": 0.15}
+            delay = speed_delays.get(speed, 0.25)
+            pitch_angle = 0.3  # ~17 degrees in radians
+
+            log.debug("nod: using set_target for smooth gesture", times=times, speed=speed)
+            try:
+                for _ in range(times):
+                    # Pitch down (look down = negative pitch for hardware)
+                    await self._request(
+                        "POST",
+                        "/api/move/set_target",
+                        json_data={"target_head_pose": {"pitch": pitch_angle}},
+                    )
+                    await asyncio.sleep(delay)
+                    # Pitch up (look up)
+                    await self._request(
+                        "POST",
+                        "/api/move/set_target",
+                        json_data={"target_head_pose": {"pitch": -pitch_angle}},
+                    )
+                    await asyncio.sleep(delay)
+                # Return to center
+                await self._request(
+                    "POST",
+                    "/api/move/set_target",
+                    json_data={"target_head_pose": {"pitch": 0}},
+                )
+                return {"status": "success", "gesture": "nod", "times": str(times)}
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
+        else:
+            # Mock daemon uses /gesture/nod
+            data = {"times": times, "speed": speed}
+            try:
+                return await self._request("POST", "/gesture/nod", json_data=data)
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
 
     async def shake(
         self,
@@ -1180,12 +1253,48 @@ class ReachyDaemonClient:
         Returns:
             Operation status.
         """
-        data = {"times": times, "speed": speed}
+        backend = await self.detect_backend()
 
-        try:
-            return await self._request("POST", "/gesture/shake", json_data=data)
-        except ReachyDaemonError as e:
-            return {"status": "error", "message": str(e)}
+        if backend == DaemonBackend.REAL:
+            # Real daemon: implement shake using set_target for smooth movement
+            # Shake = yaw left, then right, back to center
+            speed_delays = {"slow": 0.35, "normal": 0.2, "fast": 0.12}
+            delay = speed_delays.get(speed, 0.2)
+            yaw_angle = 0.35  # ~20 degrees in radians
+
+            log.debug("shake: using set_target for smooth gesture", times=times, speed=speed)
+            try:
+                for _ in range(times):
+                    # Turn left (positive yaw)
+                    await self._request(
+                        "POST",
+                        "/api/move/set_target",
+                        json_data={"target_head_pose": {"yaw": yaw_angle}},
+                    )
+                    await asyncio.sleep(delay)
+                    # Turn right (negative yaw)
+                    await self._request(
+                        "POST",
+                        "/api/move/set_target",
+                        json_data={"target_head_pose": {"yaw": -yaw_angle}},
+                    )
+                    await asyncio.sleep(delay)
+                # Return to center
+                await self._request(
+                    "POST",
+                    "/api/move/set_target",
+                    json_data={"target_head_pose": {"yaw": 0}},
+                )
+                return {"status": "success", "gesture": "shake", "times": str(times)}
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
+        else:
+            # Mock daemon uses /gesture/shake
+            data = {"times": times, "speed": speed}
+            try:
+                return await self._request("POST", "/gesture/shake", json_data=data)
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
 
     async def rest(self) -> dict[str, str]:
         """Return to neutral resting pose.
