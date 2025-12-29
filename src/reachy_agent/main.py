@@ -84,6 +84,7 @@ async def async_main(
     daemon_url: str = "http://localhost:8000",
     mock_daemon: bool = False,
     interactive: bool = True,
+    voice_mode: bool = False,
 ) -> None:
     """Async main function.
 
@@ -92,6 +93,7 @@ async def async_main(
         daemon_url: URL of Reachy daemon.
         mock_daemon: Whether to start mock daemon.
         interactive: Whether to run interactive loop.
+        voice_mode: Whether to enable voice interaction.
     """
     # Load configuration
     config = load_config(config_path)
@@ -108,6 +110,7 @@ async def async_main(
         model=config.agent.model.value,
         daemon_url=daemon_url,
         mock_daemon=mock_daemon,
+        voice_mode=voice_mode,
     )
 
     # Start mock daemon if requested
@@ -118,13 +121,54 @@ async def async_main(
 
     # Create and run agent
     async with ReachyAgentLoop(config=config, daemon_url=daemon_url).session() as agent:
-        if interactive:
+        if voice_mode:
+            await run_voice_mode(agent)
+        elif interactive:
             await run_interactive_loop(agent)
         else:
             # Non-interactive mode - just keep running
             log.info("Running in non-interactive mode. Press Ctrl+C to exit.")
             while True:
                 await asyncio.sleep(1)
+
+
+async def run_voice_mode(agent: ReachyAgentLoop) -> None:
+    """Run the agent with voice interaction.
+
+    Args:
+        agent: Initialized agent loop.
+    """
+    try:
+        from reachy_agent.voice import VoicePipeline
+    except ImportError as e:
+        print(f"\n❌ Voice dependencies not installed: {e}")
+        print("Install with: pip install reachy-agent[voice]")
+        return
+
+    print("\n🎤 Reachy Agent Voice Mode")
+    print("Say 'Hey Reachy' to activate. Use Ctrl+C to exit.\n")
+
+    # Create and start voice pipeline
+    pipeline = VoicePipeline(
+        agent=agent,
+        on_transcription=lambda text: print(f"You: {text}"),
+        on_response=lambda text: print(f"Reachy: {text}"),
+    )
+
+    try:
+        success = await pipeline.initialize()
+        if not success:
+            print("❌ Failed to initialize voice pipeline")
+            return
+
+        await pipeline.start()
+
+        # Keep running until interrupted
+        while pipeline.is_running:
+            await asyncio.sleep(0.1)
+
+    finally:
+        await pipeline.stop()
 
 
 async def start_mock_daemon() -> None:
@@ -167,8 +211,18 @@ def run(
         "--non-interactive",
         help="Run without interactive prompt",
     ),
+    voice: bool = typer.Option(
+        False,
+        "--voice",
+        "-v",
+        help="Enable voice interaction (requires OpenAI API key)",
+    ),
 ) -> None:
-    """Run the Reachy agent."""
+    """Run the Reachy agent.
+
+    Use --voice to enable real-time voice interaction with the robot.
+    Requires: pip install reachy-agent[voice] and OPENAI_API_KEY env var.
+    """
     try:
         asyncio.run(
             async_main(
@@ -176,6 +230,7 @@ def run(
                 daemon_url=daemon_url,
                 mock_daemon=mock,
                 interactive=not non_interactive,
+                voice_mode=voice,
             )
         )
     except KeyboardInterrupt:

@@ -96,6 +96,45 @@ wobble:
   smoothing_factor: 0.3      # Smoothing for transitions
   noise_scale: 0.2           # Perlin-like noise overlay scale
 
+# Voice pipeline - real-time voice interaction via OpenAI Realtime API
+voice:
+  enabled: false                 # Enable with --voice flag
+
+  # Wake word detection
+  wake_word:
+    enabled: true
+    model: hey_jarvis            # Closest to "Hey Reachy" available
+    sensitivity: 0.5             # 0.0 (strict) to 1.0 (lenient)
+    cooldown_seconds: 2.0        # Ignore detections for this period
+
+  # Voice activity detection (end-of-speech)
+  vad:
+    silence_threshold_ms: 800    # Silence duration to trigger end-of-speech
+    min_speech_duration_ms: 250  # Minimum speech to be valid
+    max_speech_duration_s: 30.0  # Maximum before timeout
+    speech_threshold: 0.5        # VAD sensitivity
+
+  # OpenAI Realtime API settings
+  openai:
+    model: gpt-realtime-mini     # Cost-efficient, low latency
+    voice: alloy                 # Options: alloy, echo, fable, onyx, nova, shimmer
+    sample_rate: 24000           # OpenAI uses 24kHz
+    temperature: 0.8             # Response creativity
+    max_response_tokens: 4096    # Max response length
+    turn_detection_threshold: 0.5
+    turn_detection_silence_ms: 500
+
+  # Audio hardware settings
+  audio:
+    sample_rate: 16000           # Microphone sample rate
+    channels: 1                  # Mono audio
+    chunk_size: 1024             # Samples per chunk
+    format_bits: 16              # int16 PCM
+
+  # Pipeline behavior
+  confirmation_beep: true        # Play sound when wake word detected
+  auto_restart: true             # Restart listening after response
+
 integrations:
   home_assistant:
     enabled: false
