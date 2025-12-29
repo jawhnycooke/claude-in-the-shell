@@ -128,7 +128,7 @@ voice:
   audio:
     sample_rate: 16000           # Microphone sample rate
     channels: 1                  # Mono audio
-    chunk_size: 1024             # Samples per chunk
+    chunk_size: 512              # Samples per chunk (Silero VAD requires 512 at 16kHz)
     format_bits: 16              # int16 PCM
 
   # Pipeline behavior

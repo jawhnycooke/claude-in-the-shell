@@ -30,7 +30,7 @@ class AudioConfig:
 
     sample_rate: int = 16000
     channels: int = 1
-    chunk_size: int = 1024
+    chunk_size: int = 512  # Silero VAD requires exactly 512 samples at 16kHz
     format_bits: int = 16
     input_device_index: int | None = None
     output_device_index: int | None = None
