@@ -466,6 +466,7 @@ class VoiceTestHarness:
 
 
 # Pre-defined test scenarios
+# Note: Tool names use the full MCP-prefixed format: mcp__reachy__<tool>
 DEFAULT_TEST_SCENARIOS = [
     TestScenario(
         name="basic_greeting",
@@ -476,31 +477,31 @@ DEFAULT_TEST_SCENARIOS = [
         name="look_left",
         input_text="Look to the left please",
         expect_response=True,
-        expect_tool="look_at",
+        expect_tool="mcp__reachy__move_head",  # Claude uses move_head for directional commands
     ),
     TestScenario(
         name="wave_hello",
         input_text="Wave hello to me",
         expect_response=True,
-        expect_tool="play_emotion",
+        expect_tool="mcp__reachy__dance",  # Claude uses dance(routine='greeting') for waves
     ),
     TestScenario(
         name="nod_head",
         input_text="Nod your head",
         expect_response=True,
-        expect_tool="nod",
+        expect_tool="mcp__reachy__nod",
     ),
     TestScenario(
         name="current_pose",
         input_text="What position is your head in right now?",
         expect_response=True,
-        expect_tool="get_pose",
+        expect_tool="mcp__reachy__get_pose",
     ),
     TestScenario(
         name="show_excitement",
         input_text="Show me that you are excited!",
         expect_response=True,
-        expect_tool="play_emotion",
+        expect_tool="mcp__reachy__play_emotion",
     ),
 ]
 
