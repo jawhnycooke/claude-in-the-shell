@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -21,6 +22,10 @@ if TYPE_CHECKING:
     from openai.resources.beta.realtime import AsyncRealtimeConnection
 
 logger = structlog.get_logger(__name__)
+
+# OpenAI Realtime API WebSocket timeout is around 30 seconds of inactivity.
+# We use a conservative threshold to proactively reconnect before timeout.
+CONNECTION_IDLE_TIMEOUT_SECONDS = 25.0
 
 
 class RealtimeEvent(Enum):
@@ -79,6 +84,7 @@ class OpenAIRealtimeClient:
     _client: AsyncOpenAI | None = field(default=None, repr=False)
     _connection: AsyncRealtimeConnection | None = field(default=None, repr=False)
     _is_connected: bool = field(default=False, repr=False)
+    _last_activity_time: float = field(default=0.0, repr=False)
     _audio_buffer: list[bytes] = field(default_factory=list, repr=False)
     _response_audio_chunks: list[bytes] = field(default_factory=list, repr=False)
     _current_transcript: str = field(default="", repr=False)
@@ -119,7 +125,37 @@ class OpenAIRealtimeClient:
     @property
     def is_connected(self) -> bool:
         """Check if connected to Realtime API."""
-        return self._is_connected
+        return self._is_connected and self._connection is not None
+
+    async def ensure_connected(self) -> bool:
+        """Ensure connection is active, reconnecting if needed.
+
+        The WebSocket can timeout during long Claude processing periods.
+        This method detects stale connections and reconnects automatically
+        before the timeout occurs.
+
+        Returns:
+            True if connected (possibly after reconnection)
+        """
+        if self._is_connected and self._connection is not None:
+            # Check if connection has been idle too long
+            idle_time = time.monotonic() - self._last_activity_time
+            if idle_time > CONNECTION_IDLE_TIMEOUT_SECONDS:
+                # Connection is likely dead or about to timeout, reconnect proactively
+                logger.info(
+                    "realtime_reconnecting_stale",
+                    idle_seconds=round(idle_time, 1),
+                    threshold=CONNECTION_IDLE_TIMEOUT_SECONDS,
+                )
+                await self.disconnect()
+                return await self.connect()
+            return True
+
+        # Need to reconnect
+        logger.info("realtime_reconnecting", reason="connection_lost_or_timeout")
+        self._is_connected = False
+        self._connection = None
+        return await self.connect()
 
     async def connect(self) -> bool:
         """Connect to the Realtime API.
@@ -156,6 +192,7 @@ class OpenAIRealtimeClient:
             )
 
             self._is_connected = True
+            self._last_activity_time = time.monotonic()
             logger.info("realtime_connected", model=self.config.model)
             return True
 
@@ -198,6 +235,7 @@ class OpenAIRealtimeClient:
 
         try:
             await self._connection.input_audio_buffer.append(audio=audio_b64)
+            self._last_activity_time = time.monotonic()
         except Exception as e:
             logger.warning("send_audio_failed", error=str(e))
 
@@ -235,7 +273,7 @@ class OpenAIRealtimeClient:
             logger.warning("request_response_failed", error=str(e))
 
     async def send_text(self, text: str) -> None:
-        """Send a text message to the model.
+        """Send a text message to the model for TTS.
 
         Args:
             text: Text message to send
@@ -244,6 +282,10 @@ class OpenAIRealtimeClient:
             return
 
         try:
+            # Clear any lingering audio buffer from previous STT
+            await self._connection.input_audio_buffer.clear()
+
+            # Create a text message for the assistant to speak
             await self._connection.conversation.item.create(
                 item={
                     "type": "message",
@@ -252,6 +294,7 @@ class OpenAIRealtimeClient:
                 }
             )
             await self._connection.response.create()
+            self._last_activity_time = time.monotonic()
             logger.debug("text_sent", text_length=len(text))
         except Exception as e:
             logger.warning("send_text_failed", error=str(e))
@@ -274,6 +317,8 @@ class OpenAIRealtimeClient:
         try:
             async for event in self._connection:
                 event_type = event.type
+                # Update activity time on any event received
+                self._last_activity_time = time.monotonic()
 
                 if event_type == "response.audio.delta":
                     # Decode audio chunk
@@ -323,12 +368,22 @@ class OpenAIRealtimeClient:
                     yield ("transcription", transcript)
 
                 elif event_type == "error":
-                    logger.error(
-                        "realtime_error",
-                        error_type=getattr(event, "error", {}).get("type", "unknown"),
-                        message=getattr(event, "error", {}).get("message", ""),
-                    )
-                    yield ("error", str(event.error.message if hasattr(event, "error") else event))
+                    # Handle error event - error object has type, code, message attributes
+                    error_obj = getattr(event, "error", None)
+                    if error_obj:
+                        error_type = getattr(error_obj, "type", "unknown")
+                        error_code = getattr(error_obj, "code", "unknown")
+                        error_message = getattr(error_obj, "message", str(error_obj))
+                        logger.error(
+                            "realtime_error",
+                            error_type=error_type,
+                            error_code=error_code,
+                            message=error_message,
+                        )
+                        yield ("error", error_message)
+                    else:
+                        logger.error("realtime_error", event=str(event))
+                        yield ("error", str(event))
 
         except Exception as e:
             logger.error("process_events_failed", error=str(e))
@@ -379,10 +434,27 @@ class OpenAIRealtimeClient:
         Yields:
             Audio chunks (PCM16, 24kHz)
         """
-        if not self._connection:
+        # Ensure connection is alive - it may have timed out during Claude processing
+        if not await self.ensure_connected():
+            logger.error("speak_failed_no_connection")
             return
 
-        await self.send_text(text)
+        try:
+            await self.send_text(text)
+        except Exception as e:
+            error_str = str(e)
+            if "1011" in error_str or "keepalive" in error_str or "closed" in error_str:
+                # Connection died, try to reconnect once
+                logger.info("speak_reconnecting_after_send_failure")
+                self._is_connected = False
+                self._connection = None
+                if not await self.connect():
+                    logger.error("speak_reconnect_failed")
+                    return
+                await self.send_text(text)
+            else:
+                logger.error("speak_send_text_failed", error=error_str)
+                return
 
         async for event_type, data in self.process_events():
             if event_type == "audio_delta" and data:
@@ -390,6 +462,17 @@ class OpenAIRealtimeClient:
             elif event_type == "response_done":
                 break
             elif event_type == "error":
+                # Ignore stale audio buffer errors from previous STT phase
+                error_str = str(data) if data else ""
+                if "input_audio_buffer" in error_str:
+                    logger.debug("speak_ignoring_stale_buffer_error", error=data)
+                    continue
+                # Check for connection timeout errors
+                if "1011" in error_str or "keepalive" in error_str:
+                    logger.warning("speak_connection_timeout", error=data)
+                    self._is_connected = False
+                    self._connection = None
+                    break
                 logger.error("speak_error", error=data)
                 break
 

@@ -62,7 +62,7 @@ idle_behavior:
 
 # Motion blending - orchestrates all motion sources
 motion_blend:
-  enabled: true
+  enabled: false  # Disabled for voice testing
   tick_rate_hz: 100.0        # Internal control loop rate
   command_rate_hz: 20.0      # Rate to send commands to daemon
   smoothing_factor: 0.3      # Pose interpolation factor (0.0-1.0)
@@ -75,7 +75,7 @@ motion_blend:
 
 # Breathing behavior - subtle idle animation
 breathing:
-  enabled: true
+  enabled: false  # Disabled for voice testing
   z_amplitude_mm: 5.0        # Vertical body oscillation amplitude
   z_frequency_hz: 0.1        # 6 second breathing cycle
   antenna_amplitude_deg: 15.0  # Antenna sway amplitude

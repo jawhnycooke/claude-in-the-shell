@@ -259,7 +259,7 @@ class VoicePipeline:
 
         # Signal to agent that we're listening
         if self.agent:
-            await self.agent.set_listening_state(True)
+            self.agent.set_listening_state(True)
 
         # Optional confirmation beep
         if self.config.confirmation_beep:
@@ -271,6 +271,13 @@ class VoicePipeline:
     async def _listen_for_speech(self) -> None:
         """Listen for user speech and detect end-of-speech."""
         logger.debug("listening_for_speech")
+
+        # Ensure OpenAI Realtime connection is active before listening
+        # (it may have timed out during previous TTS playback or Claude processing)
+        if not await self._realtime.ensure_connected():
+            logger.error("listen_for_speech_connection_failed")
+            self._set_state(VoicePipelineState.ERROR)
+            return
 
         # Start recording
         await self._audio.start_recording()
@@ -303,8 +310,9 @@ class VoicePipeline:
         finally:
             await self._audio.stop_recording()
 
-        # Commit audio buffer and get transcription
-        await self._realtime.commit_audio()
+        # Note: With server_vad enabled, OpenAI auto-commits the buffer on end-of-speech.
+        # We don't need to manually commit here - it would fail with "buffer empty" error.
+        # The transcription event will be available in process_events().
 
         self._set_state(VoicePipelineState.PROCESSING)
 
@@ -368,15 +376,30 @@ class VoicePipeline:
         logger.debug("playing_response", text_length=len(self._pending_response))
 
         try:
-            # Stream TTS audio from OpenAI
+            # Collect all TTS audio chunks first, then play
+            # OpenAI returns 24kHz audio, we need to resample or play at correct rate
             audio_chunks: list[bytes] = []
+            chunk_count = 0
 
             async for chunk in self._realtime.speak(self._pending_response):
-                audio_chunks.append(chunk)
-                # Stream to speaker
-                await self._audio.play_audio(chunk)
+                if chunk:
+                    audio_chunks.append(chunk)
+                    chunk_count += 1
 
-            logger.debug("response_played", chunks=len(audio_chunks))
+            if audio_chunks:
+                # Combine all chunks into one buffer
+                full_audio = b"".join(audio_chunks)
+                logger.debug(
+                    "tts_audio_received",
+                    chunks=chunk_count,
+                    total_bytes=len(full_audio),
+                )
+
+                # Play the combined audio at 24kHz (OpenAI's output rate)
+                await self._play_audio_24k(full_audio)
+                logger.debug("response_played")
+            else:
+                logger.warning("no_tts_audio_received")
 
         except Exception as e:
             logger.error("tts_playback_error", error=str(e))
@@ -386,9 +409,35 @@ class VoicePipeline:
 
             # Signal to agent that we're done speaking
             if self.agent:
-                await self.agent.set_listening_state(False)
+                self.agent.set_listening_state(False)
 
             self._restart_listening()
+
+    async def _play_audio_24k(self, audio_data: bytes) -> None:
+        """Play audio data at 24kHz sample rate (OpenAI Realtime output format)."""
+        if not self._audio or not self._audio._pyaudio:
+            logger.warning("audio_manager_not_available")
+            return
+
+        import asyncio
+
+        import pyaudio
+
+        def _play() -> None:
+            stream = self._audio._pyaudio.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=24000,  # OpenAI Realtime outputs 24kHz
+                output=True,
+                output_device_index=self._audio.config.output_device_index,
+            )
+            try:
+                stream.write(audio_data)
+            finally:
+                stream.stop_stream()
+                stream.close()
+
+        await asyncio.get_event_loop().run_in_executor(None, _play)
 
     async def _handle_error(self) -> None:
         """Handle error state."""

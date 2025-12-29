@@ -120,7 +120,13 @@ async def async_main(
         await asyncio.sleep(1)  # Wait for daemon to start
 
     # Create and run agent
-    async with ReachyAgentLoop(config=config, daemon_url=daemon_url).session() as agent:
+    # Disable motion blending and idle behavior in voice mode for cleaner logs
+    async with ReachyAgentLoop(
+        config=config,
+        daemon_url=daemon_url,
+        enable_motion_blend=not voice_mode,  # Disable for voice testing
+        enable_idle_behavior=not voice_mode,  # Disable for voice testing
+    ).session() as agent:
         if voice_mode:
             await run_voice_mode(agent)
         elif interactive:
