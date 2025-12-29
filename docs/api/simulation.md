@@ -363,7 +363,9 @@ adapter = create_simulation_adapter(scene="empty", headless=True, port=8765)
 
 ## Daemon API Mapping
 
-The client translates high-level commands to the Reachy Mini daemon's HTTP API:
+The client translates high-level commands to the Reachy Mini daemon's HTTP API.
+
+### Simulation (Mock Daemon)
 
 | Client Method | HTTP Endpoint | Payload |
 |--------------|---------------|---------|
@@ -374,6 +376,16 @@ The client translates high-level commands to the Reachy Mini daemon's HTTP API:
 | `wake_up()` | `POST /api/move/play/wake_up` | None |
 | `sleep()` | `POST /api/move/play/goto_sleep` | None |
 | `get_status()` | `GET /api/daemon/status` | None |
+
+### Real Hardware (Pollen Daemon)
+
+> **Important**: Real hardware uses `/api/move/set_target` instead of `/api/move/goto` for smooth movements. The `goto` API includes `x`, `y`, `z` position fields that default to 0, which causes the head to snap to origin. The `ReachyDaemonClient` auto-detects the backend and uses the appropriate API.
+
+| Client Method | HTTP Endpoint | Payload |
+|--------------|---------------|---------|
+| `move_head("left")` | `POST /api/move/set_target` | `{"target_head_pose": {"yaw": 0.52}}` |
+| `look_at(pitch=-10)` | `POST /api/move/set_target` | `{"target_head_pose": {"pitch": -0.17}}` |
+| `set_antenna_state(45, 45)` | `POST /api/move/set_target` | `{"target_antennas": [0.78, 0.78]}` |
 
 ## Running the Validation Script
 

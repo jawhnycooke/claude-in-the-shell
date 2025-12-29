@@ -50,7 +50,8 @@ class ReachyDaemonClient:
         self._client = httpx.AsyncClient(base_url=base_url)
 
     async def move_head(self, direction: str):
-        return await self._request("POST", "/api/move/goto", ...)
+        # Uses set_target for smooth movements on real hardware
+        return await self._request("POST", "/api/move/set_target", ...)
 ```
 
 **Why HTTP works well for us:**
@@ -120,10 +121,13 @@ Claude Instance 2 ───┘
 ## Daemon API Endpoints We Use
 
 ### Movement
-- `POST /api/move/goto` - Smooth interpolated movement
+- `POST /api/move/set_target` - Smooth incremental movement (real hardware)
+- `POST /api/move/goto` - Position movement (simulation only - see note below)
 - `POST /api/move/play/wake_up` - Wake up sequence
 - `POST /api/move/play/goto_sleep` - Sleep sequence
 - `POST /api/move/play/recorded-move-dataset/{dataset}/{move}` - HuggingFace emotions
+
+> **Important:** Real hardware requires `/api/move/set_target` for smooth movements. The `goto` API includes `x`, `y`, `z` position fields that default to 0, causing the head to snap to origin. Our `ReachyDaemonClient` auto-detects the backend and uses the appropriate API.
 
 ### Status
 - `GET /api/daemon/status` - Daemon health and config

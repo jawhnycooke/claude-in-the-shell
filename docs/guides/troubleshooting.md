@@ -250,6 +250,31 @@ agent:
 
 ## Hardware Issues
 
+### Robot Becomes Unresponsive ("channel closed")
+
+**Cause**: Communication channel between daemon and motors lost. Motors go limp and commands fail.
+
+**Solutions** (in order of preference):
+
+1. **Web UI Recovery** (Fastest):
+   ```
+   Open browser: http://reachy-mini.local:8000/settings
+   Toggle the On/Off switch: Off, then On
+   ```
+
+2. **SSH Recovery**:
+   ```bash
+   ssh pollen@reachy-mini.local
+   # Password: root
+   sudo systemctl restart reachy-mini-daemon
+   ```
+
+3. **Physical Reset** (Last resort):
+   - Power cycle the robot using the hardware power switch
+   - Wait 10 seconds before powering back on
+
+After recovery, run `wake_up` to re-enable motor control.
+
 ### "Motor not responding"
 
 **Cause**: Hardware disconnection or power issue.
@@ -263,7 +288,7 @@ agent:
 
 2. Restart the daemon:
    ```bash
-   sudo systemctl restart reachy-daemon
+   sudo systemctl restart reachy-mini-daemon
    ```
 
 3. Check power and connections on the robot

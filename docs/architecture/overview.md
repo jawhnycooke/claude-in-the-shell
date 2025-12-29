@@ -253,7 +253,7 @@ flowchart TB
         MUJOCO["MuJoCo Physics"]
     end
 
-    CLIENT -->|"POST /api/move/goto"| API
+    CLIENT -->|"POST /api/move/set_target"| API
     CLIENT -->|"POST /api/move/play/wake_up"| API
     CLIENT -->|"GET /api/daemon/status"| API
 

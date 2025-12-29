@@ -547,10 +547,10 @@ sudo ufw enable
 # 1. Check daemon
 curl http://localhost:8000/api/daemon/status
 
-# 2. Test head movement
-curl -X POST http://localhost:8000/api/move/goto \
+# 2. Test head movement (use set_target for real hardware)
+curl -X POST http://localhost:8000/api/move/set_target \
   -H "Content-Type: application/json" \
-  -d '{"head_pose": {"yaw": 0.5}, "duration": 1.0}'
+  -d '{"target_head_pose": {"yaw": 0.5}}'
 
 # 3. Run agent validation (adapted for hardware)
 python scripts/validate_hardware.py

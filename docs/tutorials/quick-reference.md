@@ -138,19 +138,27 @@ response = client.messages.create(
 |----------|--------|-------------|
 | `/api/daemon/status` | GET | Health check |
 | `/api/state/full` | GET | Full robot state |
-| `/api/move/goto` | POST | Move to position |
+| `/api/move/set_target` | POST | Move to position (real hardware) |
+| `/api/move/goto` | POST | Move to position (simulation) |
 | `/api/move/play/wake_up` | POST | Wake up robot |
 | `/api/move/play/goto_sleep` | POST | Sleep robot |
+
+> **Note**: Real hardware uses `/api/move/set_target` for smooth movements. The `goto` API can cause snapping because it includes `x`, `y`, `z` position fields that default to 0.
 
 ### Example: Direct API Call
 ```bash
 # Status check
 curl -s http://localhost:8765/api/daemon/status | python3 -m json.tool
 
-# Move head
+# Move head (simulation - port 8765)
 curl -X POST http://localhost:8765/api/move/goto \
   -H "Content-Type: application/json" \
-  -d '{"head_pose": {"x": 0, "y": 0, "z": 0, "roll": 0, "pitch": 0, "yaw": 0.5}, "duration": 1.0}'
+  -d '{"head_pose": {"roll": 0, "pitch": 0, "yaw": 0.5}, "duration": 1.0}'
+
+# Move head (real hardware - port 8000)
+curl -X POST http://localhost:8000/api/move/set_target \
+  -H "Content-Type: application/json" \
+  -d '{"target_head_pose": {"roll": 0, "pitch": 0, "yaw": 0.5}}'
 ```
 
 ## File Locations

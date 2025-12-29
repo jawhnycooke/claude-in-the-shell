@@ -600,6 +600,57 @@ python -m reachy_mini.daemon.app.main --sim --scene minimal --fastapi-port 8765
 
 ---
 
+## Connecting to Real Hardware
+
+Once you've tested with simulation, you can connect to real Reachy Mini hardware.
+
+### From Your Development Machine
+
+The robot's daemon is accessible over the network:
+
+```bash
+# Test daemon connectivity (replace with your robot's hostname)
+curl http://reachy-mini.local:8000/api/daemon/status
+
+# Run agent pointing to real hardware
+REACHY_DAEMON_URL=http://reachy-mini.local:8000 python -m reachy_agent run
+```
+
+### From the Robot's Raspberry Pi (SSH)
+
+For headless operation, SSH into the robot:
+
+```bash
+ssh pollen@reachy-mini.local
+# Password: root
+
+cd ~/reachy_agent
+source .venv/bin/activate
+python -m reachy_agent run
+```
+
+### Key Differences: Simulation vs Real Hardware
+
+| Aspect | Simulation | Real Hardware |
+|--------|------------|---------------|
+| Port | 8765 | 8000 |
+| Movement API | `/api/move/goto` | `/api/move/set_target` |
+| Backend | Mock daemon | Pollen daemon |
+
+The agent auto-detects which backend is running and uses the appropriate API for smooth movements.
+
+### Troubleshooting Real Hardware
+
+If the robot becomes unresponsive:
+
+1. Open `http://reachy-mini.local:8000/settings` in your browser
+2. Toggle the On/Off switch off, then on
+3. Run `wake_up` command to re-enable motor control
+
+See the [Troubleshooting Guide](../guides/troubleshooting.md) for more solutions.
+
+---
+
 ## Complete Reference Script
 
 Here's a complete script you can use as a starting point:

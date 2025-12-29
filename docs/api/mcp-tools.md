@@ -488,10 +488,12 @@ sequenceDiagram
     A->>P: Evaluate permission
     P-->>A: Tier 1: Autonomous
     A->>M: Execute tool
-    M->>D: POST /api/move/goto
+    M->>D: POST /api/move/set_target
     D-->>M: Success
     M-->>A: Result
     A-->>C: Tool result
 ```
+
+> **Note**: Real hardware uses `/api/move/set_target` for smooth movements. The client auto-detects the backend.
 
 All body control tools are Tier 1 (Autonomous) by default. See [Permission System](permissions.md) for customization.
