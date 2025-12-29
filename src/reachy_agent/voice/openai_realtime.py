@@ -168,7 +168,7 @@ class OpenAIRealtimeClient:
         """Disconnect from the Realtime API."""
         if self._connection:
             try:
-                await self._connection.__aexit__(None, None, None)
+                await self._connection.close()
             except Exception as e:
                 logger.debug("realtime_disconnect_error", error=str(e))
             finally:
