@@ -1,9 +1,9 @@
-"""Tests for SDK client - connection failures and coordinate transforms.
+"""Tests for SDK client - connection and coordinate transforms.
 
 Tests:
-- Connection failure scenarios (import error, timeout, connection error)
+- Connection success and failure scenarios
 - Coordinate transformations (degrees to radians, matrix conversions)
-- set_pose behavior when disconnected
+- set_pose behavior (connected and disconnected)
 """
 
 from __future__ import annotations
@@ -130,6 +130,193 @@ class TestSDKClientConnection:
         assert status["enabled"] is True
         assert status["robot_name"] == "test_robot"
         assert status["last_error"] is None
+
+
+# =============================================================================
+# Connection Success Tests
+# =============================================================================
+
+
+class TestSDKClientConnectionSuccess:
+    """Test SDK connection success scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_connect_success(self) -> None:
+        """Test successful SDK connection with mocked ReachyMini."""
+        config = SDKClientConfig(enabled=True, robot_name="test_robot")
+        client = ReachySDKClient(config)
+
+        # Create a mock ReachyMini instance
+        mock_robot = MagicMock()
+        mock_robot.robot_name = "test_robot"
+
+        # Patch reachy_mini.ReachyMini where it's imported (inside connect method)
+        with patch.dict(sys.modules, {"reachy_mini": MagicMock()}):
+            sys.modules["reachy_mini"].ReachyMini = MagicMock(return_value=mock_robot)
+
+            result = await client.connect()
+
+        assert result is True
+        assert client.is_connected is True
+        assert client._robot is mock_robot
+        assert client._executor is not None
+        assert client.last_error is None
+
+        # Cleanup
+        await client.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_connect_sets_robot_instance(self) -> None:
+        """Test that connect() properly sets the robot instance."""
+        config = SDKClientConfig(enabled=True)
+        client = ReachySDKClient(config)
+
+        mock_robot = MagicMock()
+        mock_reachy_mini = MagicMock()
+        mock_reachy_mini.ReachyMini = MagicMock(return_value=mock_robot)
+
+        with patch.dict(sys.modules, {"reachy_mini": mock_reachy_mini}):
+            await client.connect()
+
+            # Verify the robot was created with correct parameters
+            mock_reachy_mini.ReachyMini.assert_called_once_with(
+                robot_name="reachy_mini",
+                localhost_only=True,
+                spawn_daemon=False,
+                media_backend="no_media",
+                log_level="WARNING",
+            )
+
+        await client.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_connect_creates_executor(self) -> None:
+        """Test that connect() creates a thread pool executor."""
+        config = SDKClientConfig(enabled=True, max_workers=2)
+        client = ReachySDKClient(config)
+
+        mock_robot = MagicMock()
+
+        with patch.dict(sys.modules, {"reachy_mini": MagicMock()}):
+            sys.modules["reachy_mini"].ReachyMini = MagicMock(return_value=mock_robot)
+
+            await client.connect()
+
+        assert client._executor is not None
+        # Verify executor has the configured number of workers
+        assert client._executor._max_workers == 2
+
+        await client.disconnect()
+
+
+# =============================================================================
+# set_pose Success Tests
+# =============================================================================
+
+
+class TestSDKClientSetPoseSuccess:
+    """Test SDK set_pose success scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_set_pose_success(self) -> None:
+        """Test successful set_pose with mocked robot."""
+        client = ReachySDKClient()
+
+        # Set up connected state with mocked robot
+        mock_robot = MagicMock()
+        client._connected = True
+        client._robot = mock_robot
+        # Create real executor for the test
+        from concurrent.futures import ThreadPoolExecutor
+
+        client._executor = ThreadPoolExecutor(max_workers=1)
+
+        pose = HeadPose(pitch=10, yaw=20, roll=5, left_antenna=80, right_antenna=80)
+
+        result = await client.set_pose(pose)
+
+        assert result is True
+        # Verify set_target was called on the robot
+        mock_robot.set_target.assert_called_once()
+
+        # Cleanup
+        client._executor.shutdown(wait=False)
+
+    @pytest.mark.asyncio
+    async def test_set_pose_calls_set_target_with_correct_args(self) -> None:
+        """Test set_pose calls robot.set_target with correct arguments."""
+        client = ReachySDKClient()
+
+        mock_robot = MagicMock()
+        client._connected = True
+        client._robot = mock_robot
+        from concurrent.futures import ThreadPoolExecutor
+
+        client._executor = ThreadPoolExecutor(max_workers=1)
+
+        pose = HeadPose(pitch=0, yaw=0, roll=0, left_antenna=90, right_antenna=90)
+
+        await client.set_pose(pose)
+
+        # Get the call arguments
+        call_args = mock_robot.set_target.call_args
+        assert call_args is not None
+
+        # Verify head matrix and antennas were passed
+        _, kwargs = call_args
+        assert "head" in kwargs
+        assert "antennas" in kwargs
+        assert "body_yaw" in kwargs
+
+        # For neutral pose with 90 degree antennas (vertical), SDK expects 0 radians
+        antennas = kwargs["antennas"]
+        assert np.isclose(antennas[0], 0.0, atol=1e-10)  # Left: 90 -> 0
+        assert np.isclose(antennas[1], 0.0, atol=1e-10)  # Right: 90 -> 0
+
+        client._executor.shutdown(wait=False)
+
+    @pytest.mark.asyncio
+    async def test_set_pose_handles_sdk_exception(self) -> None:
+        """Test set_pose handles SDK exceptions gracefully."""
+        client = ReachySDKClient()
+
+        mock_robot = MagicMock()
+        mock_robot.set_target.side_effect = RuntimeError("SDK communication error")
+        client._connected = True
+        client._robot = mock_robot
+        from concurrent.futures import ThreadPoolExecutor
+
+        client._executor = ThreadPoolExecutor(max_workers=1)
+
+        pose = HeadPose.neutral()
+
+        result = await client.set_pose(pose)
+
+        # Should return False but not raise
+        assert result is False
+
+        client._executor.shutdown(wait=False)
+
+    @pytest.mark.asyncio
+    async def test_set_pose_handles_connection_error(self) -> None:
+        """Test set_pose handles connection errors gracefully."""
+        client = ReachySDKClient()
+
+        mock_robot = MagicMock()
+        mock_robot.set_target.side_effect = ConnectionError("Lost connection")
+        client._connected = True
+        client._robot = mock_robot
+        from concurrent.futures import ThreadPoolExecutor
+
+        client._executor = ThreadPoolExecutor(max_workers=1)
+
+        pose = HeadPose.neutral()
+
+        result = await client.set_pose(pose)
+
+        assert result is False
+
+        client._executor.shutdown(wait=False)
 
 
 # =============================================================================
