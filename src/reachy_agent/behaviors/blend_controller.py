@@ -5,9 +5,10 @@ their contributions into a final pose sent to the daemon.
 
 Key concepts:
 - Runs at 30Hz internal tick rate (reduced for CPU efficiency)
-- Sends commands to daemon at 5Hz (reduced to prevent USB bus contention)
+- Sends commands to daemon at 15Hz (balances smooth motion and bus load)
 - Composes primary (exclusive) + secondary (additive) motions
 - Applies smoothing and safety limits
+- Prefers SDK for motion commands (lower latency), falls back to HTTP
 
 Based on MovementManager pattern from Pollen Robotics' Conversation App.
 """
@@ -17,7 +18,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from reachy_agent.behaviors.motion_types import (
     HeadPose,
@@ -27,6 +28,9 @@ from reachy_agent.behaviors.motion_types import (
     PoseOffset,
 )
 from reachy_agent.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from reachy_agent.mcp_servers.reachy.sdk_client import ReachySDKClient
 
 log = get_logger(__name__)
 
@@ -95,16 +99,20 @@ class MotionBlendController:
         self,
         config: BlendControllerConfig | None = None,
         send_pose_callback: Callable[[HeadPose], Any] | None = None,
+        sdk_client: ReachySDKClient | None = None,
     ) -> None:
         """Initialize the blend controller.
 
         Args:
             config: Controller configuration. Uses defaults if not provided.
-            send_pose_callback: Async callback to send poses to the daemon.
-                                Receives a HeadPose and should send to hardware.
+            send_pose_callback: Async callback to send poses via HTTP daemon.
+                                Used as fallback if SDK is unavailable.
+            sdk_client: Optional SDK client for direct motion control.
+                        Preferred over HTTP callback when available.
         """
         self.config = config or BlendControllerConfig()
         self._send_pose = send_pose_callback
+        self._sdk_client = sdk_client
 
         # Motion source registry
         self._sources: dict[str, MotionSource] = {}
@@ -117,6 +125,10 @@ class MotionBlendController:
         self._current_pose = HeadPose.neutral()
         self._target_pose = HeadPose.neutral()
         self._last_command_time: datetime | None = None
+
+        # SDK fallback tracking
+        self._sdk_failures: int = 0
+        self._sdk_fallback_active: bool = False
 
         # Listening state (freezes antennas during user speech)
         self._listening = False
@@ -392,11 +404,39 @@ class MotionBlendController:
         return current.lerp(target, factor)
 
     async def _send_pose_to_daemon(self, pose: HeadPose) -> None:
-        """Send pose to the daemon via callback.
+        """Send pose to daemon - prefer SDK (lower latency), fall back to HTTP.
+
+        The SDK uses Zenoh pub/sub (1-5ms latency) vs HTTP REST (10-50ms),
+        making it ideal for the 15Hz blend controller loop.
 
         Args:
             pose: Pose to send to the daemon.
         """
+        # Try SDK first (lower latency via Zenoh)
+        if self._sdk_client and not self._sdk_fallback_active:
+            try:
+                success = await self._sdk_client.set_pose(pose)
+                if success:
+                    # Reset failure count on success
+                    if self._sdk_failures > 0:
+                        self._sdk_failures = 0
+                        log.info("SDK connection recovered")
+                    return
+                else:
+                    self._sdk_failures += 1
+            except Exception as e:
+                self._sdk_failures += 1
+                log.debug("SDK set_pose exception", error=str(e))
+
+            # After 5 consecutive failures, fall back to HTTP
+            if self._sdk_failures >= 5:
+                log.warning(
+                    "SDK failing consistently, switching to HTTP fallback",
+                    failures=self._sdk_failures,
+                )
+                self._sdk_fallback_active = True
+
+        # Fall back to HTTP callback
         if self._send_pose:
             try:
                 result = self._send_pose(pose)
@@ -405,6 +445,16 @@ class MotionBlendController:
                     await result
             except Exception as e:
                 log.exception("Error sending pose to daemon", error=str(e))
+
+    def reset_sdk_fallback(self) -> None:
+        """Reset SDK fallback state to retry SDK connection.
+
+        Call this after fixing SDK issues to re-enable SDK motion control.
+        """
+        if self._sdk_fallback_active:
+            log.info("Resetting SDK fallback state, will retry SDK")
+            self._sdk_fallback_active = False
+            self._sdk_failures = 0
 
     def get_status(self) -> dict[str, Any]:
         """Get current controller status for debugging.
@@ -419,6 +469,9 @@ class MotionBlendController:
             "active_secondaries": list(self._active_secondaries),
             "registered_sources": list(self._sources.keys()),
             "listening": self._listening,
+            "sdk_connected": self._sdk_client.is_connected if self._sdk_client else False,
+            "sdk_fallback_active": self._sdk_fallback_active,
+            "sdk_failures": self._sdk_failures,
             "current_pose": {
                 "pitch": self._current_pose.pitch,
                 "yaw": self._current_pose.yaw,

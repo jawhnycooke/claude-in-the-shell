@@ -55,6 +55,7 @@ from reachy_agent.permissions.tiers import PermissionEvaluator, PermissionTier
 from reachy_agent.utils.logging import bind_context, clear_context, get_logger
 
 if TYPE_CHECKING:
+    from reachy_agent.mcp_servers.reachy.sdk_client import ReachySDKClient
     from reachy_agent.utils.config import ReachyConfig
 
 log = get_logger(__name__)
@@ -186,6 +187,7 @@ class ReachyAgentLoop:
         self._blend_controller: MotionBlendController | None = None
         self._breathing_motion: BreathingMotion | None = None
         self._head_wobble: HeadWobble | None = None
+        self._sdk_client: ReachySDKClient | None = None
 
         # Memory system
         self._enable_memory = enable_memory
@@ -669,22 +671,65 @@ class ReachyAgentLoop:
         """Initialize the motion blending system.
 
         Sets up:
+        - ReachySDKClient (direct SDK for low-latency motion via Zenoh)
         - MotionBlendController (orchestrator)
         - BreathingMotion (primary, idle animation)
         - IdleBehaviorController (primary, look-around)
         - HeadWobble (secondary, speech animation)
 
-        The blend controller sends composed poses to the daemon.
+        The blend controller sends composed poses via SDK (preferred)
+        or HTTP daemon (fallback).
         """
         log.info("Initializing motion blending system")
 
         try:
-            # Create callback to send poses to daemon
+            # Try to connect SDK client for low-latency motion control
+            # SDK uses Zenoh pub/sub (1-5ms) vs HTTP REST (10-50ms)
+            try:
+                from reachy_agent.mcp_servers.reachy.sdk_client import (
+                    ReachySDKClient,
+                    SDKClientConfig,
+                )
+
+                # Get SDK config from config if available
+                sdk_config_dict = {}
+                if self.config:
+                    sdk_config_dict = getattr(self.config, "sdk", {})
+                    if hasattr(sdk_config_dict, "to_dict"):
+                        sdk_config_dict = sdk_config_dict.to_dict()
+                    elif not isinstance(sdk_config_dict, dict):
+                        sdk_config_dict = {}
+
+                sdk_config = SDKClientConfig.from_dict(sdk_config_dict)
+                self._sdk_client = ReachySDKClient(sdk_config)
+
+                if await self._sdk_client.connect():
+                    log.info(
+                        "SDK client connected - using Zenoh for motion control",
+                        robot_name=sdk_config.robot_name,
+                    )
+                else:
+                    log.warning(
+                        "SDK connection failed, using HTTP fallback",
+                        error=self._sdk_client.last_error,
+                    )
+                    self._sdk_client = None
+
+            except ImportError as e:
+                log.warning(
+                    "reachy_mini SDK not available, using HTTP for motion",
+                    error=str(e),
+                )
+                self._sdk_client = None
+
+            # Create callback to send poses to daemon via HTTP (fallback)
             async def send_pose_to_daemon(pose: HeadPose) -> None:
-                """Send composed pose to Reachy daemon.
+                """Send composed pose to Reachy daemon via HTTP.
 
                 Uses set_full_pose to send head and antennas atomically,
                 avoiding issues where separate API calls reset each other's targets.
+
+                Note: This is the fallback path; SDK is preferred when available.
                 """
                 if self._daemon_client is None:
                     return
@@ -698,12 +743,13 @@ class ReachyAgentLoop:
                         right_antenna=pose.right_antenna,
                     )
                 except Exception as e:
-                    log.debug("Error sending pose to daemon", error=str(e))
+                    log.debug("Error sending pose to daemon via HTTP", error=str(e))
 
-            # Create blend controller
+            # Create blend controller with SDK client (preferred) and HTTP callback (fallback)
             self._blend_controller = MotionBlendController(
                 config=self._blend_config,
                 send_pose_callback=send_pose_to_daemon,
+                sdk_client=self._sdk_client,
             )
 
             # Create and register breathing motion (primary)
@@ -981,6 +1027,14 @@ class ReachyAgentLoop:
         if self._blend_controller:
             await self._blend_controller.stop()
             log.info("Motion blend controller stopped")
+
+        # Disconnect Reachy SDK client (for motion control)
+        if self._sdk_client:
+            try:
+                await self._sdk_client.disconnect()
+                log.info("Reachy SDK client disconnected")
+            except Exception as e:
+                log.warning("Error disconnecting Reachy SDK client", error=str(e))
 
         # Stop idle behavior controller (if running standalone)
         if self._idle_controller and not self._blend_controller:
