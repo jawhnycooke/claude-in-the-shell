@@ -248,6 +248,221 @@ agent:
 
 2. Verify tool name in `reachy_mcp.py`
 
+## Voice Pipeline Issues
+
+### "Wake word not detected"
+
+**Cause**: OpenWakeWord model not loading or audio input issues.
+
+**Solutions**:
+
+1. Verify wake word models exist:
+   ```bash
+   ls -la data/wake_words/*.onnx
+   ```
+
+2. Test wake word detection standalone:
+   ```bash
+   python -m reachy_agent.voice.wake_word --test
+   ```
+
+3. Check audio input device:
+   ```bash
+   arecord -l  # List capture devices
+   REACHY_DEBUG=1 python -m reachy_agent run --voice
+   ```
+
+4. Ensure correct sample rate (16kHz for wake word):
+   ```yaml
+   voice:
+     audio:
+       sample_rate: 16000
+   ```
+
+### "OpenAI Realtime connection failed"
+
+**Cause**: Missing API key, network issues, or WebSocket timeout.
+
+**Solutions**:
+
+1. Verify OpenAI API key:
+   ```bash
+   echo $OPENAI_API_KEY
+   ```
+
+2. Test network connectivity:
+   ```bash
+   curl -v https://api.openai.com/v1/models
+   ```
+
+3. Increase WebSocket timeout:
+   ```yaml
+   voice:
+     realtime:
+       connect_timeout: 30.0
+       response_timeout: 60.0
+   ```
+
+### "Audio cutoff during TTS"
+
+**Cause**: VAD detecting silence too early or buffer underrun.
+
+**Solutions**:
+
+1. Adjust VAD sensitivity:
+   ```yaml
+   voice:
+     vad:
+       silence_threshold: 0.5  # Increase to be less sensitive
+       min_speech_duration: 0.5
+   ```
+
+2. Check audio output device:
+   ```bash
+   aplay -l  # List playback devices
+   speaker-test -t wav -c 2
+   ```
+
+### "Device or resource busy"
+
+**Cause**: Multiple processes accessing audio hardware.
+
+**Solutions**:
+
+1. Check for conflicting processes:
+   ```bash
+   fuser -v /dev/snd/*
+   lsof /dev/snd/*
+   ```
+
+2. Use ALSA dsnoop/dmix for device sharing:
+   ```bash
+   # ~/.asoundrc for Raspberry Pi
+   pcm.!default {
+     type asym
+     playback.pcm "dmix"
+     capture.pcm "dsnoop"
+   }
+   ```
+
+3. Kill conflicting processes:
+   ```bash
+   pkill pulseaudio  # If PulseAudio is conflicting
+   ```
+
+## Persona Switching Issues
+
+### "Persona prompt not found"
+
+**Cause**: Missing persona prompt file or incorrect path.
+
+**Solutions**:
+
+1. Verify persona prompt files:
+   ```bash
+   ls -la prompts/personas/
+   # Should have: motoko.md, batou.md
+   ```
+
+2. Check configuration:
+   ```yaml
+   voice:
+     personas:
+       hey_motoko:
+         name: "motoko"
+         prompt_path: "prompts/personas/motoko.md"
+   ```
+
+### "Voice not changing on wake word"
+
+**Cause**: Deferred persona switch not completing.
+
+**Solutions**:
+
+1. Check persona manager state:
+   ```python
+   # In debug mode
+   print(voice_pipeline.persona_manager.current_persona)
+   ```
+
+2. Ensure TTS completes before switch:
+   - Persona switches are deferred until speaking finishes
+   - Check logs for "deferred_persona_switch" messages
+
+3. Verify OpenAI Realtime reconnection:
+   - New persona requires new session with different voice
+   - Check for "reconnecting with new voice" log messages
+
+## SDK Connection Issues
+
+### "SDK connection failed"
+
+**Cause**: ReachyMini SDK cannot connect to daemon.
+
+**Solutions**:
+
+1. Verify daemon is running:
+   ```bash
+   curl http://localhost:8000/api/daemon/status
+   ```
+
+2. Check Zenoh connectivity (on Pi):
+   ```bash
+   # Test SDK directly
+   python -c "
+   from reachy_mini import ReachyMini
+   robot = ReachyMini(localhost_only=True, spawn_daemon=False)
+   print('Connected!')
+   robot.disconnect()
+   "
+   ```
+
+3. Enable HTTP fallback:
+   ```yaml
+   sdk:
+     fallback_to_http: true
+   ```
+
+### "SDK fallback to HTTP active"
+
+**Cause**: 5+ consecutive SDK failures triggered circuit breaker.
+
+**Solutions**:
+
+1. Check SDK error logs:
+   ```bash
+   REACHY_DEBUG=1 python -m reachy_agent run
+   # Look for "sdk_set_pose_exception" messages
+   ```
+
+2. Reset SDK fallback:
+   ```python
+   # Programmatically
+   agent.blend_controller.reset_sdk_fallback()
+   ```
+
+3. Restart agent to reset circuit breaker
+
+### "Motion feels choppy"
+
+**Cause**: Using HTTP fallback (10-50ms) instead of SDK (1-5ms).
+
+**Solutions**:
+
+1. Check which backend is active:
+   ```python
+   status = agent.blend_controller.get_status()
+   print(f"SDK fallback: {status['sdk_fallback_active']}")
+   ```
+
+2. Ensure SDK is preferred:
+   ```yaml
+   sdk:
+     enabled: true
+   motion_blend:
+     command_rate_hz: 20.0  # Reduce if HTTP-only
+   ```
+
 ## Hardware Issues
 
 ### Robot Becomes Unresponsive ("channel closed")

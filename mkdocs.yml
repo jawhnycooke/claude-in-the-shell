@@ -77,11 +77,16 @@ nav:
     - Troubleshooting: guides/troubleshooting.md
   - Architecture:
     - Overview: architecture/overview.md
+    - Voice Pipeline: architecture/voice-pipeline.md
+    - Persona System: architecture/personas.md
     - ReachyAgentLoop Deep Dive: architecture/agent-loop.md
     - Daemon Compatibility: architecture/daemon-compatibility.md
     - Diagrams: diagrams/README.md
   - API Reference:
     - Agent: api/agent.md
+    - Voice Pipeline: api/voice-pipeline.md
+    - SDK Motion Control: api/sdk-motion-control.md
+    - Configuration: api/configuration.md
     - MCP Servers: api/mcp-servers.md
     - Motion Blending: api/motion-blending.md
     - Permissions: api/permissions.md
@@ -89,6 +94,7 @@ nav:
     - Simulation: api/simulation.md
     - MCP Tools: api/mcp-tools.md
   - Guides:
+    - Voice Pipeline Setup: guides/voice-pipeline-setup.md
     - Raspberry Pi Installation: guides/raspberry-pi-installation.md
     - Phase 2 Preparation: guides/phase2-preparation.md
 

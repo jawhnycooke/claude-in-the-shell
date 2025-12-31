@@ -315,3 +315,115 @@ The blend controller:
 ### Listening State
 
 When `set_listening(True)` is called, antenna positions are frozen to avoid distracting movements while the user speaks. Head movement continues normally.
+
+## SDK Motion Control Integration
+
+The blend controller supports two motion backends with automatic failover:
+
+### Latency Comparison
+
+| Backend | Transport | Latency | Use Case |
+|---------|-----------|---------|----------|
+| **SDK (Zenoh)** | Pub/Sub | 1-5ms | Preferred for smooth animation |
+| **HTTP (REST)** | TCP/HTTP | 10-50ms | Fallback when SDK unavailable |
+
+### Architecture
+
+```mermaid
+flowchart TB
+    subgraph Controller["MotionBlendController"]
+        Loop["100Hz Control Loop"]
+        Send["_send_pose_to_daemon()"]
+    end
+
+    subgraph SDK["SDK Path (Preferred)"]
+        ZClient["ReachySDKClient"]
+        Zenoh["Zenoh Transport<br/>(1-5ms latency)"]
+    end
+
+    subgraph HTTP["HTTP Path (Fallback)"]
+        Callback["send_pose_callback"]
+        REST["HTTP REST<br/>(10-50ms latency)"]
+    end
+
+    subgraph Daemon["Reachy Daemon"]
+        Motors["Motor Controllers"]
+    end
+
+    Loop --> Send
+    Send -->|"Try first"| ZClient
+    ZClient --> Zenoh
+    Zenoh --> Motors
+    Send -->|"Fallback"| Callback
+    Callback --> REST
+    REST --> Motors
+
+    style SDK fill:#c8e6c9
+    style HTTP fill:#fff9c4
+```
+
+### Circuit Breaker Pattern
+
+The SDK connection uses a circuit breaker to automatically fallback to HTTP:
+
+```mermaid
+stateDiagram-v2
+    [*] --> SDK_Active
+    SDK_Active --> SDK_Failing: Exception/False
+    SDK_Failing --> SDK_Failing: failures < 5
+    SDK_Failing --> HTTP_Fallback: failures >= 5
+    HTTP_Fallback --> SDK_Active: reset_sdk_fallback()
+    SDK_Active --> SDK_Active: Success (reset counter)
+```
+
+- **Failure threshold**: 5 consecutive failures
+- **Recovery**: Call `reset_sdk_fallback()` or restart controller
+- **Logging**: Warnings emitted at threshold
+
+### SDK Client API
+
+```python
+from reachy_agent.mcp_servers.reachy.sdk_client import ReachySDKClient
+
+# Initialize with SDK client for low-latency motion
+sdk_client = ReachySDKClient(config)
+await sdk_client.connect()
+
+controller = MotionBlendController(
+    config=BlendControllerConfig(),
+    send_pose_callback=http_fallback,  # Optional HTTP fallback
+    sdk_client=sdk_client,              # Preferred SDK client
+)
+```
+
+### Coordinate Transformations
+
+The SDK client handles coordinate system differences:
+
+| Component | Agent Format | SDK Format |
+|-----------|--------------|------------|
+| Head angles | Degrees | Radians + 4x4 matrix |
+| Antennas | 0° = flat | 0 rad = vertical |
+
+```python
+# Agent pose (degrees, 0° = flat antennas)
+pose = HeadPose(pitch=15.0, yaw=-10.0, left_antenna=45.0, right_antenna=45.0)
+
+# SDK client converts internally:
+# - pitch/yaw → rotation matrix via scipy.spatial.transform.Rotation
+# - antennas: 45° → π/4 rad, inverted (SDK 0 = vertical)
+await sdk_client.set_pose(pose)
+```
+
+### Configuration
+
+```yaml
+sdk:
+  enabled: true
+  robot_name: "reachy_mini"
+  localhost_only: true
+  spawn_daemon: false
+  media_backend: "no_media"
+  connect_timeout: 5.0
+  fallback_to_http: true
+```
