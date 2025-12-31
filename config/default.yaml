@@ -100,12 +100,30 @@ wobble:
 voice:
   enabled: false                 # Enable with --voice flag
 
+  # Multi-persona wake word support (Ghost in the Shell theme)
+  # Each persona has a distinct wake word, voice, and personality
+  personas:
+    hey_motoko:
+      name: motoko
+      display_name: Major Kusanagi
+      voice: nova                # Female voice - analytical, philosophical
+      prompt_path: prompts/personas/motoko.md
+    hey_batou:
+      name: batou
+      display_name: Batou
+      voice: onyx                # Male voice - casual, action-oriented
+      prompt_path: prompts/personas/batou.md
+
+  # Default persona when pipeline starts (before any wake word detected)
+  default_persona: hey_motoko
+
   # Wake word detection
   wake_word:
     enabled: true
-    model: hey_jarvis            # Closest to "Hey Reachy" available
+    model: hey_jarvis            # Fallback model if no persona models found
     sensitivity: 0.5             # 0.0 (strict) to 1.0 (lenient)
     cooldown_seconds: 2.0        # Ignore detections for this period
+    custom_models_dir: data/wake_words  # Directory for custom .onnx models
 
   # Voice activity detection (end-of-speech)
   vad:

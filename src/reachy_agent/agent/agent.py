@@ -275,6 +275,88 @@ class ReachyAgentLoop:
         )
         return text
 
+    async def update_system_prompt(self, new_prompt: str) -> bool:
+        """Update the system prompt for persona switching.
+
+        Used by the voice pipeline for Ghost in the Shell themed personas
+        (Motoko, Batou) to switch the agent's personality mid-conversation.
+
+        This method reconnects the SDK client to apply the new system prompt,
+        since the SDK embeds the prompt at connection time. Without reconnection,
+        the new prompt would have no effect on Claude's behavior.
+
+        Args:
+            new_prompt: New system prompt to use.
+
+        Returns:
+            True if prompt was updated and SDK reconnected successfully,
+            False if reconnection failed (old prompt retained).
+        """
+        old_prompt = self._system_prompt
+        old_length = len(old_prompt)
+
+        # Update the prompt variable first
+        self._system_prompt = new_prompt
+
+        # Reconnect SDK client to apply the new system prompt
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+
+                # Rebuild options with new system prompt
+                options = self._build_sdk_options()
+                self._client = ClaudeSDKClient(options)
+                await self._client.connect()
+
+                log.info(
+                    "system_prompt_updated_with_reconnect",
+                    old_length=old_length,
+                    new_length=len(new_prompt),
+                    preview=new_prompt[:100] + "..." if len(new_prompt) > 100 else new_prompt,
+                )
+                return True
+
+            except Exception as e:
+                # Rollback to old prompt on failure
+                self._system_prompt = old_prompt
+                log.error(
+                    "system_prompt_update_failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    attempting_recovery=True,
+                )
+
+                # CRITICAL: Attempt to restore connection with old prompt
+                # Without this, the client remains disconnected after failure
+                try:
+                    options = self._build_sdk_options()
+                    self._client = ClaudeSDKClient(options)
+                    await self._client.connect()
+                    log.info(
+                        "sdk_client_recovered",
+                        using_prompt="old",
+                        prompt_length=old_length,
+                    )
+                except Exception as recovery_error:
+                    # Recovery failed - mark client as unusable
+                    self._client = None
+                    log.error(
+                        "sdk_client_recovery_failed",
+                        error=str(recovery_error),
+                        error_type=type(recovery_error).__name__,
+                        client_state="disconnected",
+                    )
+                return False
+        else:
+            # No client yet, just update the prompt (will be used at connect time)
+            log.info(
+                "system_prompt_updated_pre_connect",
+                old_length=old_length,
+                new_length=len(new_prompt),
+                preview=new_prompt[:100] + "..." if len(new_prompt) > 100 else new_prompt,
+            )
+            return True
+
     def _build_mcp_servers(self) -> dict[str, dict[str, Any]]:
         """Build MCP server configuration for SDK.
 

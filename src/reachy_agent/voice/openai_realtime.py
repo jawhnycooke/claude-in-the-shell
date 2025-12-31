@@ -6,6 +6,7 @@ with the gpt-realtime-mini model for low-latency voice interactions.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 import time
@@ -87,6 +88,8 @@ class OpenAIRealtimeClient:
     _audio_buffer: list[bytes] = field(default_factory=list, repr=False)
     _response_audio_chunks: list[bytes] = field(default_factory=list, repr=False)
     _current_transcript: str = field(default="", repr=False)
+    # Lock to prevent concurrent connection state modifications (voice updates, reconnects)
+    _connection_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize the OpenAI client."""
@@ -125,6 +128,74 @@ class OpenAIRealtimeClient:
     def is_connected(self) -> bool:
         """Check if connected to Realtime API."""
         return self._is_connected and self._connection is not None
+
+    async def update_voice(self, new_voice: str) -> bool:
+        """Update the TTS voice, reconnecting if necessary.
+
+        Used for persona switching - changes the voice used for TTS responses.
+        Requires a session reconnect because voice is set at session creation.
+
+        WARNING: Reconnection clears all conversation history and audio buffer
+        state on the OpenAI server. Any pending responses or conversation context
+        will be lost. This is expected for persona switching (which starts fresh).
+
+        This method is protected by an async lock to prevent race conditions
+        from concurrent voice update requests (e.g., rapid wake word detection).
+
+        Args:
+            new_voice: New voice to use (alloy, echo, fable, onyx, nova, shimmer)
+
+        Returns:
+            True if voice update succeeded, False if reconnection failed
+            (client will attempt recovery with old voice)
+        """
+        # Lock to prevent concurrent connection state modifications
+        async with self._connection_lock:
+            if self.config.voice == new_voice:
+                logger.debug("update_voice_already_set", voice=new_voice)
+                return True
+
+            old_voice = self.config.voice
+            # NOTE: Don't update config.voice yet - only after successful reconnect
+
+            logger.info(
+                "update_voice_changing",
+                from_voice=old_voice,
+                to_voice=new_voice,
+            )
+
+            # Must reconnect to apply the new voice
+            if self._is_connected:
+                await self.disconnect()
+                # Temporarily set new voice for connect() to use
+                self.config.voice = new_voice
+                success = await self.connect()
+                if not success:
+                    # Restore old voice config
+                    self.config.voice = old_voice
+                    logger.error("update_voice_reconnect_failed", voice=new_voice)
+
+                    # CRITICAL: Attempt to restore connection with old voice
+                    # Without this, the realtime client remains disconnected
+                    recovery_success = await self.connect()
+                    if not recovery_success:
+                        logger.error(
+                            "update_voice_recovery_failed",
+                            original_voice=old_voice,
+                            client_state="disconnected",
+                        )
+                    else:
+                        logger.info(
+                            "update_voice_recovered",
+                            using_voice=old_voice,
+                        )
+                    return False
+            else:
+                # Not connected, just update config for next connection
+                self.config.voice = new_voice
+
+            logger.info("update_voice_changed", voice=new_voice)
+            return True
 
     async def ensure_connected(self) -> bool:
         """Ensure connection is active, reconnecting if needed.
@@ -363,10 +434,13 @@ class OpenAIRealtimeClient:
     async def send_text(self, text: str) -> None:
         """Send text to OpenAI Realtime for TTS playback.
 
-        This creates an assistant message containing the exact text we want
-        spoken, then triggers a response to generate the audio. Using role
-        "assistant" ensures OpenAI reads the text verbatim rather than
-        generating a reply to it.
+        This creates an assistant message containing the text we want spoken,
+        then triggers a response to generate the audio. Using role "assistant"
+        tells OpenAI to speak the text rather than generate a reply to it.
+
+        NOTE: The Realtime API may not speak text exactly verbatim - it may
+        slightly rephrase or adjust the text. For guaranteed verbatim speech,
+        use the standard TTS API via the speak() method instead.
 
         Args:
             text: Text to be spoken aloud
@@ -379,9 +453,9 @@ class OpenAIRealtimeClient:
             await self._connection.input_audio_buffer.clear()
 
             # Create an assistant message with the text to speak
-            # IMPORTANT: Using role="assistant" makes OpenAI read this text
-            # verbatim for TTS. Using role="user" would cause OpenAI to
-            # generate its own response TO this text instead.
+            # NOTE: Using role="assistant" tells OpenAI to speak this text.
+            # Using role="user" would cause OpenAI to generate a response TO
+            # the text. The Realtime API may slightly adjust phrasing.
             await self._connection.conversation.item.create(
                 item={
                     "type": "message",

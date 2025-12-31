@@ -192,6 +192,115 @@ def load_system_prompt(
     return f"You are {name}, an embodied AI assistant robot. Be helpful and expressive."
 
 
+def load_persona_prompt(
+    persona: Any,  # PersonaConfig, but avoid circular import
+    config: ReachyConfig | None = None,
+    prompts_dir: Path | None = None,
+) -> str:
+    """Load and render a persona-specific system prompt.
+
+    Used for persona-based wake word switching.
+    Falls back to default system prompt if persona prompt not found or on error.
+
+    Security: Validates that resolved paths are within the allowed directory
+    to prevent path traversal attacks (e.g., "../../../etc/passwd").
+
+    Args:
+        persona: PersonaConfig instance with prompt_path attribute
+        config: Optional configuration for dynamic context
+        prompts_dir: Optional prompts directory override
+
+    Returns:
+        Rendered persona prompt string
+    """
+    context = get_default_context(config)
+    base_dir = prompts_dir or PROMPTS_DIR
+    persona_name = getattr(persona, "name", "unknown")
+
+    def _is_safe_path(candidate: Path, allowed_base: Path) -> bool:
+        """Validate that candidate path is within allowed_base directory.
+
+        Prevents path traversal attacks by resolving symlinks and checking
+        that the resolved path starts with the allowed base directory.
+        """
+        try:
+            resolved = candidate.resolve()
+            base_resolved = allowed_base.resolve()
+            # Use is_relative_to (Python 3.9+) or check str prefix
+            return resolved.is_relative_to(base_resolved)
+        except (ValueError, OSError):
+            return False
+
+    def _try_load_prompt(prompt_path: Path, allowed_base: Path | None = None) -> str | None:
+        """Attempt to load and render a prompt file with error handling."""
+        if not prompt_path.exists():
+            return None
+
+        # SECURITY: Validate path is within allowed directory
+        if allowed_base is not None and not _is_safe_path(prompt_path, allowed_base):
+            log.warning(
+                "Rejected persona prompt path outside allowed directory",
+                persona=persona_name,
+                path=str(prompt_path),
+                allowed_base=str(allowed_base),
+            )
+            return None
+
+        try:
+            log.info(
+                "Loading persona prompt",
+                persona=persona_name,
+                path=str(prompt_path),
+            )
+            template = prompt_path.read_text(encoding="utf-8")
+            return render_template(template, context)
+        except (OSError, UnicodeDecodeError) as e:
+            log.warning(
+                "Failed to read persona prompt file",
+                persona=persona_name,
+                path=str(prompt_path),
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+        except (TypeError, AttributeError, KeyError) as e:
+            # Specific exceptions from template rendering: type conversion errors,
+            # missing attributes, or invalid context keys
+            log.warning(
+                "Failed to render persona prompt template",
+                persona=persona_name,
+                path=str(prompt_path),
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+
+    # Try persona-specific prompt path from multiple locations
+    if hasattr(persona, "prompt_path") and persona.prompt_path:
+        # Try relative to project root (base_dir.parent)
+        # Allow paths within the project root
+        project_root = base_dir.parent
+        result = _try_load_prompt(project_root / persona.prompt_path, project_root)
+        if result is not None:
+            return result
+
+        # Try relative to prompts dir
+        result = _try_load_prompt(base_dir / persona.prompt_path, base_dir)
+        if result is not None:
+            return result
+
+        # NOTE: Direct path from cwd removed for security - only allow paths
+        # relative to known base directories to prevent path traversal
+
+    # Fallback to default system prompt
+    log.warning(
+        "Persona prompt not found, using default",
+        persona=persona_name,
+        prompt_path=getattr(persona, "prompt_path", None),
+    )
+    return load_system_prompt(config=config, prompts_dir=prompts_dir)
+
+
 class AgentOptionsBuilder:
     """Builder for Claude Agent SDK options.
 
@@ -410,7 +519,8 @@ def build_sdk_agent_options(
         system_prompt: System prompt for Claude.
         mcp_servers: MCP server configuration. Uses defaults if None.
         permission_hook: Optional PreToolUse hook for permissions.
-        allowed_tools: List of allowed MCP tools. Uses all if None.
+        allowed_tools: List of allowed MCP tools. Defaults to empty list if None
+            (SDK behavior: empty list means no tool filtering).
         max_turns: Maximum agent turns per query.
         daemon_url: Reachy daemon URL (used if mcp_servers is None).
         enable_memory: Enable memory MCP server (used if mcp_servers is None).
