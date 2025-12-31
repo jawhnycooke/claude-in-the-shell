@@ -183,6 +183,8 @@ class VoicePipeline:
     # Persona state (Ghost in the Shell theme)
     _current_persona: PersonaConfig | None = field(default=None, repr=False)
     _pending_persona: PersonaConfig | None = field(default=None, repr=False)
+    # Lock to prevent concurrent persona switches (e.g., rapid wake word detection)
+    _persona_switch_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize recovery manager with config and callbacks."""
@@ -241,113 +243,128 @@ class VoicePipeline:
         State is only updated AFTER successful reconnection to avoid
         corrupted state on failure.
 
+        This method is protected by an async lock to prevent race conditions
+        from concurrent persona switch requests (e.g., rapid wake word detection).
+
+        WARNING: Reconnection clears OpenAI Realtime conversation history and
+        audio buffer state. Additionally triggers Claude SDK reconnection to
+        update the system prompt.
+
         Args:
             persona: The PersonaConfig to switch to
 
         Returns:
             True if switch succeeded, False if reconnection failed
         """
-        old_persona = self._current_persona
-        logger.info(
-            "persona_switching",
-            from_persona=old_persona.name if old_persona else None,
-            to_persona=persona.name,
-            new_voice=persona.voice,
-        )
-
-        # Update OpenAI voice FIRST (requires reconnect)
-        # Only update state after successful reconnection
-        if self._realtime:
-            old_voice = self.config.realtime.voice
-            self.config.realtime.voice = persona.voice
-            await self._realtime.disconnect()
-            connected = await self._realtime.connect()
-            if not connected:
-                # Rollback voice config and attempt recovery
-                self.config.realtime.voice = old_voice
-                logger.error(
-                    "persona_switch_reconnect_failed",
-                    persona=persona.name,
-                    attempting_recovery=True,
-                )
-
-                # CRITICAL: Attempt to restore connection with old voice
-                # Without this, the realtime client remains disconnected
-                recovery_connected = await self._realtime.connect()
-                if not recovery_connected:
-                    logger.error(
-                        "realtime_client_recovery_failed",
-                        original_voice=old_voice,
-                        client_state="disconnected",
-                    )
-                else:
-                    logger.info(
-                        "realtime_client_recovered",
-                        using_voice=old_voice,
-                    )
+        # Lock to prevent concurrent persona switches
+        async with self._persona_switch_lock:
+            # Check if pipeline is still running (stop() may have been called)
+            if not self._is_running:
+                logger.debug("persona_switch_skipped_not_running")
                 return False
 
-        # Reconnection succeeded - now update persona state
-        self._current_persona = persona
-        if self.config.persona_manager:
-            self.config.persona_manager.current_persona = persona
+            old_persona = self._current_persona
+            logger.info(
+                "persona_switching",
+                from_persona=old_persona.name if old_persona else None,
+                to_persona=persona.name,
+                new_voice=persona.voice,
+            )
 
-        # Update agent system prompt if available
-        if self.agent and hasattr(self.agent, "update_system_prompt"):
-            from reachy_agent.agent.options import load_persona_prompt
+            # Update OpenAI voice FIRST (requires reconnect)
+            # CRITICAL: Don't update config.realtime.voice until AFTER successful reconnect
+            if self._realtime:
+                old_voice = self.config.realtime.voice
+                await self._realtime.disconnect()
+                # Temporarily set new voice for connect() to use
+                self.config.realtime.voice = persona.voice
+                connected = await self._realtime.connect()
+                if not connected:
+                    # Rollback voice config and attempt recovery
+                    self.config.realtime.voice = old_voice
+                    logger.error(
+                        "persona_switch_reconnect_failed",
+                        persona=persona.name,
+                        attempting_recovery=True,
+                    )
 
-            new_prompt = load_persona_prompt(persona)
-            prompt_updated = await self.agent.update_system_prompt(new_prompt)
-            if prompt_updated:
-                logger.info(
-                    "persona_prompt_updated",
-                    persona=persona.name,
-                    prompt_length=len(new_prompt),
-                )
-            else:
-                # Voice changed but prompt failed - rollback to avoid inconsistent state
-                # Without rollback: voice=new persona but personality=old persona (confusing!)
-                logger.warning(
-                    "persona_prompt_update_failed",
-                    persona=persona.name,
-                    voice_changed=True,
-                    sdk_reconnect_failed=True,
-                    rolling_back_voice=True,
-                )
-
-                # Rollback voice to match the (unchanged) personality
-                if self._realtime and old_persona:
-                    self.config.realtime.voice = old_persona.voice
-                    await self._realtime.disconnect()
+                    # CRITICAL: Attempt to restore connection with old voice
+                    # Without this, the realtime client remains disconnected
                     recovery_connected = await self._realtime.connect()
-                    if recovery_connected:
-                        # Restore previous persona state
-                        self._current_persona = old_persona
-                        if self.config.persona_manager:
-                            self.config.persona_manager.current_persona = old_persona
-                        logger.info(
-                            "persona_rollback_complete",
-                            restored_persona=old_persona.name,
-                            restored_voice=old_persona.voice,
-                        )
-                        return False
-                    else:
+                    if not recovery_connected:
                         logger.error(
-                            "persona_rollback_failed",
-                            persona_state="inconsistent",
-                            voice=persona.voice,
-                            personality=old_persona.name if old_persona else "unknown",
+                            "realtime_client_recovery_failed",
+                            original_voice=old_voice,
+                            client_state="disconnected",
                         )
-                        # Continue with inconsistent state - better than crashing
-                        return False
+                    else:
+                        logger.info(
+                            "realtime_client_recovered",
+                            using_voice=old_voice,
+                        )
+                    return False
 
-        logger.info(
-            "persona_switched",
-            persona=persona.name,
-            voice=persona.voice,
-            display_name=persona.display_name,
-        )
-        return True
+            # Reconnection succeeded - now update persona state
+            self._current_persona = persona
+            if self.config.persona_manager:
+                self.config.persona_manager.current_persona = persona
+
+            # Update agent system prompt if available
+            if self.agent and hasattr(self.agent, "update_system_prompt"):
+                from reachy_agent.agent.options import load_persona_prompt
+
+                new_prompt = load_persona_prompt(persona)
+                prompt_updated = await self.agent.update_system_prompt(new_prompt)
+                if prompt_updated:
+                    logger.info(
+                        "persona_prompt_updated",
+                        persona=persona.name,
+                        prompt_length=len(new_prompt),
+                    )
+                else:
+                    # Voice changed but prompt failed - rollback to avoid inconsistent state
+                    # Without rollback: voice=new persona but personality=old persona (confusing!)
+                    logger.warning(
+                        "persona_prompt_update_failed",
+                        persona=persona.name,
+                        voice_changed=True,
+                        sdk_reconnect_failed=True,
+                        rolling_back_voice=True,
+                    )
+
+                    # Rollback voice to match the (unchanged) personality
+                    if self._realtime and old_persona:
+                        self.config.realtime.voice = old_persona.voice
+                        await self._realtime.disconnect()
+                        recovery_connected = await self._realtime.connect()
+                        if recovery_connected:
+                            # Restore previous persona state
+                            self._current_persona = old_persona
+                            if self.config.persona_manager:
+                                self.config.persona_manager.current_persona = old_persona
+                            logger.info(
+                                "persona_rollback_complete",
+                                restored_persona=old_persona.name,
+                                restored_voice=old_persona.voice,
+                            )
+                            return False
+                        else:
+                            logger.error(
+                                "persona_rollback_failed",
+                                persona_state="inconsistent",
+                                voice=persona.voice,
+                                personality=old_persona.name if old_persona else "unknown",
+                            )
+                            # Continue with inconsistent state - better than crashing
+                            return False
+
+            logger.info(
+                "persona_switched",
+                persona=persona.name,
+                voice=persona.voice,
+                display_name=persona.display_name,
+            )
+            return True
 
     def get_recovery_status(self) -> dict:
         """Get detailed recovery status report.
@@ -513,6 +530,9 @@ class VoicePipeline:
     async def stop(self) -> None:
         """Stop the voice pipeline."""
         self._is_running = False
+
+        # Clear pending persona to prevent stale switches on restart
+        self._pending_persona = None
 
         # Cancel timeout guard task
         if self._timeout_task and not self._timeout_task.done():
@@ -1053,6 +1073,11 @@ class VoicePipeline:
     async def _handle_error(self) -> None:
         """Handle error state."""
         logger.warning("voice_pipeline_error_state")
+
+        # Clear pending persona to prevent stale switches after error recovery
+        # (the context that triggered the persona switch is now invalid)
+        self._pending_persona = None
+
         await asyncio.sleep(2.0)  # Brief pause before restart
 
         if self.config.auto_restart:

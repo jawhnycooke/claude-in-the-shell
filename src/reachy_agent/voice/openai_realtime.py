@@ -6,6 +6,7 @@ with the gpt-realtime-mini model for low-latency voice interactions.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 import time
@@ -87,6 +88,8 @@ class OpenAIRealtimeClient:
     _audio_buffer: list[bytes] = field(default_factory=list, repr=False)
     _response_audio_chunks: list[bytes] = field(default_factory=list, repr=False)
     _current_transcript: str = field(default="", repr=False)
+    # Lock to prevent concurrent connection state modifications (voice updates, reconnects)
+    _connection_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize the OpenAI client."""
@@ -136,6 +139,9 @@ class OpenAIRealtimeClient:
         state on the OpenAI server. Any pending responses or conversation context
         will be lost. This is expected for persona switching (which starts fresh).
 
+        This method is protected by an async lock to prevent race conditions
+        from concurrent voice update requests (e.g., rapid wake word detection).
+
         Args:
             new_voice: New voice to use (alloy, echo, fable, onyx, nova, shimmer)
 
@@ -143,46 +149,53 @@ class OpenAIRealtimeClient:
             True if voice update succeeded, False if reconnection failed
             (client will attempt recovery with old voice)
         """
-        if self.config.voice == new_voice:
-            logger.debug("update_voice_already_set", voice=new_voice)
+        # Lock to prevent concurrent connection state modifications
+        async with self._connection_lock:
+            if self.config.voice == new_voice:
+                logger.debug("update_voice_already_set", voice=new_voice)
+                return True
+
+            old_voice = self.config.voice
+            # NOTE: Don't update config.voice yet - only after successful reconnect
+
+            logger.info(
+                "update_voice_changing",
+                from_voice=old_voice,
+                to_voice=new_voice,
+            )
+
+            # Must reconnect to apply the new voice
+            if self._is_connected:
+                await self.disconnect()
+                # Temporarily set new voice for connect() to use
+                self.config.voice = new_voice
+                success = await self.connect()
+                if not success:
+                    # Restore old voice config
+                    self.config.voice = old_voice
+                    logger.error("update_voice_reconnect_failed", voice=new_voice)
+
+                    # CRITICAL: Attempt to restore connection with old voice
+                    # Without this, the realtime client remains disconnected
+                    recovery_success = await self.connect()
+                    if not recovery_success:
+                        logger.error(
+                            "update_voice_recovery_failed",
+                            original_voice=old_voice,
+                            client_state="disconnected",
+                        )
+                    else:
+                        logger.info(
+                            "update_voice_recovered",
+                            using_voice=old_voice,
+                        )
+                    return False
+            else:
+                # Not connected, just update config for next connection
+                self.config.voice = new_voice
+
+            logger.info("update_voice_changed", voice=new_voice)
             return True
-
-        old_voice = self.config.voice
-        self.config.voice = new_voice
-
-        logger.info(
-            "update_voice_changing",
-            from_voice=old_voice,
-            to_voice=new_voice,
-        )
-
-        # Must reconnect to apply the new voice
-        if self._is_connected:
-            await self.disconnect()
-            success = await self.connect()
-            if not success:
-                # Restore old voice config
-                self.config.voice = old_voice
-                logger.error("update_voice_reconnect_failed", voice=new_voice)
-
-                # CRITICAL: Attempt to restore connection with old voice
-                # Without this, the realtime client remains disconnected
-                recovery_success = await self.connect()
-                if not recovery_success:
-                    logger.error(
-                        "update_voice_recovery_failed",
-                        original_voice=old_voice,
-                        client_state="disconnected",
-                    )
-                else:
-                    logger.info(
-                        "update_voice_recovered",
-                        using_voice=old_voice,
-                    )
-                return False
-
-        logger.info("update_voice_changed", voice=new_voice)
-        return True
 
     async def ensure_connected(self) -> bool:
         """Ensure connection is active, reconnecting if needed.

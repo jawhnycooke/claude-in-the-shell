@@ -202,6 +202,9 @@ def load_persona_prompt(
     Used for persona-based wake word switching.
     Falls back to default system prompt if persona prompt not found or on error.
 
+    Security: Validates that resolved paths are within the allowed directory
+    to prevent path traversal attacks (e.g., "../../../etc/passwd").
+
     Args:
         persona: PersonaConfig instance with prompt_path attribute
         config: Optional configuration for dynamic context
@@ -214,10 +217,35 @@ def load_persona_prompt(
     base_dir = prompts_dir or PROMPTS_DIR
     persona_name = getattr(persona, "name", "unknown")
 
-    def _try_load_prompt(prompt_path: Path) -> str | None:
+    def _is_safe_path(candidate: Path, allowed_base: Path) -> bool:
+        """Validate that candidate path is within allowed_base directory.
+
+        Prevents path traversal attacks by resolving symlinks and checking
+        that the resolved path starts with the allowed base directory.
+        """
+        try:
+            resolved = candidate.resolve()
+            base_resolved = allowed_base.resolve()
+            # Use is_relative_to (Python 3.9+) or check str prefix
+            return resolved.is_relative_to(base_resolved)
+        except (ValueError, OSError):
+            return False
+
+    def _try_load_prompt(prompt_path: Path, allowed_base: Path | None = None) -> str | None:
         """Attempt to load and render a prompt file with error handling."""
         if not prompt_path.exists():
             return None
+
+        # SECURITY: Validate path is within allowed directory
+        if allowed_base is not None and not _is_safe_path(prompt_path, allowed_base):
+            log.warning(
+                "Rejected persona prompt path outside allowed directory",
+                persona=persona_name,
+                path=str(prompt_path),
+                allowed_base=str(allowed_base),
+            )
+            return None
+
         try:
             log.info(
                 "Loading persona prompt",
@@ -250,19 +278,19 @@ def load_persona_prompt(
     # Try persona-specific prompt path from multiple locations
     if hasattr(persona, "prompt_path") and persona.prompt_path:
         # Try relative to project root (base_dir.parent)
-        result = _try_load_prompt(base_dir.parent / persona.prompt_path)
+        # Allow paths within the project root
+        project_root = base_dir.parent
+        result = _try_load_prompt(project_root / persona.prompt_path, project_root)
         if result is not None:
             return result
 
         # Try relative to prompts dir
-        result = _try_load_prompt(base_dir / persona.prompt_path)
+        result = _try_load_prompt(base_dir / persona.prompt_path, base_dir)
         if result is not None:
             return result
 
-        # Try direct path from cwd
-        result = _try_load_prompt(Path(persona.prompt_path))
-        if result is not None:
-            return result
+        # NOTE: Direct path from cwd removed for security - only allow paths
+        # relative to known base directories to prevent path traversal
 
     # Fallback to default system prompt
     log.warning(
