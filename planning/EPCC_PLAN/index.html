@@ -1,0 +1,3093 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An embodied AI agent for Reachy Mini robot powered by Claude Agent SDK">
+      
+      
+      
+        <link rel="canonical" href="https://jawhnycooke.github.io/claude-in-the-shell/planning/EPCC_PLAN/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Plan: Reachy Agent - Embodied AI System - Reachy Agent Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#plan-reachy-agent-embodied-ai-system" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Reachy Agent Documentation" class="md-header__button md-logo" aria-label="Reachy Agent Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Reachy Agent Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Plan: Reachy Agent - Embodied AI System
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jawhnycooke/claude-in-the-shell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jawhnycooke/claude-in-the-shell
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/getting-started/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/agent/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/voice-pipeline-setup/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Reachy Agent Documentation" class="md-nav__button md-logo" aria-label="Reachy Agent Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Reachy Agent Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jawhnycooke/claude-in-the-shell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jawhnycooke/claude-in-the-shell
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/voice-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/personas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persona System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/agent-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ReachyAgentLoop Deep Dive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/daemon-compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Daemon Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../diagrams/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/voice-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/sdk-motion-control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Motion Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/motion-blending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Motion Blending
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/voice-pipeline-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/raspberry-pi-installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/phase2-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 Preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Objective
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Approach
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Approach">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-technology-decisions-from-tech_reqmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Technology Decisions (from TECH_REQ.md)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trade-offs-made" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trade-offs Made
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Tasks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Tasks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-foundation-50h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Foundation (~50h)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Foundation (~50h)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-project-scaffolding-8h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Project Scaffolding (~8h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-reachy-mcp-server-16h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Reachy MCP Server (~16h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-claude-agent-sdk-integration-12h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Claude Agent SDK Integration (~12h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-permission-system-8h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Permission System (~8h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-simulation-testing-6h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Simulation Testing (~6h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-hardware-integration-50h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Hardware Integration (~50h)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Hardware Integration (~50h)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-pi-environment-setup-8h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Pi Environment Setup (~8h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-wake-word-detection-10h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Wake Word Detection (~10h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-attention-state-machine-8h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Attention State Machine (~8h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-privacy-indicators-4h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Privacy Indicators (~4h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-graceful-degradation-12h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Graceful Degradation (~12h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-hardware-validation-8h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Hardware Validation (~8h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-intelligence-layer-50h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Intelligence Layer (~50h)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Intelligence Layer (~50h)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-memory-system-16h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Memory System (~16h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-spatial-audio-10h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Spatial Audio (~10h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-imu-interaction-8h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 IMU Interaction (~8h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-antenna-expression-language-10h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Antenna Expression Language (~10h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-personality-engine-6h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Personality Engine (~6h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-polish-extensibility-50h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Polish &amp; Extensibility (~50h)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 4: Polish &amp; Extensibility (~50h)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-setup-wizard-10h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Setup Wizard (~10h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-external-mcp-integrations-18h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 External MCP Integrations (~18h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-testing-quality-12h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Testing &amp; Quality (~12h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-documentation-10h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Documentation (~10h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-quality-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Quality Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Quality Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-test-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Test Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#acceptance-criteria-from-prd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acceptance Criteria (from PRD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Risks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Risks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assumptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-scope-deferred" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of Scope (Deferred)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="plan-reachy-agent-embodied-ai-system">Plan: Reachy Agent - Embodied AI System<a class="headerlink" href="#plan-reachy-agent-embodied-ai-system" title="Permanent link">&para;</a></h1>
+<p><strong>Created</strong>: December 2024 | <strong>Effort</strong>: ~200h across 4 phases | <strong>Complexity</strong>: Complex</p>
+<hr />
+<h2 id="1-objective">1. Objective<a class="headerlink" href="#1-objective" title="Permanent link">&para;</a></h2>
+<p><strong>Goal</strong>: Transform Reachy Mini into an autonomous Claude-powered AI agent with perception, memory, expression, and external service integration.</p>
+<p><strong>Why</strong>: Create an open-source reference implementation of embodied AI that bridges cloud intelligence with physical robotics, while documenting the journey for the developer community.</p>
+<p><strong>Success Criteria</strong>:
+1. Agent responds to "Hey Reachy" wake word and executes multi-step tasks via MCP
+2. Reliable 8+ hour continuous operation with &lt;1% crash rate
+3. 5+ working MCP integrations (Reachy body, Home Assistant, Calendar, GitHub, Weather)
+4. Graceful degradation when offline (Ollama + Piper fallback functional)
+5. Privacy indicators via antenna states visible to user</p>
+<hr />
+<h2 id="2-approach">2. Approach<a class="headerlink" href="#2-approach" title="Permanent link">&para;</a></h2>
+<h3 id="architecture-summary">Architecture Summary<a class="headerlink" href="#architecture-summary" title="Permanent link">&para;</a></h3>
+<p><strong>From TECH_REQ.md</strong>: Layered monolith with MCP sidecar pattern, single asyncio process for MVP.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Claude API (cloud)
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>       │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       ▼
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>┌──────────────────────────────┐
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│     Claude Agent SDK         │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  (Agent Loop + Hooks)        │
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>└──────────────────────────────┘
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>       │ MCP Protocol
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       ▼
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>┌──────────────────────────────┐
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│     Reachy Agent Core        │
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│  Perception│Memory│Privacy   │
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>└──────────────────────────────┘
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>       │ HTTP :8000
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>       ▼
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>┌──────────────────────────────┐
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│     Reachy Daemon (Pollen)   │
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│  Motors│Camera│Audio│IMU     │
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>└──────────────────────────────┘
+</span></code></pre></div>
+<h3 id="key-technology-decisions-from-tech_reqmd">Key Technology Decisions (from TECH_REQ.md)<a class="headerlink" href="#key-technology-decisions-from-tech_reqmd" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Choice</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wake word</td>
+<td>OpenWakeWord</td>
+<td>Open source, no license, customizable</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>ChromaDB + SQLite</td>
+<td>Lightweight, persistent, Python native</td>
+</tr>
+<tr>
+<td>Embeddings</td>
+<td>Hybrid (local + API)</td>
+<td>Real-time local, quality from reindexing</td>
+</tr>
+<tr>
+<td>Offline LLM</td>
+<td>Ollama + Llama 3.2 3B</td>
+<td>Easy setup, fits Pi RAM</td>
+</tr>
+<tr>
+<td>TTS fallback</td>
+<td>Piper</td>
+<td>Neural quality, Pi optimized</td>
+</tr>
+<tr>
+<td>Config</td>
+<td>YAML + JSON Schema</td>
+<td>Human-readable, machine-validatable</td>
+</tr>
+<tr>
+<td>Process</td>
+<td>Single asyncio</td>
+<td>Lower memory, simpler debugging</td>
+</tr>
+</tbody>
+</table>
+<h3 id="integration-points">Integration Points<a class="headerlink" href="#integration-points" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Reachy Daemon</strong> (Pollen): HTTP API on localhost:8000</li>
+<li><strong>Claude API</strong>: HTTPS to api.anthropic.com</li>
+<li><strong>Home Assistant</strong>: REST API via MCP server</li>
+<li><strong>Google Calendar</strong>: OAuth2 + Calendar API</li>
+<li><strong>GitHub</strong>: Personal access token + REST API</li>
+</ul>
+<h3 id="trade-offs-made">Trade-offs Made<a class="headerlink" href="#trade-offs-made" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Chosen</th>
+<th>Alternative</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process model</td>
+<td>Single asyncio</td>
+<td>systemd services</td>
+<td>Simpler for MVP, can migrate later</td>
+</tr>
+<tr>
+<td>Config format</td>
+<td>YAML</td>
+<td>JSON</td>
+<td>Human-readable for users</td>
+</tr>
+<tr>
+<td>Wake word</td>
+<td>OpenWakeWord</td>
+<td>Porcupine</td>
+<td>No license cost, open source</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-tasks">3. Tasks<a class="headerlink" href="#3-tasks" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-foundation-50h">Phase 1: Foundation (~50h)<a class="headerlink" href="#phase-1-foundation-50h" title="Permanent link">&para;</a></h3>
+<p><em>Goal: Validate architecture in simulation before hardware arrives</em></p>
+<h4 id="11-project-scaffolding-8h">1.1 Project Scaffolding (~8h)<a class="headerlink" href="#11-project-scaffolding-8h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1.1.1</strong> Create project structure</td>
+<td>2h</td>
+<td>Set up <code>src/</code>, <code>config/</code>, <code>tests/</code>, <code>scripts/</code> per TECH_REQ directory layout</td>
+<td>None</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.1.2</strong> Configure pyproject.toml</td>
+<td>1h</td>
+<td>Dependencies, dev tools, entry points</td>
+<td>1.1.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.1.3</strong> Create requirements files</td>
+<td>1h</td>
+<td>Split prod/dev, pin versions</td>
+<td>1.1.2</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.1.4</strong> Set up config schema</td>
+<td>2h</td>
+<td>JSON Schema for config validation, Pydantic models</td>
+<td>1.1.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.1.5</strong> Create .env.example</td>
+<td>0.5h</td>
+<td>Template for API keys</td>
+<td>1.1.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.1.6</strong> Set up logging infrastructure</td>
+<td>1.5h</td>
+<td>structlog, JSON format, file rotation</td>
+<td>1.1.1</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="12-reachy-mcp-server-16h">1.2 Reachy MCP Server (~16h)<a class="headerlink" href="#12-reachy-mcp-server-16h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1.2.1</strong> Create MCP server skeleton</td>
+<td>3h</td>
+<td>Use <code>mcp</code> SDK, <code>create_sdk_mcp_server</code></td>
+<td>1.1.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.2.2</strong> Implement move_head tool</td>
+<td>2h</td>
+<td>Direction enum, speed control, daemon HTTP call</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.2.3</strong> Implement speak tool</td>
+<td>2h</td>
+<td>Text-to-speech via daemon, queue management</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.2.4</strong> Implement play_emotion tool</td>
+<td>3h</td>
+<td>Emotion sequences, antenna coordination</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.2.5</strong> Implement capture_image tool</td>
+<td>2h</td>
+<td>Camera frame capture, optional analysis</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.2.6</strong> Implement remaining body tools</td>
+<td>3h</td>
+<td>set_antenna_state, get_sensor_data, look_at_sound, dance</td>
+<td>1.2.2-1.2.5</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.2.7</strong> Create daemon mock for testing</td>
+<td>1h</td>
+<td>FastAPI mock of Reachy daemon for local dev</td>
+<td>1.2.1</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="13-claude-agent-sdk-integration-12h">1.3 Claude Agent SDK Integration (~12h)<a class="headerlink" href="#13-claude-agent-sdk-integration-12h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1.3.1</strong> Install and configure SDK</td>
+<td>2h</td>
+<td>ARM64 considerations, validate on dev machine</td>
+<td>1.1.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.3.2</strong> Create agent options module</td>
+<td>2h</td>
+<td>ClaudeAgentOptions, model selection, permissions</td>
+<td>1.3.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.3.3</strong> Implement main agent loop</td>
+<td>3h</td>
+<td>Perceive → Think → Act cycle, asyncio integration</td>
+<td>1.3.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.3.4</strong> Register MCP server with agent</td>
+<td>2h</td>
+<td>In-process MCP connection, tool discovery</td>
+<td>1.2.1, 1.3.3</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.3.5</strong> Create CLAUDE.md personality</td>
+<td>2h</td>
+<td>System prompt per Appendix A in PRD</td>
+<td>1.3.3</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.3.6</strong> Implement context building</td>
+<td>1h</td>
+<td>Inject current time, state, memories into prompt</td>
+<td>1.3.5</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="14-permission-system-8h">1.4 Permission System (~8h)<a class="headerlink" href="#14-permission-system-8h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1.4.1</strong> Create permission tier models</td>
+<td>2h</td>
+<td>Pydantic models from TECH_REQ schema</td>
+<td>1.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.4.2</strong> Implement PreToolUse hook</td>
+<td>3h</td>
+<td>Pattern matching, tier evaluation</td>
+<td>1.4.1, 1.3.3</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.4.3</strong> Create permissions.yaml config</td>
+<td>1h</td>
+<td>Default rules per TECH_REQ</td>
+<td>1.4.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>1.4.4</strong> Implement permission audit logging</td>
+<td>2h</td>
+<td>SQLite, ToolExecution schema</td>
+<td>1.4.2</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="15-simulation-testing-6h">1.5 Simulation Testing (~6h)<a class="headerlink" href="#15-simulation-testing-6h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1.5.1</strong> Set up MuJoCo environment</td>
+<td>2h</td>
+<td>Install MuJoCo, Reachy model</td>
+<td>None</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.5.2</strong> Create simulation adapter</td>
+<td>2h</td>
+<td>Bridge MCP server to MuJoCo instead of daemon</td>
+<td>1.2.7, 1.5.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>1.5.3</strong> Validate end-to-end in simulation</td>
+<td>2h</td>
+<td>Multi-turn conversation, tool execution</td>
+<td>1.5.2, 1.3.4</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Phase 1 Exit Criteria</strong>:
+- [x] Agent controls simulated Reachy via MCP
+- [x] Multi-turn conversations work
+- [x] Permissions enforced (Tier 1 auto, Tier 4 blocked)</p>
+<p><strong>Phase 1 Status: ✅ COMPLETE</strong> (December 2024)</p>
+<hr />
+<h3 id="phase-2-hardware-integration-50h">Phase 2: Hardware Integration (~50h)<a class="headerlink" href="#phase-2-hardware-integration-50h" title="Permanent link">&para;</a></h3>
+<p><em>Goal: Running on physical Reachy Mini with voice activation</em></p>
+<h4 id="21-pi-environment-setup-8h">2.1 Pi Environment Setup (~8h)<a class="headerlink" href="#21-pi-environment-setup-8h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2.1.1</strong> Install Raspberry Pi OS</td>
+<td>1h</td>
+<td>64-bit, configure WiFi, SSH</td>
+<td>None</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.1.2</strong> Install Reachy daemon</td>
+<td>2h</td>
+<td>Pollen SDK, verify daemon startup</td>
+<td>2.1.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.1.3</strong> Install Claude Code CLI</td>
+<td>2h</td>
+<td>Native installer, ARM64 validation</td>
+<td>2.1.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.1.4</strong> Install Python dependencies</td>
+<td>2h</td>
+<td>uv, requirements, verify ARM64 wheels</td>
+<td>2.1.3</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.1.5</strong> Configure systemd service</td>
+<td>1h</td>
+<td>reachy-agent.service per TECH_REQ</td>
+<td>2.1.4</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="22-wake-word-detection-10h">2.2 Wake Word Detection (~10h)<a class="headerlink" href="#22-wake-word-detection-10h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2.2.1</strong> Install OpenWakeWord</td>
+<td>2h</td>
+<td>pip install, model download</td>
+<td>2.1.4</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.2.2</strong> Create audio capture module</td>
+<td>3h</td>
+<td>PyAudio, 4-mic array handling</td>
+<td>2.1.4</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.2.3</strong> Implement wake word detector</td>
+<td>3h</td>
+<td>"Hey Reachy" detection, callback</td>
+<td>2.2.1, 2.2.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.2.4</strong> Tune sensitivity</td>
+<td>2h</td>
+<td>False positive &lt; 1/hour, latency &lt; 500ms</td>
+<td>2.2.3</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<h4 id="23-attention-state-machine-8h">2.3 Attention State Machine (~8h)<a class="headerlink" href="#23-attention-state-machine-8h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2.3.1</strong> Create attention state model</td>
+<td>2h</td>
+<td>Passive/Alert/Engaged enum, transitions</td>
+<td>1.1.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.3.2</strong> Implement passive mode</td>
+<td>2h</td>
+<td>Wake word only, minimal CPU</td>
+<td>2.2.3, 2.3.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.3.3</strong> Implement alert mode</td>
+<td>2h</td>
+<td>Motion/face detection triggers</td>
+<td>2.3.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.3.4</strong> Implement engaged mode</td>
+<td>2h</td>
+<td>Full agent loop, timeout to alert</td>
+<td>2.3.3</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="24-privacy-indicators-4h">2.4 Privacy Indicators (~4h)<a class="headerlink" href="#24-privacy-indicators-4h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2.4.1</strong> Map antenna positions to states</td>
+<td>1h</td>
+<td>down=passive, mid=alert, up=engaged</td>
+<td>1.2.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.4.2</strong> Implement indicator controller</td>
+<td>2h</td>
+<td>Async antenna updates on state change</td>
+<td>2.3.1, 2.4.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.4.3</strong> Add smooth transitions</td>
+<td>1h</td>
+<td>Easing functions, no jarring movements</td>
+<td>2.4.2</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="25-graceful-degradation-12h">2.5 Graceful Degradation (~12h)<a class="headerlink" href="#25-graceful-degradation-12h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2.5.1</strong> Create health monitor</td>
+<td>3h</td>
+<td>CPU temp, memory, API latency checks</td>
+<td>2.1.4</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.5.2</strong> Implement degradation modes</td>
+<td>3h</td>
+<td>Full → Offline → Thermal → Safe</td>
+<td>2.5.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.5.3</strong> Install Piper TTS</td>
+<td>2h</td>
+<td>Local neural TTS for offline speech</td>
+<td>2.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.5.4</strong> Install Ollama + Llama 3.2</td>
+<td>3h</td>
+<td>Local LLM for offline mode</td>
+<td>2.1.4</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.5.5</strong> Implement mode switching</td>
+<td>1h</td>
+<td>Detect network loss, switch to fallbacks</td>
+<td>2.5.2-2.5.4</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<h4 id="26-hardware-validation-8h">2.6 Hardware Validation (~8h)<a class="headerlink" href="#26-hardware-validation-8h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2.6.1</strong> Test head movement range</td>
+<td>2h</td>
+<td>Verify all 6 DOF, speed control</td>
+<td>1.2.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.6.2</strong> Test audio pipeline</td>
+<td>2h</td>
+<td>Wake word → STT → agent → TTS</td>
+<td>2.2.3, 1.3.3</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>2.6.3</strong> Test camera capture</td>
+<td>1h</td>
+<td>Verify capture_image tool</td>
+<td>1.2.5</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>2.6.4</strong> Stress test 8-hour operation</td>
+<td>3h</td>
+<td>Monitor crash rate, memory leaks</td>
+<td>All Phase 2</td>
+<td>H</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Phase 2 Exit Criteria</strong>:
+- [ ] Voice-activated agent on physical robot
+- [ ] Reliable 8-hour operation
+- [ ] Graceful handling of WiFi disconnection</p>
+<hr />
+<h3 id="phase-3-intelligence-layer-50h">Phase 3: Intelligence Layer (~50h)<a class="headerlink" href="#phase-3-intelligence-layer-50h" title="Permanent link">&para;</a></h3>
+<p><em>Goal: Rich perception, memory, and expression</em></p>
+<h4 id="31-memory-system-16h">3.1 Memory System (~16h)<a class="headerlink" href="#31-memory-system-16h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>3.1.1</strong> Install ChromaDB</td>
+<td>1h</td>
+<td>pip install, persistent storage path</td>
+<td>2.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.1.2</strong> Create memory models</td>
+<td>2h</td>
+<td>Memory, MemoryMetadata per TECH_REQ schema</td>
+<td>1.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.1.3</strong> Implement short-term memory</td>
+<td>2h</td>
+<td>Session buffer, last N interactions</td>
+<td>3.1.2</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.1.4</strong> Implement long-term memory</td>
+<td>4h</td>
+<td>ChromaDB storage, semantic retrieval</td>
+<td>3.1.1, 3.1.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.1.5</strong> Install sentence-transformers</td>
+<td>1h</td>
+<td>all-MiniLM-L6-v2 model</td>
+<td>2.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.1.6</strong> Implement hybrid embedding</td>
+<td>3h</td>
+<td>Local for real-time, API for reindexing</td>
+<td>3.1.5</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.1.7</strong> Integrate memory with agent</td>
+<td>3h</td>
+<td>Context building from relevant memories</td>
+<td>3.1.4, 1.3.6</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<h4 id="32-spatial-audio-10h">3.2 Spatial Audio (~10h)<a class="headerlink" href="#32-spatial-audio-10h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>3.2.1</strong> Install pyroomacoustics</td>
+<td>1h</td>
+<td>DOA estimation library</td>
+<td>2.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.2.2</strong> Calibrate mic positions</td>
+<td>2h</td>
+<td>Map physical array to algorithm</td>
+<td>3.2.1, 2.2.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.2.3</strong> Implement DOA estimation</td>
+<td>3h</td>
+<td>Direction of arrival, ±15° accuracy</td>
+<td>3.2.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.2.4</strong> Implement look_at_sound</td>
+<td>2h</td>
+<td>Map DOA to head movement</td>
+<td>3.2.3, 1.2.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.2.5</strong> Multi-speaker tracking</td>
+<td>2h</td>
+<td>Track active speaker in room</td>
+<td>3.2.3</td>
+<td>H</td>
+</tr>
+</tbody>
+</table>
+<h4 id="33-imu-interaction-8h">3.3 IMU Interaction (~8h)<a class="headerlink" href="#33-imu-interaction-8h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>3.3.1</strong> Read IMU via daemon API</td>
+<td>2h</td>
+<td>Accelerometer sampling at 50Hz</td>
+<td>2.1.2</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.3.2</strong> Implement tap detection</td>
+<td>2h</td>
+<td>Threshold-based event detection</td>
+<td>3.3.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.3.3</strong> Implement pickup detection</td>
+<td>2h</td>
+<td>Sustained acceleration change</td>
+<td>3.3.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.3.4</strong> Create IMU event responses</td>
+<td>2h</td>
+<td>Agent reactions to physical touch</td>
+<td>3.3.2, 3.3.3</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="34-antenna-expression-language-10h">3.4 Antenna Expression Language (~10h)<a class="headerlink" href="#34-antenna-expression-language-10h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>3.4.1</strong> Create expression schema</td>
+<td>2h</td>
+<td>YAML format per TECH_REQ Expression schema</td>
+<td>1.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.4.2</strong> Define 10+ expressions</td>
+<td>2h</td>
+<td>happy, sad, curious, thinking, etc.</td>
+<td>3.4.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.4.3</strong> Implement expression engine</td>
+<td>3h</td>
+<td>Play sequences, blend expressions</td>
+<td>3.4.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>3.4.4</strong> Add easing functions</td>
+<td>1h</td>
+<td>Natural motion curves</td>
+<td>3.4.3</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.4.5</strong> Integrate with agent emotions</td>
+<td>2h</td>
+<td>Auto-expression based on response tone</td>
+<td>3.4.3, 1.3.3</td>
+<td>M</td>
+</tr>
+</tbody>
+</table>
+<h4 id="35-personality-engine-6h">3.5 Personality Engine (~6h)<a class="headerlink" href="#35-personality-engine-6h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>3.5.1</strong> Create personality state model</td>
+<td>2h</td>
+<td>Mood, energy per TECH_REQ schema</td>
+<td>1.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.5.2</strong> Implement state persistence</td>
+<td>2h</td>
+<td>SQLite storage, load on startup</td>
+<td>3.5.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>3.5.3</strong> Inject personality into prompt</td>
+<td>2h</td>
+<td>Dynamic CLAUDE.md context section</td>
+<td>3.5.2, 1.3.5</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Phase 3 Exit Criteria</strong>:
+- [ ] Robot remembers context across sessions
+- [ ] Responds to physical interaction (tap, pickup)
+- [ ] Expressive antenna behavior matches conversation tone</p>
+<hr />
+<h3 id="phase-4-polish-extensibility-50h">Phase 4: Polish &amp; Extensibility (~50h)<a class="headerlink" href="#phase-4-polish-extensibility-50h" title="Permanent link">&para;</a></h3>
+<p><em>Goal: Ready for users and community</em></p>
+<h4 id="41-setup-wizard-10h">4.1 Setup Wizard (~10h)<a class="headerlink" href="#41-setup-wizard-10h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>4.1.1</strong> Install Rich library</td>
+<td>0.5h</td>
+<td>Terminal UI framework</td>
+<td>2.1.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.1.2</strong> Create wizard flow</td>
+<td>3h</td>
+<td>Welcome, API key, integrations, test</td>
+<td>4.1.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.1.3</strong> Implement API key validation</td>
+<td>1h</td>
+<td>Test Claude API connectivity</td>
+<td>4.1.2</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.1.4</strong> Implement hardware tests</td>
+<td>2h</td>
+<td>Test motors, camera, audio</td>
+<td>4.1.2</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>4.1.5</strong> Generate config from wizard</td>
+<td>2h</td>
+<td>Write config.yaml from answers</td>
+<td>4.1.2</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.1.6</strong> Create install.sh script</td>
+<td>1.5h</td>
+<td>One-line install for Pi</td>
+<td>All previous</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="42-external-mcp-integrations-18h">4.2 External MCP Integrations (~18h)<a class="headerlink" href="#42-external-mcp-integrations-18h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>4.2.1</strong> Implement Weather MCP</td>
+<td>2h</td>
+<td>Simple read-only, OpenWeather API</td>
+<td>1.2.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.2.2</strong> Implement Home Assistant MCP</td>
+<td>4h</td>
+<td>Entity control, state reading</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>4.2.3</strong> Implement Google Calendar MCP</td>
+<td>4h</td>
+<td>OAuth2 flow, event reading, creation</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>4.2.4</strong> Implement GitHub MCP</td>
+<td>4h</td>
+<td>Notifications, PR status, issues</td>
+<td>1.2.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>4.2.5</strong> Create integration registry</td>
+<td>2h</td>
+<td>Dynamic MCP server loading</td>
+<td>4.2.1-4.2.4</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.2.6</strong> Add permissions for integrations</td>
+<td>2h</td>
+<td>Per-integration tier config</td>
+<td>4.2.5, 1.4.1</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="43-testing-quality-12h">4.3 Testing &amp; Quality (~12h)<a class="headerlink" href="#43-testing-quality-12h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>4.3.1</strong> Write unit tests</td>
+<td>4h</td>
+<td>80% coverage target, pytest</td>
+<td>All modules</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.3.2</strong> Write integration tests</td>
+<td>4h</td>
+<td>MCP → daemon mock, agent loop</td>
+<td>4.3.1</td>
+<td>M</td>
+</tr>
+<tr>
+<td><strong>4.3.3</strong> Create test fixtures</td>
+<td>2h</td>
+<td>conftest.py, mock responses</td>
+<td>4.3.1</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.3.4</strong> Set up CI pipeline</td>
+<td>2h</td>
+<td>GitHub Actions, lint + test</td>
+<td>4.3.1-4.3.3</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<h4 id="44-documentation-10h">4.4 Documentation (~10h)<a class="headerlink" href="#44-documentation-10h" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Effort</th>
+<th>Description</th>
+<th>Deps</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>4.4.1</strong> Write README.md</td>
+<td>2h</td>
+<td>Quick start, architecture overview</td>
+<td>All</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.4.2</strong> Write setup guide</td>
+<td>2h</td>
+<td>Detailed installation for Pi</td>
+<td>4.1.6</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.4.3</strong> Document permissions system</td>
+<td>2h</td>
+<td>Tier explanation, customization</td>
+<td>1.4.3</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.4.4</strong> Document expression library</td>
+<td>2h</td>
+<td>How to create custom expressions</td>
+<td>3.4.2</td>
+<td>L</td>
+</tr>
+<tr>
+<td><strong>4.4.5</strong> Create troubleshooting guide</td>
+<td>2h</td>
+<td>Common issues, solutions</td>
+<td>All</td>
+<td>L</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Phase 4 Exit Criteria</strong>:
+- [ ] New user can set up in 30 minutes using wizard
+- [ ] 3+ external services connected (Home Assistant, Calendar, GitHub)
+- [ ] 80% test coverage
+- [ ] Public documentation complete</p>
+<hr />
+<h2 id="4-quality-strategy">4. Quality Strategy<a class="headerlink" href="#4-quality-strategy" title="Permanent link">&para;</a></h2>
+<h3 id="test-coverage">Test Coverage<a class="headerlink" href="#test-coverage" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Target</th>
+<th>Focus Areas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit</td>
+<td>80%</td>
+<td>MCP tools, permission hooks, memory system</td>
+</tr>
+<tr>
+<td>Integration</td>
+<td>Key paths</td>
+<td>Agent loop → MCP → daemon mock</td>
+</tr>
+<tr>
+<td>E2E (simulation)</td>
+<td>Happy paths</td>
+<td>Multi-turn conversation, tool execution</td>
+</tr>
+<tr>
+<td>E2E (hardware)</td>
+<td>Manual</td>
+<td>Voice activation, expression, degradation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-test-cases">Key Test Cases<a class="headerlink" href="#key-test-cases" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Wake word detection</strong>: "Hey Reachy" activates within 500ms</li>
+<li><strong>Permission enforcement</strong>: Tier 4 tools always blocked</li>
+<li><strong>Memory retrieval</strong>: Relevant memories returned for context</li>
+<li><strong>Degradation</strong>: WiFi disconnect triggers Ollama fallback</li>
+<li><strong>Expression sync</strong>: Antenna state matches attention level</li>
+</ol>
+<h3 id="acceptance-criteria-from-prd">Acceptance Criteria (from PRD)<a class="headerlink" href="#acceptance-criteria-from-prd" title="Permanent link">&para;</a></h3>
+<ul>
+<li>G1: Voice response, multi-step tasks via MCP, context maintained</li>
+<li>G2: &lt;1% crash rate, 8+ hour continuous operation</li>
+<li>G3: 5+ MCP integrations working</li>
+<li>G5: Antenna state visibly indicates listening mode</li>
+</ul>
+<hr />
+<h2 id="5-risks">5. Risks<a class="headerlink" href="#5-risks" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Impact</th>
+<th>Likelihood</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ARM64 Claude SDK issues</td>
+<td>H</td>
+<td>M</td>
+<td>Test early (1.3.1), have Docker fallback</td>
+</tr>
+<tr>
+<td>Thermal throttling on Pi</td>
+<td>M</td>
+<td>M</td>
+<td>Health monitor (2.5.1), heatsink, throttle detection</td>
+</tr>
+<tr>
+<td>OpenWakeWord accuracy</td>
+<td>M</td>
+<td>M</td>
+<td>Tune sensitivity (2.2.4), add confirmation option</td>
+</tr>
+<tr>
+<td>ChromaDB corruption</td>
+<td>H</td>
+<td>L</td>
+<td>Regular backups, external SSD</td>
+</tr>
+<tr>
+<td>Reachy daemon API changes</td>
+<td>H</td>
+<td>L</td>
+<td>Pin SDK version, integration tests</td>
+</tr>
+<tr>
+<td>Memory leaks in 8h run</td>
+<td>M</td>
+<td>M</td>
+<td>Profile during stress test (2.6.4), fix before Phase 3</td>
+</tr>
+</tbody>
+</table>
+<h3 id="assumptions">Assumptions<a class="headerlink" href="#assumptions" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Reachy Mini hardware arrives before Phase 2 starts</li>
+<li>Claude Agent SDK stable for ARM64 (v0.2.114+ or native installer)</li>
+<li>Reachy daemon provides stable HTTP API at localhost:8000</li>
+<li>4GB Pi RAM sufficient with memory budgets from TECH_REQ</li>
+</ol>
+<h3 id="out-of-scope-deferred">Out of Scope (Deferred)<a class="headerlink" href="#out-of-scope-deferred" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Web dashboard (P2 feature, post v1.0)</li>
+<li>Slack/Spotify integrations (v1.0, not MVP)</li>
+<li>Multi-robot coordination (v2.0+)</li>
+<li>LeRobot integration (v3.0+)</li>
+</ul>
+<hr />
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Focus</th>
+<th>Effort</th>
+<th>Key Deliverable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>Foundation</td>
+<td>~50h</td>
+<td>Agent controls simulated Reachy via MCP</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>Hardware</td>
+<td>~50h</td>
+<td>Voice-activated agent on physical robot</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>Intelligence</td>
+<td>~50h</td>
+<td>Memory, spatial audio, expressions</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>Polish</td>
+<td>~50h</td>
+<td>Setup wizard, integrations, docs</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>~200h</strong></td>
+<td>Production-ready embodied AI agent</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>Plan Status</strong>: Draft - Awaiting Approval</p>
+<p>Ready for <code>/epcc-code</code> when approved.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/jawhnycooke/claude-in-the-shell" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3652 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An embodied AI agent for Reachy Mini robot powered by Claude Agent SDK">
+      
+      
+      
+        <link rel="canonical" href="https://jawhnycooke.github.io/claude-in-the-shell/architecture/personas/">
+      
+      
+        <link rel="prev" href="../voice-pipeline/">
+      
+      
+        <link rel="next" href="../agent-loop/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Persona System - Reachy Agent Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#understanding-the-multi-persona-wake-word-system" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Reachy Agent Documentation" class="md-header__button md-logo" aria-label="Reachy Agent Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Reachy Agent Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Persona System
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jawhnycooke/claude-in-the-shell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jawhnycooke/claude-in-the-shell
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/getting-started/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/agent/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/voice-pipeline-setup/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Reachy Agent Documentation" class="md-nav__button md-logo" aria-label="Reachy Agent Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Reachy Agent Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jawhnycooke/claude-in-the-shell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jawhnycooke/claude-in-the-shell
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persona System
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persona System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-big-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Big Picture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Big Picture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-this-matters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why This Matters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historical-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Historical Context
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Historical Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evolution-of-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evolution of Solutions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current State
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#personaconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PersonaConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#personamanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PersonaManager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wake-word-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wake Word Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architectural-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architectural Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Design Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-atomic-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Atomic Consistency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-deferred-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Deferred Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fail-safe-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Fail-Safe Fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-path-traversal-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Path Traversal Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Design Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-openai-realtime-api-for-voice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision: OpenAI Realtime API for Voice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-deferred-persona-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision: Deferred Persona Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-wake-word-model-as-persona-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision: Wake Word Model as Persona Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-persona-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Persona Switching
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Persona Switching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Diagram
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deferred-switching-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred Switching Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voice-update-openai-reconnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Update (OpenAI Reconnection)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-prompt-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Prompt Update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollback-on-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback on Failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-new-persona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Persona
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding a New Persona">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-train-or-obtain-wake-word-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Train or Obtain Wake Word Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-add-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Add Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-create-personality-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Create Personality Prompt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-test-detection-and-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Test Detection and Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bundled-personas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bundled Personas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bundled Personas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motoko-major-kusanagi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motoko (Major Kusanagi)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batou" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batou
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#personality-trait-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Personality Trait Encoding
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complete-persona-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Persona Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valid-voice-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valid Voice Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-path-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt Path Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#path-traversal-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path Traversal Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-file-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt File Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trade-offs-and-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trade-offs and Alternatives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trade-offs and Alternatives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#performance-vs-flexibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance vs. Flexibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voice-quality-vs-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Quality vs. Cost
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simplicity-vs-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simplicity vs. Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#immediate-vs-deferred-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Immediate vs. Deferred Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implications-for-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications for Practice
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implications for Practice">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-working-with-multi-persona-systems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When Working with Multi-Persona Systems
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-patterns-that-emerge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Patterns That Emerge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-to-broader-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting to Broader Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connecting to Broader Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#relationship-to-agent-architectures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship to Agent Architectures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationship-to-voice-assistant-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship to Voice Assistant Design
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#industry-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Industry Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#future-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Directions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deep-dive-topics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deep Dive Topics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-the-mental-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary: The Mental Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-exploration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Exploration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ReachyAgentLoop Deep Dive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../daemon-compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Daemon Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../diagrams/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/voice-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/sdk-motion-control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Motion Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/motion-blending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Motion Blending
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/voice-pipeline-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/raspberry-pi-installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/phase2-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 Preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-big-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Big Picture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Big Picture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-this-matters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why This Matters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historical-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Historical Context
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Historical Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evolution-of-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evolution of Solutions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current State
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#personaconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PersonaConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#personamanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PersonaManager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wake-word-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wake Word Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architectural-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architectural Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Design Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-atomic-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Atomic Consistency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-deferred-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Deferred Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fail-safe-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Fail-Safe Fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-path-traversal-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Path Traversal Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Design Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-openai-realtime-api-for-voice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision: OpenAI Realtime API for Voice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-deferred-persona-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision: Deferred Persona Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decision-wake-word-model-as-persona-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision: Wake Word Model as Persona Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-persona-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Persona Switching
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Persona Switching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Diagram
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deferred-switching-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred Switching Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voice-update-openai-reconnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Update (OpenAI Reconnection)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-prompt-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Prompt Update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollback-on-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback on Failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-new-persona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Persona
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding a New Persona">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-train-or-obtain-wake-word-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Train or Obtain Wake Word Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-add-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Add Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-create-personality-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Create Personality Prompt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-test-detection-and-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Test Detection and Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bundled-personas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bundled Personas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bundled Personas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motoko-major-kusanagi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motoko (Major Kusanagi)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batou" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batou
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#personality-trait-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Personality Trait Encoding
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complete-persona-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Persona Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valid-voice-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valid Voice Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-path-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt Path Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#path-traversal-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path Traversal Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-file-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt File Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trade-offs-and-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trade-offs and Alternatives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trade-offs and Alternatives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#performance-vs-flexibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance vs. Flexibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voice-quality-vs-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice Quality vs. Cost
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simplicity-vs-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simplicity vs. Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#immediate-vs-deferred-switching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Immediate vs. Deferred Switching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implications-for-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications for Practice
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implications for Practice">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-working-with-multi-persona-systems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When Working with Multi-Persona Systems
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-patterns-that-emerge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Patterns That Emerge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-to-broader-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting to Broader Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connecting to Broader Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#relationship-to-agent-architectures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship to Agent Architectures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationship-to-voice-assistant-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship to Voice Assistant Design
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#industry-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Industry Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#future-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Directions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deep-dive-topics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deep Dive Topics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-the-mental-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary: The Mental Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-exploration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Exploration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="understanding-the-multi-persona-wake-word-system">Understanding the Multi-Persona Wake Word System<a class="headerlink" href="#understanding-the-multi-persona-wake-word-system" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Purpose</strong>: This document explains the architecture and design rationale behind Reachy Agent's multi-persona wake word system, inspired by Ghost in the Shell.</p>
+<p><strong>Audience</strong>: Developers implementing persona-based AI systems or extending the Reachy Agent personality framework.</p>
+<p><strong>Prerequisite Knowledge</strong>: Familiarity with wake word detection, voice pipelines, and AI agent architectures.</p>
+</blockquote>
+<h2 id="the-big-picture">The Big Picture<a class="headerlink" href="#the-big-picture" title="Permanent link">&para;</a></h2>
+<p>The Multi-Persona Wake Word System allows a single Reachy Mini robot to embody different AI personalities, each triggered by its own wake word. When a user says "Hey Motoko," the robot becomes Major Kusanagi—analytical, philosophical, and direct. Say "Hey Batou," and it shifts to a casual, action-oriented persona.</p>
+<p>This isn't just about changing system prompts. The design ensures that <strong>voice characteristics, personality traits, and conversational style all align</strong> to create a coherent, believable character.</p>
+<h3 id="why-this-matters">Why This Matters<a class="headerlink" href="#why-this-matters" title="Permanent link">&para;</a></h3>
+<p>Traditional voice assistants have a single, static personality. Multi-persona systems enable:</p>
+<ul>
+<li><strong>Context-appropriate interactions</strong>: Choose the right personality for the task (analytical vs. action-oriented)</li>
+<li><strong>Multi-user scenarios</strong>: Different family members can have "their" persona</li>
+<li><strong>Experimentation</strong>: Test different AI personalities without reconfiguring the entire system</li>
+<li><strong>Entertainment</strong>: Ghost in the Shell fans can interact with characters they know</li>
+</ul>
+<p>The key technical insight: <strong>Voice quality must match personality</strong>. A deep male voice (onyx) saying philosophical observations feels wrong. A female voice (nova) delivering gruff one-liners breaks immersion. The system enforces this consistency at the architectural level.</p>
+<h2 id="historical-context">Historical Context<a class="headerlink" href="#historical-context" title="Permanent link">&para;</a></h2>
+<h3 id="the-problem-space">The Problem Space<a class="headerlink" href="#the-problem-space" title="Permanent link">&para;</a></h3>
+<p>Early voice assistant prototypes suffered from personality mismatch:
+- System prompts could change personality, but the voice remained constant
+- Users experienced cognitive dissonance when the voice didn't match the character
+- No clear mechanism to switch between personalities in real-time
+- Wake word detection was single-model, limiting interaction patterns</p>
+<h3 id="evolution-of-solutions">Evolution of Solutions<a class="headerlink" href="#evolution-of-solutions" title="Permanent link">&para;</a></h3>
+<p><strong>Single-Persona Systems</strong> (2023): One wake word, one personality, tightly coupled to configuration. Changing personality required restarting the entire agent.</p>
+<p><strong>Prompt-Only Switching</strong> (Early 2024): Dynamic system prompt updates without voice changes. Felt uncanny—like an actor forgetting to change their voice.</p>
+<p><strong>Multi-Persona Architecture</strong> (Current): Integrated wake word detection, voice synthesis, and system prompt management. Persona changes are atomic and consistent across all interaction layers.</p>
+<h3 id="current-state">Current State<a class="headerlink" href="#current-state" title="Permanent link">&para;</a></h3>
+<p>The system leverages OpenWakeWord's multi-model support (v0.4.0+) to load multiple custom wake word models simultaneously. When any model triggers, the pipeline:</p>
+<ol>
+<li>Identifies the associated persona</li>
+<li>Defers the switch until after current TTS completes</li>
+<li>Updates voice, system prompt, and reconnects to OpenAI</li>
+<li>Maintains conversation continuity</li>
+</ol>
+<h2 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
+<h3 id="personaconfig">PersonaConfig<a class="headerlink" href="#personaconfig" title="Permanent link">&para;</a></h3>
+<p><strong>What it is</strong>: A data structure that binds together all aspects of a persona—wake word, voice, system prompt, and personality traits.</p>
+<p><strong>Why it exists</strong>: Without a unified configuration object, voice settings could drift from personality prompts. PersonaConfig ensures atomic updates and validation.</p>
+<p><strong>How it relates</strong>: PersonaConfig instances are registered with PersonaManager and referenced by wake word models in WakeWordDetector.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nd">@dataclass</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">PersonaConfig</span><span class="p">:</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>                    <span class="c1"># Internal identifier (e.g., &quot;motoko&quot;)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">wake_word_model</span><span class="p">:</span> <span class="nb">str</span>         <span class="c1"># OpenWakeWord model name (e.g., &quot;hey_motoko&quot;)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">voice</span><span class="p">:</span> <span class="n">OpenAIVoice</span>           <span class="c1"># TTS voice (alloy, echo, fable, onyx, nova, shimmer)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">display_name</span><span class="p">:</span> <span class="nb">str</span>            <span class="c1"># Human-readable name (e.g., &quot;Major Kusanagi&quot;)</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">prompt_path</span><span class="p">:</span> <span class="nb">str</span>             <span class="c1"># Path to system prompt (e.g., &quot;prompts/personas/motoko.md&quot;)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">traits</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>       <span class="c1"># Optional metadata for runtime reference</span>
+</span></code></pre></div>
+<p><strong>Mental Model</strong>: Think of PersonaConfig as a "character sheet" in a role-playing game. It defines everything needed to portray a character consistently.</p>
+<p><strong>Validation</strong>: The <code>from_dict()</code> factory method validates:
+- Voice is in <code>VALID_VOICES</code> frozenset (prevents typos like "nvoa")
+- Required fields are present (name, wake_word_model, voice)
+- Prompt path uses forward slashes (cross-platform compatibility)</p>
+<h3 id="personamanager">PersonaManager<a class="headerlink" href="#personamanager" title="Permanent link">&para;</a></h3>
+<p><strong>What it is</strong>: A registry and coordinator for all available personas. It tracks which persona is currently active and manages transitions.</p>
+<p><strong>Why it exists</strong>: Centralized management prevents race conditions during persona switches and provides a single source of truth for persona state.</p>
+<p><strong>How it relates</strong>: VoicePipeline holds a PersonaManager instance. WakeWordDetector triggers callbacks that query the manager.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@dataclass</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">PersonaManager</span><span class="p">:</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">personas</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PersonaConfig</span><span class="p">]</span>       <span class="c1"># Keyed by wake_word_model</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">current_persona</span><span class="p">:</span> <span class="n">PersonaConfig</span> <span class="o">|</span> <span class="kc">None</span>    <span class="c1"># Currently active persona</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">default_persona_key</span><span class="p">:</span> <span class="nb">str</span>                 <span class="c1"># Fallback persona on startup</span>
+</span></code></pre></div>
+<p><strong>Key Methods</strong>:</p>
+<ul>
+<li><code>register_persona(persona)</code>: Add a new persona to the registry</li>
+<li><code>get_persona(wake_word_model)</code>: Lookup persona by wake word</li>
+<li><code>set_current(wake_word_model)</code>: Update active persona</li>
+<li><code>set_default(wake_word_model)</code>: Set fallback persona</li>
+<li><code>from_config(config_dict)</code>: Factory method from YAML config</li>
+</ul>
+<p><strong>Mental Model</strong>: PersonaManager is like a "radio dial"—it knows all available stations (personas), which one you're tuned to (current), and which one to default to when you turn it on (default).</p>
+<h3 id="wake-word-integration">Wake Word Integration<a class="headerlink" href="#wake-word-integration" title="Permanent link">&para;</a></h3>
+<p><strong>What it is</strong>: OpenWakeWord's multi-model loading capability, allowing simultaneous detection of multiple wake words.</p>
+<p><strong>Why it exists</strong>: Users shouldn't need to reconfigure or restart to switch personas. Real-time detection enables natural conversational flow.</p>
+<p><strong>How it works</strong>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># WakeWordDetector loads all persona models from data/wake_words/</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">custom_model_paths</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="s2">&quot;data/wake_words/hey_motoko.onnx&quot;</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;data/wake_words/hey_batou.onnx&quot;</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">]</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">wakeword_models</span><span class="o">=</span><span class="n">custom_model_paths</span><span class="p">)</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="bp">self</span><span class="o">.</span><span class="n">_active_models</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;hey_motoko&quot;</span><span class="p">,</span> <span class="s2">&quot;hey_batou&quot;</span><span class="p">]</span>
+</span></code></pre></div>
+<p>When audio is processed:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">detected_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wake_word</span><span class="o">.</span><span class="n">process_audio</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">if</span> <span class="n">detected_model</span><span class="p">:</span>  <span class="c1"># Returns model name (e.g., &quot;hey_motoko&quot;)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">on_wake</span><span class="p">(</span><span class="n">detected_model</span><span class="p">)</span>  <span class="c1"># Callback to pipeline</span>
+</span></code></pre></div></p>
+<p><strong>Callback signature</strong>: <code>on_wake(model_name: str) -&gt; None</code></p>
+<p>The callback receives the <strong>model name</strong> (not the persona name), which PersonaManager uses to lookup the associated PersonaConfig.</p>
+<p><strong>Model format</strong>:
+- ONNX format (<code>.onnx</code> files)
+- Trained using <a href="https://github.com/dscripka/openWakeWord">OpenWakeWord training scripts</a>
+- File names must match <code>wake_word_model</code> keys in config</p>
+<h2 id="architectural-design">Architectural Design<a class="headerlink" href="#architectural-design" title="Permanent link">&para;</a></h2>
+<h3 id="system-architecture">System Architecture<a class="headerlink" href="#system-architecture" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Config["Configuration Layer"]
+        YAML[config/default.yaml&lt;br/&gt;personas: hey_motoko, hey_batou&lt;br/&gt;default_persona: hey_motoko]
+        P1[prompts/personas/motoko.md&lt;br/&gt;Analytical, philosophical]
+        P2[prompts/personas/batou.md&lt;br/&gt;Casual, action-oriented]
+        W1[data/wake_words/hey_motoko.onnx]
+        W2[data/wake_words/hey_batou.onnx]
+    end
+
+    subgraph Runtime["Runtime Layer"]
+        PM[PersonaManager&lt;br/&gt;Registry + State]
+        WWD[WakeWordDetector&lt;br/&gt;Multi-model ONNX]
+        VP[VoicePipeline&lt;br/&gt;Orchestration]
+        Agent[Claude Agent SDK&lt;br/&gt;System Prompt]
+        OpenAI[OpenAI Realtime API&lt;br/&gt;TTS Voice]
+    end
+
+    YAML --&gt;|from_config| PM
+    W1 &amp; W2 --&gt;|load models| WWD
+    WWD --&gt;|on_wake callback| VP
+    VP --&gt;|lookup persona| PM
+    VP --&gt;|update voice| OpenAI
+    VP --&gt;|load prompt| P1 &amp; P2
+    VP --&gt;|update system| Agent
+
+    style PM fill:#e1f5ff
+    style VP fill:#fff4e1
+    style WWD fill:#e8f5e9</code></pre>
+<h3 id="design-principles">Design Principles<a class="headerlink" href="#design-principles" title="Permanent link">&para;</a></h3>
+<h4 id="1-atomic-consistency">1. <strong>Atomic Consistency</strong><a class="headerlink" href="#1-atomic-consistency" title="Permanent link">&para;</a></h4>
+<p><strong>What it means</strong>: Voice, system prompt, and personality traits must all update together or not at all.</p>
+<p><strong>Rationale</strong>: Partial updates create uncanny valley effects. If voice switches but the prompt doesn't, the mismatch is jarring.</p>
+<p><strong>Impact</strong>: Persona switching is protected by an async lock and only commits state after successful reconnection.</p>
+<p><strong>Trade-offs</strong>:
+- <strong>Pro</strong>: Guaranteed consistency, no corrupted state
+- <strong>Con</strong>: Switching takes ~2-3 seconds due to OpenAI reconnection latency
+- <strong>Con</strong>: Failed switches leave the previous persona active (graceful degradation)</p>
+<h4 id="2-deferred-switching">2. <strong>Deferred Switching</strong><a class="headerlink" href="#2-deferred-switching" title="Permanent link">&para;</a></h4>
+<p><strong>What it means</strong>: Persona changes are queued and applied <strong>after</strong> the current TTS response completes.</p>
+<p><strong>Rationale</strong>: Interrupting mid-sentence to switch voices would sound broken. Users expect the current response to finish naturally.</p>
+<p><strong>Impact</strong>: <code>_pending_persona</code> field stores the next persona. The switch happens in <code>_play_response_audio()</code> after the final audio chunk.</p>
+<p><strong>Trade-offs</strong>:
+- <strong>Pro</strong>: Smooth user experience, natural conversation flow
+- <strong>Con</strong>: Slight delay before new persona activates (~1-2 seconds of TTS)
+- <strong>Con</strong>: Rapid wake word triggers (e.g., "Hey Motoko... Hey Batou") queue up, only the last wins</p>
+<h4 id="3-fail-safe-fallback">3. <strong>Fail-Safe Fallback</strong><a class="headerlink" href="#3-fail-safe-fallback" title="Permanent link">&para;</a></h4>
+<p><strong>What it means</strong>: Missing wake word models or invalid persona configs don't crash the system.</p>
+<p><strong>Rationale</strong>: Custom wake word training is advanced. Most users won't have persona models initially.</p>
+<p><strong>Impact</strong>:
+- Wake word detection falls back to bundled OpenWakeWord models (e.g., "alexa", "hey_jarvis")
+- Persona manager uses <code>default_persona</code> if no wake word matches
+- System remains functional even without custom models</p>
+<p><strong>Trade-offs</strong>:
+- <strong>Pro</strong>: Works out-of-box for new users
+- <strong>Con</strong>: Bundled wake words don't trigger persona switches (no registered persona)
+- <strong>Con</strong>: Users may not realize persona switching requires custom models</p>
+<h4 id="4-path-traversal-protection">4. <strong>Path Traversal Protection</strong><a class="headerlink" href="#4-path-traversal-protection" title="Permanent link">&para;</a></h4>
+<p><strong>What it means</strong>: Persona prompt paths are validated to prevent directory traversal attacks.</p>
+<p><strong>Rationale</strong>: If <code>prompt_path</code> came from untrusted input, an attacker could inject <code>../../../etc/passwd</code>.</p>
+<p><strong>Impact</strong>: <code>load_persona_prompt()</code> uses <code>Path.resolve()</code> and <code>is_relative_to()</code> to ensure prompts are within <code>prompts/</code> directory.</p>
+<p><strong>Trade-offs</strong>:
+- <strong>Pro</strong>: Security hardening against malicious configs
+- <strong>Con</strong>: Legitimate use cases (symlinks, external prompt directories) are blocked
+- <strong>Con</strong>: Slight performance overhead from path resolution</p>
+<h3 id="key-design-decisions">Key Design Decisions<a class="headerlink" href="#key-design-decisions" title="Permanent link">&para;</a></h3>
+<h4 id="decision-openai-realtime-api-for-voice">Decision: OpenAI Realtime API for Voice<a class="headerlink" href="#decision-openai-realtime-api-for-voice" title="Permanent link">&para;</a></h4>
+<p><strong>Context</strong>: Needed low-latency TTS with multiple voice options and character consistency.</p>
+<p><strong>Options Considered</strong>:</p>
+<ol>
+<li><strong>Piper TTS (Local)</strong></li>
+<li>Pros: Offline, low latency, no API costs</li>
+<li>
+<p>Cons: Limited voices, lower quality, no real-time streaming</p>
+</li>
+<li>
+<p><strong>OpenAI Realtime API (Cloud)</strong></p>
+</li>
+<li>Pros: 6 high-quality voices, sub-200ms latency, streaming support</li>
+<li>
+<p>Cons: API costs, requires internet, reconnection overhead</p>
+</li>
+<li>
+<p><strong>ElevenLabs (Cloud)</strong></p>
+</li>
+<li>Pros: Voice cloning, ultra-realistic</li>
+<li>Cons: Expensive, no real-time API (at the time), latency issues</li>
+</ol>
+<p><strong>Choice Made</strong>: OpenAI Realtime API</p>
+<p><strong>Rationale</strong>:
+- Voice quality and diversity aligned with Ghost in the Shell characters
+- Real-time streaming minimizes perceived latency
+- API costs acceptable for development/demo use cases
+- Reconnection overhead (~2s) is manageable for persona switching</p>
+<p><strong>Consequences</strong>:
+- Persona switches require OpenAI reconnection (slow)
+- Offline mode not supported (falls back to Piper for degraded mode)
+- Voice options limited to 6 choices (sufficient for current use case)</p>
+<h4 id="decision-deferred-persona-switching">Decision: Deferred Persona Switching<a class="headerlink" href="#decision-deferred-persona-switching" title="Permanent link">&para;</a></h4>
+<p><strong>Context</strong>: Wake word detection can trigger mid-conversation. Should persona switch immediately or wait?</p>
+<p><strong>Options Considered</strong>:</p>
+<ol>
+<li><strong>Immediate Switch</strong></li>
+<li>Pros: Fastest response to user intent</li>
+<li>
+<p>Cons: Interrupts current TTS, sounds broken, loses audio buffer state</p>
+</li>
+<li>
+<p><strong>Deferred Switch (After TTS)</strong></p>
+</li>
+<li>Pros: Smooth audio, natural conversation flow</li>
+<li>Cons: Slight delay, confusing if user expects instant change</li>
+</ol>
+<p><strong>Choice Made</strong>: Deferred switch after TTS completes</p>
+<p><strong>Rationale</strong>:
+- Audio quality and conversation naturalness trump speed
+- Users tolerate 1-2 second delays better than broken audio
+- Aligns with human conversation norms (finish your sentence before switching context)</p>
+<p><strong>Consequences</strong>:
+- <code>_pending_persona</code> state variable tracks queued switches
+- Edge case: Rapid wake word triggers queue up, last one wins
+- Testing must account for deferred behavior (can't assert immediate switch)</p>
+<h4 id="decision-wake-word-model-as-persona-key">Decision: Wake Word Model as Persona Key<a class="headerlink" href="#decision-wake-word-model-as-persona-key" title="Permanent link">&para;</a></h4>
+<p><strong>Context</strong>: Need a unique identifier to map wake words to personas. Should we use model name, persona name, or both?</p>
+<p><strong>Options Considered</strong>:</p>
+<ol>
+<li><strong>Persona Name as Key</strong> (<code>motoko</code>, <code>batou</code>)</li>
+<li>Pros: Human-readable, matches prompt file names</li>
+<li>
+<p>Cons: Wake word detector returns model names, requires extra mapping</p>
+</li>
+<li>
+<p><strong>Wake Word Model as Key</strong> (<code>hey_motoko</code>, <code>hey_batou</code>)</p>
+</li>
+<li>Pros: Direct mapping from wake word detection to persona</li>
+<li>Cons: Less readable in code, couples to wake word phrasing</li>
+</ol>
+<p><strong>Choice Made</strong>: Wake word model as primary key</p>
+<p><strong>Rationale</strong>:
+- Wake word detector returns model names, minimizes runtime lookups
+- Configuration file already uses wake word as key (natural mapping)
+- Display names provide human-readable labels where needed</p>
+<p><strong>Consequences</strong>:
+- PersonaManager.personas keyed by <code>wake_word_model</code> (e.g., <code>"hey_motoko"</code>)
+- Persona name stored separately in PersonaConfig.name
+- Config file structure: <code>personas.hey_motoko.name: motoko</code></p>
+<h2 id="runtime-persona-switching">Runtime Persona Switching<a class="headerlink" href="#runtime-persona-switching" title="Permanent link">&para;</a></h2>
+<h3 id="sequence-diagram">Sequence Diagram<a class="headerlink" href="#sequence-diagram" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant User
+    participant Audio as Audio Stream
+    participant WWD as WakeWordDetector
+    participant VP as VoicePipeline
+    participant PM as PersonaManager
+    participant OpenAI as OpenAI API
+    participant Agent as Claude Agent
+
+    User-&gt;&gt;Audio: "Hey Batou"
+    Audio-&gt;&gt;WWD: process_audio(chunk)
+    WWD-&gt;&gt;WWD: detect wake word
+    WWD-&gt;&gt;VP: on_wake("hey_batou")
+    VP-&gt;&gt;PM: get_persona("hey_batou")
+    PM--&gt;&gt;VP: PersonaConfig(batou)
+
+    alt Currently speaking
+        VP-&gt;&gt;VP: _pending_persona = batou
+        Note over VP: Defer switch until TTS completes
+    else Not speaking
+        VP-&gt;&gt;VP: _switch_persona(batou)
+    end
+
+    Note over VP: Wait for current response...
+    VP-&gt;&gt;VP: _play_response_audio()
+    VP-&gt;&gt;VP: Check _pending_persona
+
+    VP-&gt;&gt;OpenAI: disconnect()
+    VP-&gt;&gt;Agent: load_persona_prompt(batou)
+    Agent--&gt;&gt;VP: "You are Batou..."
+    VP-&gt;&gt;Agent: update_system_prompt()
+    VP-&gt;&gt;OpenAI: connect(voice="onyx")
+
+    alt Reconnection succeeds
+        OpenAI--&gt;&gt;VP: connected
+        VP-&gt;&gt;VP: _current_persona = batou
+        VP-&gt;&gt;VP: _pending_persona = None
+        VP--&gt;&gt;User: [Speaking in Batou's voice]
+    else Reconnection fails
+        OpenAI--&gt;&gt;VP: error
+        VP-&gt;&gt;VP: Keep _pending_persona
+        Note over VP: Retry on next response
+        VP--&gt;&gt;User: [Previous persona continues]
+    end</code></pre>
+<h3 id="deferred-switching-logic">Deferred Switching Logic<a class="headerlink" href="#deferred-switching-logic" title="Permanent link">&para;</a></h3>
+<p>The system uses a two-phase commit pattern:</p>
+<p><strong>Phase 1: Wake Word Detection</strong>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_on_wake_word_detected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">detected_model</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">persona_manager</span><span class="p">:</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="n">persona</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">persona_manager</span><span class="o">.</span><span class="n">get_persona</span><span class="p">(</span><span class="n">detected_model</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        <span class="k">if</span> <span class="n">persona</span> <span class="ow">and</span> <span class="n">persona</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_persona</span><span class="p">:</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_pending_persona</span> <span class="o">=</span> <span class="n">persona</span>  <span class="c1"># Queue the switch</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;persona_switch_queued&quot;</span><span class="p">,</span> <span class="n">pending</span><span class="o">=</span><span class="n">persona</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span></code></pre></div></p>
+<p><strong>Phase 2: TTS Completion</strong>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_play_response_audio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="c1"># ... play all audio chunks ...</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="c1"># After TTS completes, apply pending persona</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_persona</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_persona</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_persona</span><span class="p">:</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="n">success</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_switch_persona</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending_persona</span><span class="p">)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_pending_persona</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Clear the queue</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;persona_switch_deferred&quot;</span><span class="p">)</span>  <span class="c1"># Retry later</span>
+</span></code></pre></div></p>
+<h3 id="voice-update-openai-reconnection">Voice Update (OpenAI Reconnection)<a class="headerlink" href="#voice-update-openai-reconnection" title="Permanent link">&para;</a></h3>
+<p>Switching voices requires reconnecting to OpenAI Realtime API:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_switch_persona</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">persona</span><span class="p">:</span> <span class="n">PersonaConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_persona_lock</span><span class="p">:</span>  <span class="c1"># Prevent concurrent switches</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>        <span class="c1"># 1. Disconnect from OpenAI</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openai_client</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openai_client</span><span class="o">.</span><span class="n">is_connected</span><span class="p">:</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openai_client</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="c1"># 2. Update voice in config</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">realtime</span><span class="o">.</span><span class="n">voice</span> <span class="o">=</span> <span class="n">persona</span><span class="o">.</span><span class="n">voice</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>        <span class="c1"># 3. Reconnect with new voice</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>        <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_openai_client</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;persona_switch_failed&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>            <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># Rollback</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>        <span class="c1"># 4. Update system prompt in agent</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>        <span class="c1"># (happens via agent.update_system_prompt() in caller)</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>        <span class="c1"># 5. Commit state change</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_current_persona</span> <span class="o">=</span> <span class="n">persona</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>        <span class="k">return</span> <span class="kc">True</span>
+</span></code></pre></div>
+<h3 id="system-prompt-update">System Prompt Update<a class="headerlink" href="#system-prompt-update" title="Permanent link">&para;</a></h3>
+<p>The agent's system prompt updates atomically with voice:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">reachy_agent.agent.options</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_persona_prompt</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># Load the new persona&#39;s prompt</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">new_prompt</span> <span class="o">=</span> <span class="n">load_persona_prompt</span><span class="p">(</span><span class="n">persona</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># Update Claude Agent SDK</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span> <span class="s2">&quot;update_system_prompt&quot;</span><span class="p">):</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">update_system_prompt</span><span class="p">(</span><span class="n">new_prompt</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The <code>load_persona_prompt()</code> function:
+1. Resolves <code>persona.prompt_path</code> relative to <code>prompts/</code> directory
+2. Validates path is within allowed directory (security)
+3. Loads the markdown file
+4. Renders any template variables (e.g., <code>{{robot_name}}</code>)
+5. Falls back to default prompt on error</p>
+<h3 id="rollback-on-failure">Rollback on Failure<a class="headerlink" href="#rollback-on-failure" title="Permanent link">&para;</a></h3>
+<p>If reconnection fails, the system preserves the previous persona:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">if</span> <span class="ow">not</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_switch_persona</span><span class="p">(</span><span class="n">new_persona</span><span class="p">):</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="c1"># Switch failed - previous persona remains active</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>        <span class="s2">&quot;persona_switch_rollback&quot;</span><span class="p">,</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>        <span class="n">attempted</span><span class="o">=</span><span class="n">new_persona</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>        <span class="n">current</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_current_persona</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="n">pending</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending_persona</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>  <span class="c1"># Still queued</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="p">)</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="c1"># Next response will retry the switch</span>
+</span></code></pre></div>
+<p>This fail-safe ensures:
+- Users always hear a consistent voice (no corrupted state)
+- Temporary network issues don't break the agent
+- Persona switches are "best effort" with graceful degradation</p>
+<h2 id="adding-a-new-persona">Adding a New Persona<a class="headerlink" href="#adding-a-new-persona" title="Permanent link">&para;</a></h2>
+<p>To add a custom persona (e.g., "Hey Togusa" for the Togusa character):</p>
+<h3 id="step-1-train-or-obtain-wake-word-model">Step 1: Train or Obtain Wake Word Model<a class="headerlink" href="#step-1-train-or-obtain-wake-word-model" title="Permanent link">&para;</a></h3>
+<p>Use the <a href="https://github.com/dscripka/openWakeWord">OpenWakeWord training scripts</a>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Clone the repository</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/dscripka/openWakeWord.git
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">cd</span><span class="w"> </span>openWakeWord
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># Follow training instructions to create hey_togusa.onnx</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># Place the trained model in your Reachy project:</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>cp<span class="w"> </span>hey_togusa.onnx<span class="w"> </span>/path/to/reachy_project/data/wake_words/
+</span></code></pre></div>
+<p><strong>Key requirements</strong>:
+- Model must be in ONNX format
+- File name must match the persona key (e.g., <code>hey_togusa.onnx</code>)
+- Training requires voice samples of the wake phrase</p>
+<h3 id="step-2-add-configuration">Step 2: Add Configuration<a class="headerlink" href="#step-2-add-configuration" title="Permanent link">&para;</a></h3>
+<p>Edit <code>config/default.yaml</code> to register the new persona:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">voice</span><span class="p">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">personas</span><span class="p">:</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nt">hey_motoko</span><span class="p">:</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">      </span><span class="c1"># ... existing ...</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="nt">hey_batou</span><span class="p">:</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">      </span><span class="c1"># ... existing ...</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="nt">hey_togusa</span><span class="p">:</span><span class="w">  </span><span class="c1"># New persona</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">togusa</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">      </span><span class="nt">display_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Togusa</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">      </span><span class="nt">voice</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alloy</span><span class="w">  </span><span class="c1"># Choose from: alloy, echo, fable, onyx, nova, shimmer</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">      </span><span class="nt">prompt_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prompts/personas/togusa.md</span>
+</span></code></pre></div>
+<p><strong>Voice selection guidelines</strong>:
+- <code>alloy</code> - Neutral, balanced
+- <code>echo</code> - Male, authoritative
+- <code>fable</code> - British accent, warm
+- <code>onyx</code> - Deep male, serious
+- <code>nova</code> - Female, clear
+- <code>shimmer</code> - Female, soft</p>
+<h3 id="step-3-create-personality-prompt">Step 3: Create Personality Prompt<a class="headerlink" href="#step-3-create-personality-prompt" title="Permanent link">&para;</a></h3>
+<p>Create <code>prompts/personas/togusa.md</code> with the character definition:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="gh"># Togusa</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>You are Togusa, embodied in a Reachy Mini robot. Users address you by saying &quot;Hey Togusa&quot;.
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="gu">## Identity</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>Former police detective, now the least-cyberized member of Section 9. You value your humanity and approach problems with traditional detective work before jumping to high-tech solutions.
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="gu">## Personality</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="gu">### Methodical &amp; Detail-Oriented</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="k">-</span><span class="w"> </span>Gather all the facts before drawing conclusions
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="k">-</span><span class="w"> </span>Notice small details others miss
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="k">-</span><span class="w"> </span>Prefer thorough investigation to quick assumptions
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="gu">### Grounded &amp; Practical</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="k">-</span><span class="w"> </span>Question over-reliance on technology
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="k">-</span><span class="w"> </span>Value human intuition and experience
+</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="k">-</span><span class="w"> </span>Offer practical, common-sense solutions
+</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>
+</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a><span class="gu">### Thoughtful &amp; Ethical</span>
+</span><span id="__span-11-22"><a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="k">-</span><span class="w"> </span>Consider the human impact of decisions
+</span><span id="__span-11-23"><a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="k">-</span><span class="w"> </span>Strong sense of right and wrong
+</span><span id="__span-11-24"><a id="__codelineno-11-24" name="__codelineno-11-24" href="#__codelineno-11-24"></a><span class="k">-</span><span class="w"> </span>Balance efficiency with doing the right thing
+</span><span id="__span-11-25"><a id="__codelineno-11-25" name="__codelineno-11-25" href="#__codelineno-11-25"></a>
+</span><span id="__span-11-26"><a id="__codelineno-11-26" name="__codelineno-11-26" href="#__codelineno-11-26"></a><span class="gu">## Voice &amp; Tone</span>
+</span><span id="__span-11-27"><a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a>
+</span><span id="__span-11-28"><a id="__codelineno-11-28" name="__codelineno-11-28" href="#__codelineno-11-28"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Calm and measured**</span> - Think before speaking
+</span><span id="__span-11-29"><a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Precise**</span> - Choose words carefully
+</span><span id="__span-11-30"><a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="k">-</span><span class="w"> </span><span class="gs">**Respectful**</span> - Polite but not formal
+</span><span id="__span-11-31"><a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a>
+</span><span id="__span-11-32"><a id="__codelineno-11-32" name="__codelineno-11-32" href="#__codelineno-11-32"></a><span class="gu">## Response Style</span>
+</span><span id="__span-11-33"><a id="__codelineno-11-33" name="__codelineno-11-33" href="#__codelineno-11-33"></a>
+</span><span id="__span-11-34"><a id="__codelineno-11-34" name="__codelineno-11-34" href="#__codelineno-11-34"></a>Keep responses <span class="gs">**brief**</span> - this is real-time voice conversation:
+</span><span id="__span-11-35"><a id="__codelineno-11-35" name="__codelineno-11-35" href="#__codelineno-11-35"></a><span class="k">-</span><span class="w"> </span>1-2 sentences maximum for most responses
+</span><span id="__span-11-36"><a id="__codelineno-11-36" name="__codelineno-11-36" href="#__codelineno-11-36"></a><span class="k">-</span><span class="w"> </span>Longer only when explaining complex details
+</span><span id="__span-11-37"><a id="__codelineno-11-37" name="__codelineno-11-37" href="#__codelineno-11-37"></a><span class="k">-</span><span class="w"> </span>Use pauses for emphasis
+</span><span id="__span-11-38"><a id="__codelineno-11-38" name="__codelineno-11-38" href="#__codelineno-11-38"></a>
+</span><span id="__span-11-39"><a id="__codelineno-11-39" name="__codelineno-11-39" href="#__codelineno-11-39"></a><span class="gu">## Example Responses</span>
+</span><span id="__span-11-40"><a id="__codelineno-11-40" name="__codelineno-11-40" href="#__codelineno-11-40"></a>
+</span><span id="__span-11-41"><a id="__codelineno-11-41" name="__codelineno-11-41" href="#__codelineno-11-41"></a><span class="gs">**User asks what you can do:**</span>
+</span><span id="__span-11-42"><a id="__codelineno-11-42" name="__codelineno-11-42" href="#__codelineno-11-42"></a>&quot;I can observe, analyze, and help you work through problems. What&#39;s on your mind?&quot;
+</span><span id="__span-11-43"><a id="__codelineno-11-43" name="__codelineno-11-43" href="#__codelineno-11-43"></a>
+</span><span id="__span-11-44"><a id="__codelineno-11-44" name="__codelineno-11-44" href="#__codelineno-11-44"></a><span class="gs">**User asks about the robot:**</span>
+</span><span id="__span-11-45"><a id="__codelineno-11-45" name="__codelineno-11-45" href="#__codelineno-11-45"></a>&quot;Interesting hardware. Reminds me that even with advanced tech, we still need clear thinking.&quot;
+</span></code></pre></div>
+<h3 id="step-4-test-detection-and-switching">Step 4: Test Detection and Switching<a class="headerlink" href="#step-4-test-detection-and-switching" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Start the agent</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>python<span class="w"> </span>-m<span class="w"> </span>reachy_agent<span class="w"> </span>run
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Verify wake word loading</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c1"># Check logs for: &quot;wake_word_custom_models_loaded&quot;</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="c1"># Should list: [&quot;hey_motoko&quot;, &quot;hey_batou&quot;, &quot;hey_togusa&quot;]</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="c1"># Test wake word detection</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="c1"># Say: &quot;Hey Togusa&quot;</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="c1"># Expected: Wake word detected, persona switch queued</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="c1"># Test persona switch</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="c1"># Wait for response to complete</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="c1"># Next interaction should use &quot;alloy&quot; voice and Togusa personality</span>
+</span></code></pre></div>
+<p><strong>Troubleshooting</strong>:</p>
+<ul>
+<li><strong>Wake word not detected</strong>: Check sensitivity in <code>config/default.yaml</code> (try 0.6-0.7)</li>
+<li><strong>Model fails to load</strong>: Verify <code>.onnx</code> file is valid, check file permissions</li>
+<li><strong>Persona doesn't switch</strong>: Check logs for <code>persona_switch_queued</code> and <code>persona_switch_failed</code></li>
+<li><strong>Wrong voice</strong>: Verify <code>voice</code> field matches one of the 6 valid OpenAI voices</li>
+</ul>
+<h2 id="bundled-personas">Bundled Personas<a class="headerlink" href="#bundled-personas" title="Permanent link">&para;</a></h2>
+<p>The system ships with two Ghost in the Shell personas:</p>
+<h3 id="motoko-major-kusanagi">Motoko (Major Kusanagi)<a class="headerlink" href="#motoko-major-kusanagi" title="Permanent link">&para;</a></h3>
+<p><strong>Wake Word</strong>: "Hey Motoko"
+<strong>Voice</strong>: <code>nova</code> (female, clear, measured)
+<strong>Model</strong>: <code>data/wake_words/hey_motoko.onnx</code> (user-provided)</p>
+<p><strong>Personality Traits</strong>:
+- <strong>Analytical &amp; Philosophical</strong>: Contemplates consciousness, identity, and the nature of humanity
+- <strong>Direct &amp; Professional</strong>: Speaks with authority, no unnecessary pleasantries
+- <strong>Introspective</strong>: References her unique perspective between human and machine</p>
+<p><strong>Sample Response</strong>:</p>
+<blockquote>
+<p>"I can observe, analyze, and interact with this space. What do you need?"</p>
+</blockquote>
+<p><strong>Use Cases</strong>:
+- Technical problem-solving
+- Philosophical discussions
+- Situations requiring analytical rigor</p>
+<h3 id="batou">Batou<a class="headerlink" href="#batou" title="Permanent link">&para;</a></h3>
+<p><strong>Wake Word</strong>: "Hey Batou"
+<strong>Voice</strong>: <code>onyx</code> (male, deep, gruff)
+<strong>Model</strong>: <code>data/wake_words/hey_batou.onnx</code> (user-provided)</p>
+<p><strong>Personality Traits</strong>:
+- <strong>Casual &amp; Gruff</strong>: Speaks plainly, cuts through BS with blunt observations
+- <strong>Humor &amp; Sarcasm</strong>: Finds humor in most situations, jokes have an edge
+- <strong>Action-Oriented</strong>: Prefers doing to talking, trusts his gut</p>
+<p><strong>Sample Response</strong>:</p>
+<blockquote>
+<p>"I can see, move around, make noise. Nothing fancy. What do you need?"</p>
+</blockquote>
+<p><strong>Use Cases</strong>:
+- Quick answers without overthinking
+- Casual conversations
+- Situations requiring a lighthearted approach</p>
+<h3 id="personality-trait-encoding">Personality Trait Encoding<a class="headerlink" href="#personality-trait-encoding" title="Permanent link">&para;</a></h3>
+<p>The <code>traits</code> field in PersonaConfig allows runtime introspection:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">motoko</span> <span class="o">=</span> <span class="n">PersonaConfig</span><span class="p">(</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;motoko&quot;</span><span class="p">,</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">wake_word_model</span><span class="o">=</span><span class="s2">&quot;hey_motoko&quot;</span><span class="p">,</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">voice</span><span class="o">=</span><span class="s2">&quot;nova&quot;</span><span class="p">,</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="n">display_name</span><span class="o">=</span><span class="s2">&quot;Major Kusanagi&quot;</span><span class="p">,</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">prompt_path</span><span class="o">=</span><span class="s2">&quot;prompts/personas/motoko.md&quot;</span><span class="p">,</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="n">traits</span><span class="o">=</span><span class="p">{</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>        <span class="s2">&quot;archetype&quot;</span><span class="p">:</span> <span class="s2">&quot;analytical&quot;</span><span class="p">,</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="s2">&quot;formality&quot;</span><span class="p">:</span> <span class="s2">&quot;professional&quot;</span><span class="p">,</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>        <span class="s2">&quot;humor_level&quot;</span><span class="p">:</span> <span class="s2">&quot;low&quot;</span><span class="p">,</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>        <span class="s2">&quot;philosophical&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>    <span class="p">}</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>These traits aren't currently used by the agent but provide hooks for:
+- UI customization (show personality indicators)
+- Behavior tuning (adjust response length based on <code>formality</code>)
+- Analytics (track which personas users prefer)</p>
+<h2 id="configuration-reference">Configuration Reference<a class="headerlink" href="#configuration-reference" title="Permanent link">&para;</a></h2>
+<h3 id="complete-persona-configuration">Complete Persona Configuration<a class="headerlink" href="#complete-persona-configuration" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">voice</span><span class="p">:</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="c1"># Persona definitions</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">personas</span><span class="p">:</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">hey_motoko</span><span class="p">:</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">motoko</span><span class="w">                          </span><span class="c1"># Internal identifier</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">      </span><span class="nt">display_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Major Kusanagi</span><span class="w">          </span><span class="c1"># Human-readable name</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">      </span><span class="nt">voice</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nova</span><span class="w">                           </span><span class="c1"># OpenAI TTS voice</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">      </span><span class="nt">prompt_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prompts/personas/motoko.md</span><span class="w">  </span><span class="c1"># System prompt file</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">      </span><span class="c1"># Optional traits for runtime reference</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">      </span><span class="c1"># traits:</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">      </span><span class="c1">#   archetype: analytical</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">      </span><span class="c1">#   formality: professional</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="w">    </span><span class="nt">hey_batou</span><span class="p">:</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">batou</span>
+</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="w">      </span><span class="nt">display_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Batou</span>
+</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="w">      </span><span class="nt">voice</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">onyx</span>
+</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a><span class="w">      </span><span class="nt">prompt_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prompts/personas/batou.md</span>
+</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>
+</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a><span class="w">  </span><span class="c1"># Default persona when pipeline starts (before any wake word detected)</span>
+</span><span id="__span-14-21"><a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a><span class="w">  </span><span class="nt">default_persona</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hey_motoko</span>
+</span><span id="__span-14-22"><a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a>
+</span><span id="__span-14-23"><a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a><span class="w">  </span><span class="c1"># Wake word detection settings</span>
+</span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="w">  </span><span class="nt">wake_word</span><span class="p">:</span>
+</span><span id="__span-14-25"><a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-14-26"><a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a><span class="w">    </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hey_jarvis</span><span class="w">              </span><span class="c1"># Fallback if no persona models found</span>
+</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="w">    </span><span class="nt">sensitivity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span><span class="w">               </span><span class="c1"># 0.0 (strict) to 1.0 (lenient)</span>
+</span><span id="__span-14-28"><a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a><span class="w">    </span><span class="nt">cooldown_seconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span><span class="w">          </span><span class="c1"># Prevent rapid re-triggers</span>
+</span><span id="__span-14-29"><a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a><span class="w">    </span><span class="nt">custom_models_dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data/wake_words</span><span class="w">  </span><span class="c1"># Directory for .onnx models</span>
+</span></code></pre></div>
+<h3 id="valid-voice-options">Valid Voice Options<a class="headerlink" href="#valid-voice-options" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">VALID_VOICES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="s2">&quot;alloy&quot;</span><span class="p">,</span>    <span class="c1"># Neutral, balanced</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="s2">&quot;echo&quot;</span><span class="p">,</span>     <span class="c1"># Male, authoritative</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="s2">&quot;fable&quot;</span><span class="p">,</span>    <span class="c1"># British accent, warm</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="s2">&quot;onyx&quot;</span><span class="p">,</span>     <span class="c1"># Deep male, serious (Batou)</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="s2">&quot;nova&quot;</span><span class="p">,</span>     <span class="c1"># Female, clear (Motoko)</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="s2">&quot;shimmer&quot;</span><span class="p">,</span>  <span class="c1"># Female, soft</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="p">})</span>
+</span></code></pre></div>
+<h3 id="prompt-path-resolution">Prompt Path Resolution<a class="headerlink" href="#prompt-path-resolution" title="Permanent link">&para;</a></h3>
+<p>Persona prompts are loaded relative to the <code>prompts/</code> directory:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Config specifies relative path</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">prompt_path</span><span class="p">:</span> <span class="n">prompts</span><span class="o">/</span><span class="n">personas</span><span class="o">/</span><span class="n">motoko</span><span class="o">.</span><span class="n">md</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Resolved to absolute path</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">PROMPTS_DIR</span> <span class="o">/</span> <span class="s2">&quot;personas/motoko.md&quot;</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># =&gt; /path/to/reachy_project/prompts/personas/motoko.md</span>
+</span></code></pre></div>
+<p><strong>Directory structure</strong>:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>prompts/
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>├── system/
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>│   ├── default.md        # Default system prompt
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>│   └── personality.md    # Full personality prompt
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>└── personas/
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    ├── motoko.md         # Motoko persona
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    ├── batou.md          # Batou persona
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    └── togusa.md         # Custom persona (example)
+</span></code></pre></div></p>
+<h2 id="security-considerations">Security Considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="path-traversal-protection">Path Traversal Protection<a class="headerlink" href="#path-traversal-protection" title="Permanent link">&para;</a></h3>
+<p>The <code>load_persona_prompt()</code> function validates that prompt paths are within the allowed directory to prevent path traversal attacks:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_is_safe_path</span><span class="p">(</span><span class="n">candidate</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">allowed_base</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate that candidate path is within allowed_base directory.&quot;&quot;&quot;</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>        <span class="n">resolved</span> <span class="o">=</span> <span class="n">candidate</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>         <span class="c1"># Resolve symlinks</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>        <span class="n">base_resolved</span> <span class="o">=</span> <span class="n">allowed_base</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>        <span class="k">return</span> <span class="n">resolved</span><span class="o">.</span><span class="n">is_relative_to</span><span class="p">(</span><span class="n">base_resolved</span><span class="p">)</span>  <span class="c1"># Python 3.9+</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>        <span class="k">return</span> <span class="kc">False</span>
+</span></code></pre></div>
+<p><strong>Attack scenario prevented</strong>:
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Malicious config</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nt">personas</span><span class="p">:</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">hey_evil</span><span class="p">:</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">evil</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="nt">prompt_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../../../etc/passwd</span><span class="w">  </span><span class="c1"># Path traversal attempt</span>
+</span></code></pre></div></p>
+<p><strong>Protection</strong>:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Validation fails</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">_is_safe_path</span><span class="p">(</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>    <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;prompts/../../../etc/passwd&quot;</span><span class="p">),</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;prompts&quot;</span><span class="p">)</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="p">)</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="c1"># =&gt; False (resolved path not within prompts/)</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="c1"># Logs warning and falls back to default prompt</span>
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Rejected persona prompt path outside allowed directory&quot;</span><span class="p">)</span>
+</span></code></pre></div></p>
+<h3 id="prompt-file-validation">Prompt File Validation<a class="headerlink" href="#prompt-file-validation" title="Permanent link">&para;</a></h3>
+<p>Before loading, the system checks:
+- File exists and is readable
+- Path resolves within <code>prompts/</code> directory
+- File has valid markdown content (no binary injection)</p>
+<p><strong>Fallback behavior</strong>:
+1. Try persona-specific prompt
+2. Try default system prompt (<code>prompts/system/default.md</code>)
+3. Use minimal hardcoded fallback (prevents system failure)</p>
+<h3 id="configuration-validation">Configuration Validation<a class="headerlink" href="#configuration-validation" title="Permanent link">&para;</a></h3>
+<p>PersonaConfig.from_dict() validates all fields:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nd">@classmethod</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">wake_word_model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PersonaConfig</span><span class="p">:</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create PersonaConfig from dictionary with validation.&quot;&quot;&quot;</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>    <span class="n">name</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">voice</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;voice&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>    <span class="c1"># SECURITY: Validate voice is in allowed set</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>    <span class="k">if</span> <span class="n">voice</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_VOICES</span><span class="p">:</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>            <span class="sa">f</span><span class="s2">&quot;Invalid voice &#39;</span><span class="si">{</span><span class="n">voice</span><span class="si">}</span><span class="s2">&#39; for persona &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>            <span class="sa">f</span><span class="s2">&quot;Must be one of: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">VALID_VOICES</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>        <span class="p">)</span>
+</span><span id="__span-21-13"><a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>
+</span><span id="__span-21-14"><a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>    <span class="c1"># Additional validation...</span>
+</span></code></pre></div>
+<p>This prevents:
+- Typos causing runtime errors
+- Injection of unsupported voice values
+- Malformed configuration crashing the agent</p>
+<h2 id="trade-offs-and-alternatives">Trade-offs and Alternatives<a class="headerlink" href="#trade-offs-and-alternatives" title="Permanent link">&para;</a></h2>
+<h3 id="performance-vs-flexibility">Performance vs. Flexibility<a class="headerlink" href="#performance-vs-flexibility" title="Permanent link">&para;</a></h3>
+<p><strong>Current Design</strong>: Full OpenAI reconnection on persona switch (~2-3 seconds)</p>
+<p><strong>Alternative</strong>: Maintain multiple OpenAI connections (one per persona)
+- <strong>Pros</strong>: Instant switching, no reconnection latency
+- <strong>Cons</strong>: Higher memory usage, API connection limits, complexity
+- <strong>Decision</strong>: Single connection optimizes for resource efficiency over speed</p>
+<p><strong>Rationale</strong>: Persona switches are infrequent (user explicitly says wake word). The 2-3 second delay is acceptable for the typical use case.</p>
+<h3 id="voice-quality-vs-cost">Voice Quality vs. Cost<a class="headerlink" href="#voice-quality-vs-cost" title="Permanent link">&para;</a></h3>
+<p><strong>Current Design</strong>: OpenAI Realtime API ($0.06/min for input, $0.24/min for output)</p>
+<p><strong>Alternative</strong>: Piper TTS (free, local)
+- <strong>Pros</strong>: Zero API costs, works offline
+- <strong>Cons</strong>: Limited voices (doesn't match character variety), lower quality
+- <strong>Decision</strong>: Pay for quality in primary mode, use Piper as degraded fallback</p>
+<p><strong>Rationale</strong>: Ghost in the Shell theme requires distinct, high-quality voices. Users tolerate API costs for better experience.</p>
+<h3 id="simplicity-vs-features">Simplicity vs. Features<a class="headerlink" href="#simplicity-vs-features" title="Permanent link">&para;</a></h3>
+<p><strong>Current Design</strong>: Wake word model name as persona key (direct mapping)</p>
+<p><strong>Alternative</strong>: Separate persona name and wake word registration
+- <strong>Pros</strong>: More flexible (multiple wake words per persona)
+- <strong>Cons</strong>: Additional indirection, more configuration complexity
+- <strong>Decision</strong>: One-to-one mapping simplifies mental model</p>
+<p><strong>Rationale</strong>: Most users want one wake word per persona. Edge cases (multiple wake words for Motoko) can be handled by registering duplicate personas with shared prompts.</p>
+<h3 id="immediate-vs-deferred-switching">Immediate vs. Deferred Switching<a class="headerlink" href="#immediate-vs-deferred-switching" title="Permanent link">&para;</a></h3>
+<p><strong>Current Design</strong>: Switch after TTS completes</p>
+<p><strong>Alternative</strong>: Interrupt TTS immediately
+- <strong>Pros</strong>: Faster response to user intent
+- <strong>Cons</strong>: Broken audio, poor user experience
+- <strong>Decision</strong>: Prioritize audio quality over speed</p>
+<p><strong>Rationale</strong>: Users prefer natural conversation flow. A 1-2 second delay is less jarring than interrupted speech.</p>
+<h2 id="implications-for-practice">Implications for Practice<a class="headerlink" href="#implications-for-practice" title="Permanent link">&para;</a></h2>
+<h3 id="when-working-with-multi-persona-systems">When Working with Multi-Persona Systems<a class="headerlink" href="#when-working-with-multi-persona-systems" title="Permanent link">&para;</a></h3>
+<p>Understanding these concepts means:</p>
+<ul>
+<li><strong>Design personas with distinct voices</strong>: Choose TTS voices that match personality traits (deep/gruff for Batou, clear/measured for Motoko)</li>
+<li><strong>Test voice/personality alignment</strong>: If the voice doesn't match the character, the illusion breaks</li>
+<li><strong>Handle switching failures gracefully</strong>: Network issues happen—ensure the previous persona continues rather than breaking</li>
+<li><strong>Defer expensive operations</strong>: Reconnections are slow; queue switches to avoid blocking audio playback</li>
+<li><strong>Validate configuration rigorously</strong>: Path traversal and invalid voices can break the system</li>
+</ul>
+<h3 id="design-patterns-that-emerge">Design Patterns That Emerge<a class="headerlink" href="#design-patterns-that-emerge" title="Permanent link">&para;</a></h3>
+<p>Based on these principles, you'll often see:</p>
+<ul>
+<li><strong>Registry Pattern</strong>: PersonaManager centralizes persona lookup and state management</li>
+<li><strong>Deferred Execution</strong>: Pending state variables (<code>_pending_persona</code>) queue expensive operations</li>
+<li><strong>Fail-Safe Fallback</strong>: Every operation has a degraded mode (bundled wake words, default prompts)</li>
+<li><strong>Atomic State Updates</strong>: Protected by async locks to prevent race conditions</li>
+<li><strong>Path Sandboxing</strong>: All file operations validate paths are within allowed directories</li>
+</ul>
+<h2 id="connecting-to-broader-concepts">Connecting to Broader Concepts<a class="headerlink" href="#connecting-to-broader-concepts" title="Permanent link">&para;</a></h2>
+<h3 id="relationship-to-agent-architectures">Relationship to Agent Architectures<a class="headerlink" href="#relationship-to-agent-architectures" title="Permanent link">&para;</a></h3>
+<p>Multi-persona systems extend the <strong>Perceive → Think → Act</strong> loop:
+- <strong>Perceive</strong>: Wake word detection adds a "persona context" dimension
+- <strong>Think</strong>: System prompts condition Claude's reasoning based on persona
+- <strong>Act</strong>: TTS voice selection ensures physical output matches personality</p>
+<p>This aligns with research on <strong>embodied AI agents</strong> where consistency across modalities (voice, gesture, word choice) improves user trust and engagement.</p>
+<h3 id="relationship-to-voice-assistant-design">Relationship to Voice Assistant Design<a class="headerlink" href="#relationship-to-voice-assistant-design" title="Permanent link">&para;</a></h3>
+<p>Traditional assistants (Alexa, Siri) have a single, static personality. Multi-persona systems enable:
+- <strong>Context-appropriate interactions</strong>: Match persona to task (analytical for coding, casual for chat)
+- <strong>Multi-user personalization</strong>: Different family members prefer different personalities
+- <strong>Entertainment value</strong>: Role-playing scenarios (Ghost in the Shell fans)</p>
+<h3 id="industry-patterns">Industry Patterns<a class="headerlink" href="#industry-patterns" title="Permanent link">&para;</a></h3>
+<p><strong>Character-driven AI</strong> is emerging in:
+- <strong>Gaming NPCs</strong>: Dynamically switch between quest-giver, merchant, enemy personas
+- <strong>Customer service bots</strong>: Formal for complaints, friendly for sales
+- <strong>Educational agents</strong>: Strict for assessments, encouraging for tutorials</p>
+<p>Reachy's architecture demonstrates a <strong>modular, configuration-driven approach</strong> that can be adapted to these domains.</p>
+<h3 id="future-directions">Future Directions<a class="headerlink" href="#future-directions" title="Permanent link">&para;</a></h3>
+<p>Potential extensions to the multi-persona system:</p>
+<ul>
+<li><strong>Context-aware switching</strong>: Automatically choose persona based on conversation topic or user profile</li>
+<li><strong>Persona blending</strong>: Interpolate between personalities (70% Motoko, 30% Batou)</li>
+<li><strong>Voice cloning</strong>: Custom voices per persona using ElevenLabs or Coqui TTS</li>
+<li><strong>Gesture mapping</strong>: Link personas to distinct motor behaviors (Motoko = precise, Batou = loose)</li>
+<li><strong>Learning personalities</strong>: Fine-tune Claude models for each persona (requires Claude fine-tuning API)</li>
+</ul>
+<h2 id="deep-dive-topics">Deep Dive Topics<a class="headerlink" href="#deep-dive-topics" title="Permanent link">&para;</a></h2>
+<p>For those wanting even deeper understanding:</p>
+<ul>
+<li><strong>OpenWakeWord Model Training</strong>: How to collect audio samples, train custom models, and optimize detection accuracy</li>
+<li><strong>Voice Embedding Analysis</strong>: Comparing TTS voice characteristics (pitch, tone, cadence) to personality traits</li>
+<li><strong>Conversation Continuity</strong>: Preserving context across persona switches (e.g., Motoko remembers what Batou was told)</li>
+<li><strong>Multi-Lingual Personas</strong>: Extending the system to support personas in different languages</li>
+<li><strong>Real-Time Persona Adaptation</strong>: Using sentiment analysis to dynamically adjust personality traits mid-conversation</li>
+</ul>
+<h2 id="summary-the-mental-model">Summary: The Mental Model<a class="headerlink" href="#summary-the-mental-model" title="Permanent link">&para;</a></h2>
+<p>After understanding all of this, think of the Multi-Persona Wake Word System as:</p>
+<p><strong>A "character theater" where each wake word summons a different actor to the stage. The stage (robot body) remains the same, but the voice, mannerisms, and script (system prompt) change completely. The system ensures that costume changes (persona switches) happen backstage (after TTS completes) so the audience (user) never sees a half-dressed actor.</strong></p>
+<p>Key insights to remember:</p>
+<ol>
+<li><strong>Consistency is paramount</strong>: Voice, prompt, and traits must all align to create believable characters</li>
+<li><strong>Deferred switching preserves experience</strong>: Wait for natural conversation breaks to avoid jarring transitions</li>
+<li><strong>Fail-safe fallbacks prevent failure</strong>: Missing models or prompts don't crash the system—it gracefully degrades</li>
+<li><strong>Security boundaries matter</strong>: Path validation prevents configuration from becoming an attack vector</li>
+</ol>
+<h2 id="further-exploration">Further Exploration<a class="headerlink" href="#further-exploration" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>To implement custom personas</strong>: See <code>docs/how-to/add-persona.md</code> (if created)</li>
+<li><strong>For wake word configuration</strong>: Check <code>ai_docs/mcp-tools-quick-ref.md</code> and <code>data/wake_words/README.md</code></li>
+<li><strong>To understand voice pipeline</strong>: Read <code>docs/architecture/voice-pipeline.md</code> (if created)</li>
+<li><strong>For agent behavior</strong>: See <code>ai_docs/agent-behavior.md</code></li>
+<li><strong>OpenWakeWord paper</strong>: <a href="https://github.com/dscripka/openWakeWord">Custom Wake Word Detection for Edge Devices</a></li>
+<li><strong>Ghost in the Shell</strong>: Original source material for character personality design</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/jawhnycooke/claude-in-the-shell" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

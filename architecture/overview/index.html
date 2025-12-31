@@ -1,0 +1,2342 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An embodied AI agent for Reachy Mini robot powered by Claude Agent SDK">
+      
+      
+      
+        <link rel="canonical" href="https://jawhnycooke.github.io/claude-in-the-shell/architecture/overview/">
+      
+      
+        <link rel="prev" href="../../guides/troubleshooting/">
+      
+      
+        <link rel="next" href="../voice-pipeline/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Overview - Reachy Agent Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#reachy-agent-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Reachy Agent Documentation" class="md-header__button md-logo" aria-label="Reachy Agent Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Reachy Agent Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Overview
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jawhnycooke/claude-in-the-shell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jawhnycooke/claude-in-the-shell
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/getting-started/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/agent/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/voice-pipeline-setup/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Reachy Agent Documentation" class="md-nav__button md-logo" aria-label="Reachy Agent Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Reachy Agent Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jawhnycooke/claude-in-the-shell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jawhnycooke/claude-in-the-shell
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component Layers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Component Layers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-cloud-intelligence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Cloud Intelligence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-agent-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: Agent Core
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-3-mcp-protocol-true-mcp-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: MCP Protocol (True MCP Architecture)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-4-permission-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 4: Permission System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-5-hardware-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 5: Hardware Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development (Simulation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#production-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production (Hardware)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-tools-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MCP Tools Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MCP Tools Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#native-sdk-emotions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native SDK Emotions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voice-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../personas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persona System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ReachyAgentLoop Deep Dive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../daemon-compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Daemon Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../diagrams/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/voice-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/sdk-motion-control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Motion Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/motion-blending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Motion Blending
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/voice-pipeline-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Voice Pipeline Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/raspberry-pi-installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raspberry Pi Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/phase2-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 Preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component Layers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Component Layers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-cloud-intelligence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Cloud Intelligence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-agent-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: Agent Core
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-3-mcp-protocol-true-mcp-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: MCP Protocol (True MCP Architecture)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-4-permission-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 4: Permission System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-5-hardware-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 5: Hardware Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development (Simulation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#production-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production (Hardware)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-tools-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MCP Tools Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MCP Tools Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#native-sdk-emotions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native SDK Emotions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="reachy-agent-architecture">Reachy Agent Architecture<a class="headerlink" href="#reachy-agent-architecture" title="Permanent link">&para;</a></h1>
+<p>This document describes the architecture of Reachy Agent, an embodied AI system that transforms the Reachy Mini desktop robot into an autonomous Claude-powered assistant.</p>
+<h2 id="system-overview">System Overview<a class="headerlink" href="#system-overview" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Cloud["Cloud Services"]
+        CLAUDE[("Claude API&lt;br/&gt;api.anthropic.com")]
+        HA["Home Assistant"]
+        GH["GitHub API"]
+        CAL["Google Calendar"]
+    end
+
+    subgraph Agent["Reachy Agent (Raspberry Pi 4)"]
+        SDK["Claude Agent SDK"]
+
+        subgraph Core["Agent Core"]
+            LOOP["Agent Loop&lt;br/&gt;(Perceive→Think→Act)"]
+            PERM["Permission System&lt;br/&gt;(4 Tiers)"]
+            MEM["Memory System&lt;br/&gt;(ChromaDB + SQLite)"]
+        end
+
+        subgraph MCP["MCP Servers"]
+            REACHY_MCP["Reachy MCP&lt;br/&gt;(23 tools)"]
+            HA_MCP["Home Assistant MCP"]
+            GH_MCP["GitHub MCP"]
+        end
+
+        subgraph Perception["Perception Layer"]
+            WAKE["Wake Word&lt;br/&gt;(OpenWakeWord)"]
+            AUDIO["Spatial Audio&lt;br/&gt;(4-mic array)"]
+            VISION["Vision&lt;br/&gt;(OpenCV)"]
+        end
+
+        subgraph Voice["Voice Pipeline"]
+            VPIPE["VoicePipeline&lt;br/&gt;(State Machine)"]
+            REALTIME["OpenAI Realtime&lt;br/&gt;(STT/TTS)"]
+            PERSONA["PersonaManager&lt;br/&gt;(Motoko/Batou)"]
+        end
+
+        subgraph Motion["Motion System"]
+            BLEND["MotionBlendController&lt;br/&gt;(100Hz orchestration)"]
+            SDK_CLIENT["ReachySDKClient&lt;br/&gt;(1-5ms Zenoh)"]
+        end
+    end
+
+    subgraph Hardware["Reachy Mini Hardware"]
+        DAEMON["Reachy Daemon&lt;br/&gt;(FastAPI :8000)"]
+
+        subgraph Physical["Physical Components"]
+            HEAD["Head&lt;br/&gt;(6 DOF)"]
+            BODY["Body&lt;br/&gt;(360° rotation)"]
+            ANT["Antennas&lt;br/&gt;(expression)"]
+            CAM["Camera"]
+            MIC["4-Mic Array"]
+            SPK["Speaker"]
+        end
+    end
+
+    CLAUDE &lt;--&gt; SDK
+    SDK --&gt; LOOP
+    LOOP &lt;--&gt; PERM
+    LOOP &lt;--&gt; MEM
+    LOOP --&gt; MCP
+
+    REACHY_MCP --&gt; DAEMON
+    HA_MCP --&gt; HA
+    GH_MCP --&gt; GH
+
+    DAEMON --&gt; Physical
+    Perception --&gt; LOOP
+
+    CAM --&gt; VISION
+    MIC --&gt; AUDIO
+    MIC --&gt; WAKE
+
+    style CLAUDE fill:#f9a825
+    style SDK fill:#7c4dff
+    style REACHY_MCP fill:#00bcd4
+    style DAEMON fill:#4caf50</code></pre>
+<h2 id="component-layers">Component Layers<a class="headerlink" href="#component-layers" title="Permanent link">&para;</a></h2>
+<h3 id="layer-1-cloud-intelligence">Layer 1: Cloud Intelligence<a class="headerlink" href="#layer-1-cloud-intelligence" title="Permanent link">&para;</a></h3>
+<p>The system uses Claude API for natural language understanding and reasoning:</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant U as User
+    participant W as Wake Word
+    participant A as Agent Loop
+    participant C as Claude API
+    participant T as MCP Tools
+
+    U-&gt;&gt;W: "Hey Reachy"
+    W-&gt;&gt;A: Wake signal
+    A-&gt;&gt;A: Record audio
+    U-&gt;&gt;A: "Turn left and nod"
+    A-&gt;&gt;C: User request + context
+    C-&gt;&gt;A: Tool calls: [move_head, nod]
+    A-&gt;&gt;T: Execute move_head("left")
+    T--&gt;&gt;A: Success
+    A-&gt;&gt;T: Execute nod()
+    T--&gt;&gt;A: Success
+    A-&gt;&gt;C: Tool results
+    C-&gt;&gt;A: "I've turned left and nodded!"
+    A-&gt;&gt;U: Speak response</code></pre>
+<h3 id="layer-2-agent-core">Layer 2: Agent Core<a class="headerlink" href="#layer-2-agent-core" title="Permanent link">&para;</a></h3>
+<p>The agent core manages the perception-action loop:</p>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Passive
+
+    Passive --&gt; Alert: Motion detected
+    Passive --&gt; Engaged: Wake word heard
+
+    Alert --&gt; Passive: 30s timeout
+    Alert --&gt; Engaged: Wake word heard
+    Alert --&gt; Engaged: Face detected
+
+    Engaged --&gt; Alert: 60s silence
+    Engaged --&gt; Engaged: User speaking
+
+    note right of Passive
+        - Wake word detection only
+        - Minimal CPU usage
+        - Antennas down
+    end note
+
+    note right of Alert
+        - Motion/face tracking
+        - Periodic Claude check-ins
+        - Antennas mid-position
+    end note
+
+    note right of Engaged
+        - Full agent loop active
+        - Continuous listening
+        - Antennas up (privacy indicator)
+    end note</code></pre>
+<h3 id="layer-3-mcp-protocol-true-mcp-architecture">Layer 3: MCP Protocol (True MCP Architecture)<a class="headerlink" href="#layer-3-mcp-protocol-true-mcp-architecture" title="Permanent link">&para;</a></h3>
+<p>MCP (Model Context Protocol) provides a standardized interface between Claude and tools.
+<strong>Key change:</strong> The agent now uses <strong>true MCP protocol</strong> with subprocess communication:</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Agent["Agent Core (agent.py)"]
+        SDK["ReachyAgentLoop"]
+        CLIENT["MCP ClientSession&lt;br/&gt;(stdio transport)"]
+    end
+
+    subgraph MCP["MCP Layer (subprocess)"]
+        direction TB
+        PROTO["MCP Protocol&lt;br/&gt;(JSON-RPC over stdio)"]
+
+        subgraph Servers["MCP Servers"]
+            R["reachy-mcp&lt;br/&gt;(23 tools)"]
+            H["homeassistant-mcp"]
+            G["github-mcp"]
+        end
+    end
+
+    subgraph Backends["Backend Services"]
+        RD["Reachy Daemon&lt;br/&gt;:8000"]
+        HA["Home Assistant"]
+        GH["GitHub API"]
+    end
+
+    SDK --&gt; CLIENT
+    CLIENT &lt;--&gt;|"ListTools&lt;br/&gt;CallTool"| PROTO
+    PROTO &lt;--&gt; Servers
+    R --&gt;|HTTP| RD
+    H --&gt;|REST API| HA
+    G --&gt;|REST API| GH
+
+    style PROTO fill:#e1bee7
+    style CLIENT fill:#c8e6c9</code></pre>
+<p><strong>MCP Protocol Flow:</strong>
+1. Agent spawns MCP server as subprocess (<code>python -m reachy_agent.mcp_servers.reachy</code>)
+2. Agent discovers tools dynamically via <code>ListTools</code> (23 tools)
+3. Agent executes tools via <code>CallTool</code> over stdio transport
+4. MCP server calls Daemon HTTP API</p>
+<h3 id="layer-4-permission-system">Layer 4: Permission System<a class="headerlink" href="#layer-4-permission-system" title="Permanent link">&para;</a></h3>
+<p>Actions are classified into 4 permission tiers:</p>
+<pre class="mermaid"><code>flowchart TD
+    REQ["Tool Request"] --&gt; EVAL["Permission Evaluator"]
+
+    EVAL --&gt; T1{"Tier 1?&lt;br/&gt;Autonomous"}
+    EVAL --&gt; T2{"Tier 2?&lt;br/&gt;Notify"}
+    EVAL --&gt; T3{"Tier 3?&lt;br/&gt;Confirm"}
+    EVAL --&gt; T4{"Tier 4?&lt;br/&gt;Forbidden"}
+
+    T1 --&gt;|Yes| EXEC["Execute Immediately"]
+    T2 --&gt;|Yes| EXECN["Execute + Notify User"]
+    T3 --&gt;|Yes| ASK["Ask for Confirmation"]
+    T4 --&gt;|Yes| BLOCK["Block + Log"]
+
+    ASK --&gt;|Approved| EXEC
+    ASK --&gt;|Denied| BLOCK
+
+    EXEC --&gt; LOG["Audit Log"]
+    EXECN --&gt; LOG
+    BLOCK --&gt; LOG
+
+    style T1 fill:#c8e6c9
+    style T2 fill:#fff9c4
+    style T3 fill:#ffe0b2
+    style T4 fill:#ffcdd2</code></pre>
+<p><strong>Permission Tier Examples:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Category</th>
+<th>Tools</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Autonomous</td>
+<td><code>move_head</code>, <code>play_emotion</code>, <code>capture_image</code></td>
+<td>Body control is safe, reversible</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Notify</td>
+<td><code>homeassistant.*</code>, <code>send_notification</code></td>
+<td>User should know about actions</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Confirm</td>
+<td><code>github.create_pr</code>, <code>calendar.create_event</code></td>
+<td>Irreversible external changes</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Forbidden</td>
+<td><code>execute_code</code>, <code>delete_*</code>, <code>admin_*</code></td>
+<td>Security-critical operations</td>
+</tr>
+</tbody>
+</table>
+<h3 id="layer-5-hardware-interface">Layer 5: Hardware Interface<a class="headerlink" href="#layer-5-hardware-interface" title="Permanent link">&para;</a></h3>
+<p>The Reachy Daemon provides a REST API to control hardware:</p>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Agent["Reachy Agent"]
+        CLIENT["ReachyMiniClient&lt;br/&gt;(HTTP Client)"]
+    end
+
+    subgraph Daemon["Reachy Daemon (FastAPI)"]
+        API["REST API&lt;br/&gt;:8000"]
+
+        subgraph Backends["Backend Selector"]
+            HW["RobotBackend&lt;br/&gt;(Real Hardware)"]
+            SIM["MujocoBackend&lt;br/&gt;(Simulation)"]
+        end
+
+        subgraph Controllers["Motor Controllers"]
+            HEAD_C["Head Controller"]
+            BODY_C["Body Controller"]
+            ANT_C["Antenna Controller"]
+        end
+    end
+
+    subgraph Hardware["Physical/Simulated"]
+        MOTORS["Dynamixel Servos"]
+        MUJOCO["MuJoCo Physics"]
+    end
+
+    CLIENT --&gt;|"POST /api/move/set_target"| API
+    CLIENT --&gt;|"POST /api/move/play/wake_up"| API
+    CLIENT --&gt;|"GET /api/daemon/status"| API
+
+    API --&gt; Backends
+    HW --&gt; Controllers
+    SIM --&gt; Controllers
+
+    HEAD_C --&gt; MOTORS
+    HEAD_C --&gt; MUJOCO
+    BODY_C --&gt; MOTORS
+    BODY_C --&gt; MUJOCO
+    ANT_C --&gt; MOTORS
+    ANT_C --&gt; MUJOCO
+
+    style SIM fill:#e3f2fd
+    style HW fill:#e8f5e9</code></pre>
+<h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
+<h3 id="request-lifecycle">Request Lifecycle<a class="headerlink" href="#request-lifecycle" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant U as User
+    participant P as Perception
+    participant L as Agent Loop
+    participant M as Memory
+    participant E as Permission Eval
+    participant T as MCP Tool
+    participant D as Reachy Daemon
+
+    U-&gt;&gt;P: Voice input
+    P-&gt;&gt;L: Transcribed text
+    L-&gt;&gt;M: Fetch context
+    M--&gt;&gt;L: Relevant memories
+    L-&gt;&gt;L: Build prompt
+    L-&gt;&gt;L: Call Claude API
+
+    loop For each tool call
+        L-&gt;&gt;E: Check permission
+        E--&gt;&gt;L: Decision (tier)
+
+        alt Autonomous/Notify
+            L-&gt;&gt;T: Execute tool
+            T-&gt;&gt;D: HTTP request
+            D--&gt;&gt;T: Result
+            T--&gt;&gt;L: Tool response
+        else Confirm
+            L-&gt;&gt;U: Request confirmation
+            U--&gt;&gt;L: Approve/Deny
+        else Forbidden
+            L-&gt;&gt;L: Log blocked attempt
+        end
+    end
+
+    L-&gt;&gt;M: Store interaction
+    L-&gt;&gt;U: Speak response</code></pre>
+<h2 id="deployment-architecture">Deployment Architecture<a class="headerlink" href="#deployment-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="development-simulation">Development (Simulation)<a class="headerlink" href="#development-simulation" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Dev["Development Machine"]
+        AGENT["Reachy Agent"]
+        DAEMON["reachy-mini-daemon&lt;br/&gt;--sim --headless"]
+        MUJOCO["MuJoCo Physics"]
+    end
+
+    subgraph Cloud
+        CLAUDE["Claude API"]
+    end
+
+    AGENT &lt;--&gt;|MCP| DAEMON
+    DAEMON --&gt; MUJOCO
+    AGENT &lt;--&gt;|HTTPS| CLAUDE
+
+    style MUJOCO fill:#e3f2fd</code></pre>
+<h3 id="production-hardware">Production (Hardware)<a class="headerlink" href="#production-hardware" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Pi["Raspberry Pi 4"]
+        AGENT["reachy-agent.service"]
+        DAEMON["reachy-daemon.service"]
+    end
+
+    subgraph Robot["Reachy Mini"]
+        HW["Hardware"]
+    end
+
+    subgraph Cloud
+        CLAUDE["Claude API"]
+        HA["Home Assistant"]
+    end
+
+    AGENT &lt;--&gt;|MCP| DAEMON
+    DAEMON --&gt; HW
+    AGENT &lt;--&gt;|HTTPS| CLAUDE
+    AGENT &lt;--&gt;|REST| HA
+
+    style HW fill:#e8f5e9</code></pre>
+<h2 id="key-design-decisions">Key Design Decisions<a class="headerlink" href="#key-design-decisions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Choice</th>
+<th>Alternatives Considered</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process Model</td>
+<td>Single asyncio</td>
+<td>Multiple systemd services</td>
+<td>Simpler debugging, lower memory</td>
+</tr>
+<tr>
+<td>Wake Word</td>
+<td>OpenWakeWord</td>
+<td>Porcupine, Snowboy</td>
+<td>Open source, no license costs</td>
+</tr>
+<tr>
+<td>Memory Store</td>
+<td>ChromaDB + SQLite</td>
+<td>PostgreSQL, Redis</td>
+<td>Lightweight, embedded, no server</td>
+</tr>
+<tr>
+<td>Config Format</td>
+<td>YAML</td>
+<td>JSON, TOML</td>
+<td>Human-readable, supports comments</td>
+</tr>
+<tr>
+<td>MCP Transport</td>
+<td>stdio subprocess</td>
+<td>HTTP, direct calls</td>
+<td>True MCP protocol, dynamic discovery</td>
+</tr>
+<tr>
+<td>Tool Discovery</td>
+<td>ListTools</td>
+<td>Hardcoded schemas</td>
+<td>Single source of truth, extensible</td>
+</tr>
+</tbody>
+</table>
+<h2 id="security-model">Security Model<a class="headerlink" href="#security-model" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Trust["Trust Boundaries"]
+        subgraph High["High Trust"]
+            AGENT["Agent Core"]
+            DAEMON["Reachy Daemon"]
+        end
+
+        subgraph Medium["Medium Trust"]
+            MCP["MCP Servers"]
+            CLOUD["Claude API"]
+        end
+
+        subgraph Low["Low Trust"]
+            EXT["External Services"]
+            USER["User Input"]
+        end
+    end
+
+    USER --&gt;|"Sanitized"| AGENT
+    AGENT --&gt;|"Validated"| MCP
+    MCP --&gt;|"HTTPS"| EXT
+    AGENT &lt;--&gt;|"TLS"| CLOUD
+
+    style High fill:#c8e6c9
+    style Medium fill:#fff9c4
+    style Low fill:#ffcdd2</code></pre>
+<p><strong>Security Principles:</strong>
+1. <strong>Least Privilege</strong>: Each MCP server has minimal required permissions
+2. <strong>Defense in Depth</strong>: Permission tiers + API validation + audit logging
+3. <strong>Fail Secure</strong>: Unknown tools default to highest restriction tier
+4. <strong>Privacy by Design</strong>: Antenna states indicate when agent is listening</p>
+<h2 id="mcp-tools-overview">MCP Tools Overview<a class="headerlink" href="#mcp-tools-overview" title="Permanent link">&para;</a></h2>
+<p>The Reachy MCP server provides 23 tools organized by category:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Tools</th>
+<th>Mock Support</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Movement (5)</td>
+<td><code>move_head</code>, <code>look_at</code>, <code>look_at_world</code>, <code>look_at_pixel</code>, <code>rotate</code></td>
+<td>3/5</td>
+</tr>
+<tr>
+<td>Expression (6)</td>
+<td><code>play_emotion</code>, <code>play_recorded_move</code>, <code>set_antenna_state</code>, <code>nod</code>, <code>shake</code>, <code>dance</code></td>
+<td>5/6</td>
+</tr>
+<tr>
+<td>Audio (2)</td>
+<td><code>speak</code>, <code>listen</code></td>
+<td>2/2</td>
+</tr>
+<tr>
+<td>Perception (3)</td>
+<td><code>capture_image</code>, <code>get_sensor_data</code>, <code>look_at_sound</code></td>
+<td>3/3</td>
+</tr>
+<tr>
+<td>Lifecycle (3)</td>
+<td><code>wake_up</code>, <code>sleep</code>, <code>rest</code></td>
+<td>3/3</td>
+</tr>
+<tr>
+<td>Status (2)</td>
+<td><code>get_status</code>, <code>get_pose</code></td>
+<td>2/2</td>
+</tr>
+<tr>
+<td>Control (2)</td>
+<td><code>set_motor_mode</code>, <code>cancel_action</code></td>
+<td>1/2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="native-sdk-emotions">Native SDK Emotions<a class="headerlink" href="#native-sdk-emotions" title="Permanent link">&para;</a></h3>
+<p>The agent uses native SDK emotions from <code>pollen-robotics/reachy-mini-emotions-library</code> (HuggingFace) when available:</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Agent
+        EMO["play_emotion('happy')"]
+    end
+
+    subgraph Check["Emotion Lookup"]
+        NATIVE{"Native SDK&lt;br/&gt;Available?"}
+    end
+
+    subgraph SDK["HuggingFace"]
+        HF["cheerful1&lt;br/&gt;(with audio)"]
+    end
+
+    subgraph Custom
+        CUSTOM["Custom composition&lt;br/&gt;(head + antennas)"]
+    end
+
+    EMO --&gt; NATIVE
+    NATIVE --&gt;|Yes| HF
+    NATIVE --&gt;|No| CUSTOM
+
+    style HF fill:#c8e6c9
+    style CUSTOM fill:#fff9c4</code></pre>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>See <a href="../../guides/phase2-preparation/">Phase 2 Preparation Guide</a> for hardware integration details.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/jawhnycooke/claude-in-the-shell" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
