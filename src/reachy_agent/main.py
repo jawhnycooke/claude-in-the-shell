@@ -147,23 +147,64 @@ async def run_voice_mode(agent: ReachyAgentLoop, config: dict | None = None) -> 
 
     Args:
         agent: Initialized agent loop.
-        config: Optional config dict with voice settings from YAML.
+        config: Optional ReachyConfig (not used for voice, we load from YAML directly).
     """
     try:
+        import yaml
+
         from reachy_agent.voice import VoicePipeline, VoicePipelineConfig
         from reachy_agent.voice.audio import AudioConfig
+        from reachy_agent.voice.persona import PersonaManager
+        from reachy_agent.voice.wake_word import WakeWordConfig
     except ImportError as e:
         print(f"\n❌ Voice dependencies not installed: {e}")
         print("Install with: pip install reachy-agent[voice]")
         return
 
-    print("\n🎤 Reachy Agent Voice Mode")
-    print("Say 'Hey Reachy' to activate. Use Ctrl+C to exit.\n")
+    # Load voice config directly from YAML (not in ReachyConfig pydantic model)
+    voice_cfg: dict = {}
+    config_path = Path("config/default.yaml")
+    if config_path.exists():
+        with open(config_path) as f:
+            raw_config = yaml.safe_load(f) or {}
+        voice_cfg = raw_config.get("voice", {})
+        log.debug("Voice config loaded from YAML", keys=list(voice_cfg.keys()))
 
     # Build voice pipeline config from YAML settings
     voice_config = VoicePipelineConfig()
-    if config and hasattr(config, "voice") and config.voice:
-        voice_cfg = config.voice
+    persona_manager = None
+
+    if voice_cfg:
+
+        # Build persona manager from YAML (Ghost in the Shell personas)
+        if voice_cfg.get("personas"):
+            persona_manager = PersonaManager.from_config(voice_cfg)
+            voice_config.persona_manager = persona_manager
+            if persona_manager.current_persona:
+                log.info(
+                    "Persona manager initialized",
+                    current_persona=persona_manager.current_persona.name,
+                    voice=persona_manager.current_persona.voice,
+                    available=list(persona_manager.personas.keys()),
+                )
+
+        # Build wake word config with persona models
+        wake_word_cfg = voice_cfg.get("wake_word", {})
+        persona_models = list(voice_cfg.get("personas", {}).keys())
+        voice_config.wake_word = WakeWordConfig(
+            model_name=wake_word_cfg.get("model", "hey_jarvis"),
+            sensitivity=wake_word_cfg.get("sensitivity", 0.5),
+            cooldown_seconds=wake_word_cfg.get("cooldown_seconds", 2.0),
+            custom_models_dir=wake_word_cfg.get("custom_models_dir", "data/wake_words"),
+            persona_models=persona_models,
+        )
+        if persona_models:
+            log.info(
+                "Wake word config loaded with persona models",
+                persona_models=persona_models,
+                custom_models_dir=voice_config.wake_word.custom_models_dir,
+            )
+
         # Build audio config with device indices from YAML
         if voice_cfg.get("audio"):
             audio_cfg = voice_cfg["audio"]
@@ -184,6 +225,17 @@ async def run_voice_mode(agent: ReachyAgentLoop, config: dict | None = None) -> 
                 input_device=voice_config.audio.input_device_index,
                 output_device=voice_config.audio.output_device_index,
             )
+
+    # Print startup message with persona info
+    print("\n🎤 Reachy Agent Voice Mode")
+    if persona_manager and persona_manager.personas:
+        wake_phrases = [p.wake_word_model.replace("_", " ").title() for p in persona_manager.personas.values()]
+        print(f"Say {' or '.join(repr(w) for w in wake_phrases)} to activate.")
+        if persona_manager.current_persona:
+            print(f"Starting as: {persona_manager.current_persona.display_name} ({persona_manager.current_persona.voice} voice)")
+    else:
+        print("Say 'Hey Reachy' to activate.")
+    print("Use Ctrl+C to exit.\n")
 
     # Create and start voice pipeline
     pipeline = VoicePipeline(

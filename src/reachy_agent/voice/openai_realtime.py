@@ -126,6 +126,44 @@ class OpenAIRealtimeClient:
         """Check if connected to Realtime API."""
         return self._is_connected and self._connection is not None
 
+    async def update_voice(self, new_voice: str) -> bool:
+        """Update the TTS voice, reconnecting if necessary.
+
+        Used for persona switching - changes the voice used for TTS responses.
+        Requires a session reconnect because voice is set at session creation.
+
+        Args:
+            new_voice: New voice to use (alloy, echo, fable, onyx, nova, shimmer)
+
+        Returns:
+            True if voice update succeeded
+        """
+        if self.config.voice == new_voice:
+            logger.debug("update_voice_already_set", voice=new_voice)
+            return True
+
+        old_voice = self.config.voice
+        self.config.voice = new_voice
+
+        logger.info(
+            "update_voice_changing",
+            from_voice=old_voice,
+            to_voice=new_voice,
+        )
+
+        # Must reconnect to apply the new voice
+        if self._is_connected:
+            await self.disconnect()
+            success = await self.connect()
+            if not success:
+                # Restore old voice on failure
+                self.config.voice = old_voice
+                logger.error("update_voice_reconnect_failed", voice=new_voice)
+                return False
+
+        logger.info("update_voice_changed", voice=new_voice)
+        return True
+
     async def ensure_connected(self) -> bool:
         """Ensure connection is active, reconnecting if needed.
 

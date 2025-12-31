@@ -192,6 +192,70 @@ def load_system_prompt(
     return f"You are {name}, an embodied AI assistant robot. Be helpful and expressive."
 
 
+def load_persona_prompt(
+    persona: Any,  # PersonaConfig, but avoid circular import
+    config: ReachyConfig | None = None,
+    prompts_dir: Path | None = None,
+) -> str:
+    """Load and render a persona-specific system prompt.
+
+    Used for Ghost in the Shell themed personas (Motoko, Batou).
+    Falls back to default system prompt if persona prompt not found.
+
+    Args:
+        persona: PersonaConfig instance with prompt_path attribute
+        config: Optional configuration for dynamic context
+        prompts_dir: Optional prompts directory override
+
+    Returns:
+        Rendered persona prompt string
+    """
+    context = get_default_context(config)
+    base_dir = prompts_dir or PROMPTS_DIR
+
+    # Try persona-specific prompt path
+    if hasattr(persona, "prompt_path") and persona.prompt_path:
+        prompt_path = base_dir.parent / persona.prompt_path
+        if prompt_path.exists():
+            log.info(
+                "Loading persona prompt",
+                persona=persona.name,
+                path=str(prompt_path),
+            )
+            template = prompt_path.read_text()
+            return render_template(template, context)
+
+        # Also try relative to prompts dir
+        prompt_path = base_dir / persona.prompt_path
+        if prompt_path.exists():
+            log.info(
+                "Loading persona prompt",
+                persona=persona.name,
+                path=str(prompt_path),
+            )
+            template = prompt_path.read_text()
+            return render_template(template, context)
+
+        # Try direct path from cwd
+        prompt_path = Path(persona.prompt_path)
+        if prompt_path.exists():
+            log.info(
+                "Loading persona prompt from direct path",
+                persona=persona.name,
+                path=str(prompt_path),
+            )
+            template = prompt_path.read_text()
+            return render_template(template, context)
+
+    # Fallback to default system prompt
+    log.warning(
+        "Persona prompt not found, using default",
+        persona=getattr(persona, "name", "unknown"),
+        prompt_path=getattr(persona, "prompt_path", None),
+    )
+    return load_system_prompt(config=config, prompts_dir=prompts_dir)
+
+
 class AgentOptionsBuilder:
     """Builder for Claude Agent SDK options.
 

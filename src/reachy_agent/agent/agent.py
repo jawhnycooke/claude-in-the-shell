@@ -275,6 +275,24 @@ class ReachyAgentLoop:
         )
         return text
 
+    def update_system_prompt(self, new_prompt: str) -> None:
+        """Update the system prompt for persona switching.
+
+        Used by the voice pipeline for Ghost in the Shell themed personas
+        (Motoko, Batou) to switch the agent's personality mid-conversation.
+
+        Args:
+            new_prompt: New system prompt to use.
+        """
+        old_length = len(self._system_prompt)
+        self._system_prompt = new_prompt
+        log.info(
+            "system_prompt_updated",
+            old_length=old_length,
+            new_length=len(new_prompt),
+            preview=new_prompt[:100] + "..." if len(new_prompt) > 100 else new_prompt,
+        )
+
     def _build_mcp_servers(self) -> dict[str, dict[str, Any]]:
         """Build MCP server configuration for SDK.
 

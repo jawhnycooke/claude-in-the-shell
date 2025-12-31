@@ -29,6 +29,7 @@ import structlog
 from reachy_agent.voice.audio import AudioConfig, AudioManager
 from reachy_agent.voice.errors import StateTimeoutError, StateTransitionError
 from reachy_agent.voice.openai_realtime import OpenAIRealtimeClient, RealtimeConfig
+from reachy_agent.voice.persona import PersonaConfig, PersonaManager
 from reachy_agent.voice.recovery import (
     DegradedModeConfig,
     PipelineRecoveryManager,
@@ -122,6 +123,9 @@ class VoicePipelineConfig:
     confirmation_beep: bool = True
     auto_restart: bool = True  # Restart listening after response
 
+    # Persona management (Ghost in the Shell theme)
+    persona_manager: PersonaManager | None = None
+
 
 @dataclass
 class VoicePipeline:
@@ -176,6 +180,10 @@ class VoicePipeline:
     _response_time: float = field(default=0.0, repr=False)
     _tts_start_time: float = field(default=0.0, repr=False)
 
+    # Persona state (Ghost in the Shell theme)
+    _current_persona: PersonaConfig | None = field(default=None, repr=False)
+    _pending_persona: PersonaConfig | None = field(default=None, repr=False)
+
     def __post_init__(self) -> None:
         """Initialize recovery manager with config and callbacks."""
         # Configure recovery manager with degraded mode settings from config
@@ -183,6 +191,18 @@ class VoicePipeline:
             config=self.config.degraded_mode,
             on_degraded_mode=self._on_degraded_mode_change,
         )
+
+        # Initialize default persona if persona manager is configured
+        if self.config.persona_manager:
+            default_persona = self.config.persona_manager.get_default()
+            if default_persona:
+                self._current_persona = default_persona
+                self.config.persona_manager.current_persona = default_persona
+                logger.info(
+                    "default_persona_initialized",
+                    persona=default_persona.name,
+                    voice=default_persona.voice,
+                )
 
     def _on_degraded_mode_change(self, component: str, is_degraded: bool) -> None:
         """Internal callback when a component enters/exits degraded mode."""
@@ -208,6 +228,64 @@ class VoicePipeline:
     def is_running(self) -> bool:
         """Check if pipeline is running."""
         return self._is_running
+
+    @property
+    def current_persona(self) -> PersonaConfig | None:
+        """Get the currently active persona."""
+        return self._current_persona
+
+    async def _switch_persona(self, persona: PersonaConfig) -> bool:
+        """Switch to a new persona.
+
+        Updates the voice, system prompt, and reconnects to OpenAI.
+
+        Args:
+            persona: The PersonaConfig to switch to
+
+        Returns:
+            True if switch succeeded
+        """
+        old_persona = self._current_persona
+        logger.info(
+            "persona_switching",
+            from_persona=old_persona.name if old_persona else None,
+            to_persona=persona.name,
+            new_voice=persona.voice,
+        )
+
+        # Update the current persona
+        self._current_persona = persona
+        if self.config.persona_manager:
+            self.config.persona_manager.current_persona = persona
+
+        # Update OpenAI voice (requires reconnect)
+        if self._realtime:
+            self.config.realtime.voice = persona.voice
+            await self._realtime.disconnect()
+            connected = await self._realtime.connect()
+            if not connected:
+                logger.error("persona_switch_reconnect_failed", persona=persona.name)
+                return False
+
+        # Update agent system prompt if available
+        if self.agent and hasattr(self.agent, "update_system_prompt"):
+            from reachy_agent.agent.options import load_persona_prompt
+
+            new_prompt = load_persona_prompt(persona)
+            self.agent.update_system_prompt(new_prompt)
+            logger.info(
+                "persona_prompt_updated",
+                persona=persona.name,
+                prompt_length=len(new_prompt),
+            )
+
+        logger.info(
+            "persona_switched",
+            persona=persona.name,
+            voice=persona.voice,
+            display_name=persona.display_name,
+        )
+        return True
 
     def get_recovery_status(self) -> dict:
         """Get detailed recovery status report.
@@ -477,9 +555,11 @@ class VoicePipeline:
                 if self._is_speaking:
                     continue
 
-                detected = self._wake_word.process_audio(chunk)
-                if detected:
-                    self._set_state(VoicePipelineState.WAKE_DETECTED)
+                detected_model = self._wake_word.process_audio(chunk)
+                if detected_model:
+                    # Call the callback with the detected model name
+                    # (this queues persona switch and sets state)
+                    self._on_wake_word_detected(detected_model)
                     break
 
         finally:
@@ -803,6 +883,13 @@ class VoicePipeline:
                 self._wake_word._last_detection_time = time.time()
                 logger.info("wake_word_model_reset_after_tts", cooldown_active=True)
 
+            # Apply pending persona switch AFTER response completes
+            # This ensures the current response finishes with the current voice
+            # before switching to the new persona
+            if self._pending_persona and self._pending_persona != self._current_persona:
+                await self._switch_persona(self._pending_persona)
+                self._pending_persona = None
+
             self._restart_listening()
 
     async def _play_audio_24k(self, audio_data: bytes) -> None:
@@ -1078,9 +1165,30 @@ class VoicePipeline:
             # Don't let this break the pipeline
             logger.warning("resume_idle_behavior_failed", error=str(e))
 
-    def _on_wake_word_detected(self) -> None:
-        """Callback when wake word is detected."""
+    def _on_wake_word_detected(self, detected_model: str) -> None:
+        """Callback when wake word is detected.
+
+        Queues persona switch if a different persona's wake word was detected.
+        The actual switch happens after the current response completes.
+
+        Args:
+            detected_model: Name of the wake word model that triggered
+                           (e.g., "hey_motoko", "hey_batou")
+        """
         if self._state == VoicePipelineState.LISTENING_WAKE:
+            # Check if this triggers a persona switch
+            if self.config.persona_manager:
+                new_persona = self.config.persona_manager.get_persona(detected_model)
+                if new_persona and new_persona != self._current_persona:
+                    # Queue the switch for after response completes
+                    self._pending_persona = new_persona
+                    logger.info(
+                        "persona_switch_queued",
+                        from_persona=self._current_persona.name if self._current_persona else None,
+                        to_persona=new_persona.name,
+                        wake_word=detected_model,
+                    )
+
             self._set_state(VoicePipelineState.WAKE_DETECTED)
 
     def _on_speech_start(self) -> None:
