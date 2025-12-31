@@ -263,13 +263,28 @@ class VoicePipeline:
             await self._realtime.disconnect()
             connected = await self._realtime.connect()
             if not connected:
-                # Rollback voice config on failure
+                # Rollback voice config and attempt recovery
                 self.config.realtime.voice = old_voice
                 logger.error(
                     "persona_switch_reconnect_failed",
                     persona=persona.name,
-                    rolled_back_voice=old_voice,
+                    attempting_recovery=True,
                 )
+
+                # CRITICAL: Attempt to restore connection with old voice
+                # Without this, the realtime client remains disconnected
+                recovery_connected = await self._realtime.connect()
+                if not recovery_connected:
+                    logger.error(
+                        "realtime_client_recovery_failed",
+                        original_voice=old_voice,
+                        client_state="disconnected",
+                    )
+                else:
+                    logger.info(
+                        "realtime_client_recovered",
+                        using_voice=old_voice,
+                    )
                 return False
 
         # Reconnection succeeded - now update persona state
@@ -290,14 +305,41 @@ class VoicePipeline:
                     prompt_length=len(new_prompt),
                 )
             else:
-                # Voice changed but prompt failed - partial success
-                # Log warning but continue; prompt will use previous persona
+                # Voice changed but prompt failed - rollback to avoid inconsistent state
+                # Without rollback: voice=new persona but personality=old persona (confusing!)
                 logger.warning(
                     "persona_prompt_update_failed",
                     persona=persona.name,
                     voice_changed=True,
                     sdk_reconnect_failed=True,
+                    rolling_back_voice=True,
                 )
+
+                # Rollback voice to match the (unchanged) personality
+                if self._realtime and old_persona:
+                    self.config.realtime.voice = old_persona.voice
+                    await self._realtime.disconnect()
+                    recovery_connected = await self._realtime.connect()
+                    if recovery_connected:
+                        # Restore previous persona state
+                        self._current_persona = old_persona
+                        if self.config.persona_manager:
+                            self.config.persona_manager.current_persona = old_persona
+                        logger.info(
+                            "persona_rollback_complete",
+                            restored_persona=old_persona.name,
+                            restored_voice=old_persona.voice,
+                        )
+                        return False
+                    else:
+                        logger.error(
+                            "persona_rollback_failed",
+                            persona_state="inconsistent",
+                            voice=persona.voice,
+                            personality=old_persona.name if old_persona else "unknown",
+                        )
+                        # Continue with inconsistent state - better than crashing
+                        return False
 
         logger.info(
             "persona_switched",

@@ -323,8 +323,29 @@ class ReachyAgentLoop:
                     "system_prompt_update_failed",
                     error=str(e),
                     error_type=type(e).__name__,
-                    rolled_back=True,
+                    attempting_recovery=True,
                 )
+
+                # CRITICAL: Attempt to restore connection with old prompt
+                # Without this, the client remains disconnected after failure
+                try:
+                    options = self._build_sdk_options()
+                    self._client = ClaudeSDKClient(options)
+                    await self._client.connect()
+                    log.info(
+                        "sdk_client_recovered",
+                        using_prompt="old",
+                        prompt_length=old_length,
+                    )
+                except Exception as recovery_error:
+                    # Recovery failed - mark client as unusable
+                    self._client = None
+                    log.error(
+                        "sdk_client_recovery_failed",
+                        error=str(recovery_error),
+                        error_type=type(recovery_error).__name__,
+                        client_state="disconnected",
+                    )
                 return False
         else:
             # No client yet, just update the prompt (will be used at connect time)
