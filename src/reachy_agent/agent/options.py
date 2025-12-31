@@ -199,8 +199,8 @@ def load_persona_prompt(
 ) -> str:
     """Load and render a persona-specific system prompt.
 
-    Used for Ghost in the Shell themed personas (Motoko, Batou).
-    Falls back to default system prompt if persona prompt not found.
+    Used for persona-based wake word switching.
+    Falls back to default system prompt if persona prompt not found or on error.
 
     Args:
         persona: PersonaConfig instance with prompt_path attribute
@@ -212,45 +212,60 @@ def load_persona_prompt(
     """
     context = get_default_context(config)
     base_dir = prompts_dir or PROMPTS_DIR
+    persona_name = getattr(persona, "name", "unknown")
 
-    # Try persona-specific prompt path
+    def _try_load_prompt(prompt_path: Path) -> str | None:
+        """Attempt to load and render a prompt file with error handling."""
+        if not prompt_path.exists():
+            return None
+        try:
+            log.info(
+                "Loading persona prompt",
+                persona=persona_name,
+                path=str(prompt_path),
+            )
+            template = prompt_path.read_text(encoding="utf-8")
+            return render_template(template, context)
+        except (OSError, UnicodeDecodeError) as e:
+            log.warning(
+                "Failed to read persona prompt file",
+                persona=persona_name,
+                path=str(prompt_path),
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+        except Exception as e:
+            log.warning(
+                "Failed to render persona prompt template",
+                persona=persona_name,
+                path=str(prompt_path),
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
+
+    # Try persona-specific prompt path from multiple locations
     if hasattr(persona, "prompt_path") and persona.prompt_path:
-        prompt_path = base_dir.parent / persona.prompt_path
-        if prompt_path.exists():
-            log.info(
-                "Loading persona prompt",
-                persona=persona.name,
-                path=str(prompt_path),
-            )
-            template = prompt_path.read_text()
-            return render_template(template, context)
+        # Try relative to project root (base_dir.parent)
+        result = _try_load_prompt(base_dir.parent / persona.prompt_path)
+        if result is not None:
+            return result
 
-        # Also try relative to prompts dir
-        prompt_path = base_dir / persona.prompt_path
-        if prompt_path.exists():
-            log.info(
-                "Loading persona prompt",
-                persona=persona.name,
-                path=str(prompt_path),
-            )
-            template = prompt_path.read_text()
-            return render_template(template, context)
+        # Try relative to prompts dir
+        result = _try_load_prompt(base_dir / persona.prompt_path)
+        if result is not None:
+            return result
 
         # Try direct path from cwd
-        prompt_path = Path(persona.prompt_path)
-        if prompt_path.exists():
-            log.info(
-                "Loading persona prompt from direct path",
-                persona=persona.name,
-                path=str(prompt_path),
-            )
-            template = prompt_path.read_text()
-            return render_template(template, context)
+        result = _try_load_prompt(Path(persona.prompt_path))
+        if result is not None:
+            return result
 
     # Fallback to default system prompt
     log.warning(
         "Persona prompt not found, using default",
-        persona=getattr(persona, "name", "unknown"),
+        persona=persona_name,
         prompt_path=getattr(persona, "prompt_path", None),
     )
     return load_system_prompt(config=config, prompts_dir=prompts_dir)

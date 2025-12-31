@@ -130,10 +130,13 @@ class WakeWordDetector:
                         logger.warning("no_wake_word_model_available")
                         self._model = None
 
-            except Exception as e:
+            except (RuntimeError, ValueError, FileNotFoundError, OSError) as e:
+                # Specific exceptions from model loading: runtime errors, invalid models,
+                # missing files, or I/O issues during ONNX model initialization
                 logger.warning(
                     "wake_word_model_load_failed",
                     error=str(e),
+                    error_type=type(e).__name__,
                 )
                 self._model = None
 

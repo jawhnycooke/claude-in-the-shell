@@ -39,7 +39,16 @@ This setup supports the Ghost in the Shell theme with two personas:
 
 ## Fallback Behavior
 
-If custom models are not found, the system will:
-1. Log a warning about missing model files
-2. Fall back to the default `hey_jarvis` wake word (if available)
-3. Use the default persona specified in config
+If custom persona wake word models are not found, the system handles fallback separately for each subsystem:
+
+**Wake Word Detection:**
+1. Logs a warning about missing custom model files
+2. Falls back to bundled OpenWakeWord models (e.g., `hey_jarvis`, `alexa`)
+3. Uses the `model_name` from config or first available bundled model
+
+**Persona Selection:**
+1. Uses the `default_persona` specified in `config/default.yaml` on startup
+2. Persona only changes when a registered wake word is detected
+3. If a bundled wake word (like `hey_jarvis`) is detected but has no registered persona, the current persona remains unchanged
+
+See `config/default.yaml` under `voice.personas` for persona configuration and `voice.default_persona` for the default.

@@ -11,12 +11,15 @@ Ghost in the Shell theme:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from reachy_agent.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Valid OpenAI TTS voices
+VALID_VOICES = frozenset({"alloy", "echo", "fable", "onyx", "nova", "shimmer"})
+OpenAIVoice = Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
 
 @dataclass
@@ -34,10 +37,28 @@ class PersonaConfig:
 
     name: str
     wake_word_model: str
-    voice: str
+    voice: str  # Validated in __post_init__
     display_name: str
     prompt_path: str
     traits: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate persona configuration after initialization."""
+        # Validate required string fields are non-empty
+        if not self.name.strip():
+            raise ValueError("PersonaConfig.name cannot be empty")
+        if not self.wake_word_model.strip():
+            raise ValueError("PersonaConfig.wake_word_model cannot be empty")
+        if not self.display_name.strip():
+            raise ValueError("PersonaConfig.display_name cannot be empty")
+        if not self.prompt_path.strip():
+            raise ValueError("PersonaConfig.prompt_path cannot be empty")
+
+        # Validate voice is a valid OpenAI TTS voice
+        if self.voice not in VALID_VOICES:
+            raise ValueError(
+                f"Invalid voice '{self.voice}'. Must be one of: {sorted(VALID_VOICES)}"
+            )
 
     @classmethod
     def from_dict(cls, wake_word_model: str, data: dict[str, Any]) -> PersonaConfig:
