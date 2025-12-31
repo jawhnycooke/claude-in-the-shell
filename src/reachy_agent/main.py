@@ -123,17 +123,16 @@ async def async_main(
         await asyncio.sleep(1)  # Wait for daemon to start
 
     # Create and run agent
-    # Disable motion blending and idle behavior in voice mode for cleaner logs
     async with ReachyAgentLoop(
         config=config,
         daemon_url=daemon_url,
-        enable_motion_blend=not (voice_mode or test_voice_mode),  # Disable for voice
-        enable_idle_behavior=not (voice_mode or test_voice_mode),  # Disable for voice
+        enable_motion_blend=True,
+        enable_idle_behavior=True,
     ).session() as agent:
         if test_voice_mode:
             await run_voice_test_mode(agent)
         elif voice_mode:
-            await run_voice_mode(agent)
+            await run_voice_mode(agent, config)
         elif interactive:
             await run_interactive_loop(agent)
         else:
@@ -143,14 +142,16 @@ async def async_main(
                 await asyncio.sleep(1)
 
 
-async def run_voice_mode(agent: ReachyAgentLoop) -> None:
+async def run_voice_mode(agent: ReachyAgentLoop, config: dict | None = None) -> None:
     """Run the agent with voice interaction.
 
     Args:
         agent: Initialized agent loop.
+        config: Optional config dict with voice settings from YAML.
     """
     try:
-        from reachy_agent.voice import VoicePipeline
+        from reachy_agent.voice import VoicePipeline, VoicePipelineConfig
+        from reachy_agent.voice.audio import AudioConfig
     except ImportError as e:
         print(f"\n❌ Voice dependencies not installed: {e}")
         print("Install with: pip install reachy-agent[voice]")
@@ -159,9 +160,35 @@ async def run_voice_mode(agent: ReachyAgentLoop) -> None:
     print("\n🎤 Reachy Agent Voice Mode")
     print("Say 'Hey Reachy' to activate. Use Ctrl+C to exit.\n")
 
+    # Build voice pipeline config from YAML settings
+    voice_config = VoicePipelineConfig()
+    if config and hasattr(config, "voice") and config.voice:
+        voice_cfg = config.voice
+        # Build audio config with device indices from YAML
+        if voice_cfg.get("audio"):
+            audio_cfg = voice_cfg["audio"]
+            voice_config.audio = AudioConfig(
+                sample_rate=audio_cfg.get("sample_rate", 16000),
+                channels=audio_cfg.get("channels", 1),
+                chunk_size=audio_cfg.get("chunk_size", 512),
+                format_bits=audio_cfg.get("format_bits", 16),
+                input_device_index=audio_cfg.get("input_device_index"),
+                output_device_index=audio_cfg.get("output_device_index"),
+                max_init_retries=audio_cfg.get("max_init_retries", 3),
+                retry_delay_seconds=audio_cfg.get("retry_delay_seconds", 1.0),
+                output_lead_in_ms=audio_cfg.get("output_lead_in_ms", 200),
+                input_warmup_chunks=audio_cfg.get("input_warmup_chunks", 5),
+            )
+            log.info(
+                "Voice audio config loaded",
+                input_device=voice_config.audio.input_device_index,
+                output_device=voice_config.audio.output_device_index,
+            )
+
     # Create and start voice pipeline
     pipeline = VoicePipeline(
         agent=agent,
+        config=voice_config,
         on_transcription=lambda text: print(f"You: {text}"),
         on_response=lambda text: print(f"Reachy: {text}"),
     )

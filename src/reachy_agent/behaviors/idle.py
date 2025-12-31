@@ -86,20 +86,62 @@ class LookTarget:
     yaw: float  # Left/right in degrees
     pitch: float  # Up/down in degrees
     roll: float = 0.0  # Head tilt in degrees
+    left_antenna: float = 90.0  # Antenna position (0=flat/back, 90=vertical)
+    right_antenna: float = 90.0  # Antenna position (0=flat/back, 90=vertical)
     duration: float = 1.5  # Movement duration
 
     @classmethod
     def random(cls, config: IdleBehaviorConfig) -> LookTarget:
-        """Generate a random look target within config bounds."""
+        """Generate a random look target within config bounds.
+
+        Includes expressive antenna movements that correlate with head movement:
+        - Looking up tends to raise antennas (attentive/alert)
+        - Looking down tends to lower antennas (relaxed/sleepy)
+        - Random variation creates liveliness and personality
+        - Asymmetry based on yaw creates curious tilted-ear effect
+        """
         yaw = random.uniform(*config.yaw_range)
         pitch = random.uniform(*config.pitch_range)
         roll = random.uniform(*config.roll_range)
-        return cls(yaw=yaw, pitch=pitch, roll=roll, duration=config.movement_duration)
+
+        # Base antenna position - randomize around vertical (90°) for more variety
+        # Sometimes slightly tilted back (relaxed), sometimes fully up (alert)
+        base_antenna = random.uniform(75.0, 90.0)
+
+        # Antennas correlate with pitch: looking up = antennas up (attentive)
+        # Using stronger influence for more noticeable movement
+        pitch_normalized = pitch / max(abs(config.pitch_range[0]), abs(config.pitch_range[1]))
+        pitch_influence = pitch_normalized * 25.0  # Up to ±25 degrees from pitch
+
+        # Larger random variation for more expressive movement
+        random_offset_left = random.uniform(-20.0, 20.0)
+        random_offset_right = random.uniform(-20.0, 20.0)
+
+        # Stronger asymmetry based on yaw (looking left = left antenna higher)
+        # Creates a curious "tilted ear" effect
+        yaw_normalized = yaw / max(abs(config.yaw_range[0]), abs(config.yaw_range[1]))
+        yaw_asymmetry = yaw_normalized * 12.0  # Up to ±12 degrees asymmetry
+
+        left_antenna = base_antenna + pitch_influence + random_offset_left + yaw_asymmetry
+        right_antenna = base_antenna + pitch_influence + random_offset_right - yaw_asymmetry
+
+        # Clamp to valid range (45-90 degrees) - keeping antennas in upper half
+        left_antenna = max(45.0, min(90.0, left_antenna))
+        right_antenna = max(45.0, min(90.0, right_antenna))
+
+        return cls(
+            yaw=yaw,
+            pitch=pitch,
+            roll=roll,
+            left_antenna=left_antenna,
+            right_antenna=right_antenna,
+            duration=config.movement_duration,
+        )
 
     @classmethod
     def neutral(cls) -> LookTarget:
-        """Return a neutral (center) position."""
-        return cls(yaw=0.0, pitch=0.0, roll=0.0)
+        """Return a neutral (center) position with antennas vertical."""
+        return cls(yaw=0.0, pitch=0.0, roll=0.0, left_antenna=90.0, right_antenna=90.0)
 
 
 class IdleBehaviorController:
@@ -152,7 +194,12 @@ class IdleBehaviorController:
         # MotionSource protocol support
         self._current_pose = HeadPose.neutral()
         self._target_pose = HeadPose.neutral()
+        self._start_pose = HeadPose.neutral()  # Pose at start of movement
         self._pose_active = False
+
+        # Easing support - track movement timing
+        self._movement_start_time: datetime | None = None
+        self._movement_duration: float = 1.5  # Current movement duration
 
     # ─────────────────────────────────────────────────────────────────────────
     # MotionSource Protocol Implementation
@@ -171,19 +218,30 @@ class IdleBehaviorController:
     async def get_contribution(self, base_pose: HeadPose) -> HeadPose:
         """Get idle motion's contribution to the final pose.
 
-        As a PRIMARY source, returns complete HeadPose values.
+        As a PRIMARY source, returns complete HeadPose values with
+        ease-in-out interpolation for smooth movements.
 
         Args:
             base_pose: Current base pose for reference.
 
         Returns:
-            HeadPose with current idle look target.
+            HeadPose with eased interpolation toward target.
         """
         if not self.is_active:
             return self._current_pose
 
-        # Smoothly interpolate toward target
-        # (blending is handled by MotionBlendController, but we track our target)
+        # Calculate eased position if we're in a movement
+        if self._movement_start_time is not None:
+            elapsed = (datetime.now() - self._movement_start_time).total_seconds()
+            progress = min(1.0, elapsed / self._movement_duration)
+
+            # Use ease-in-out interpolation
+            self._current_pose = self._start_pose.ease_in_out(self._target_pose, progress)
+
+            # Clear movement timing when complete
+            if progress >= 1.0:
+                self._movement_start_time = None
+
         return self._current_pose
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -353,23 +411,30 @@ class IdleBehaviorController:
         await self._verify_pose(target)
 
     async def _look_at(self, target: LookTarget) -> None:
-        """Execute a look_at command to move the head."""
+        """Execute a look_at command to move the head with ease-in-out motion."""
         log.debug(
             "Looking at target",
-            yaw=target.yaw,
-            pitch=target.pitch,
-            roll=target.roll,
+            yaw=round(target.yaw, 1),
+            pitch=round(target.pitch, 1),
+            roll=round(target.roll, 1),
+            left_antenna=round(target.left_antenna, 1),
+            right_antenna=round(target.right_antenna, 1),
+            duration=target.duration,
         )
 
-        # Update current pose for MotionSource protocol
-        self._current_pose = HeadPose(
+        # Set up eased movement for MotionSource protocol
+        # Save current pose as start, set target, and begin timing
+        self._start_pose = self._current_pose
+        self._target_pose = HeadPose(
             pitch=target.pitch,
             yaw=target.yaw,
             roll=target.roll,
             z=0.0,  # Idle doesn't control Z-axis
-            left_antenna=45.0,  # Neutral antenna
-            right_antenna=45.0,
+            left_antenna=target.left_antenna,
+            right_antenna=target.right_antenna,
         )
+        self._movement_duration = target.duration
+        self._movement_start_time = datetime.now()
 
         # If using direct daemon client (non-blend mode), execute command
         if self.client is not None:

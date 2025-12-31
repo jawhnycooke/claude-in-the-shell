@@ -31,14 +31,24 @@ class SpeechState(Enum):
 
 @dataclass
 class VADConfig:
-    """VAD configuration settings."""
+    """VAD configuration settings.
+
+    Energy-based VAD tuning notes (when Silero VAD unavailable):
+    - speech_threshold: Lower = more sensitive (catches quiet speech but also noise)
+    - silence_threshold_ms: Higher = waits longer to confirm end-of-speech
+    - min_recording_duration_s: Guarantees minimum capture time (prevents early cutoff)
+
+    The energy-based fallback is less accurate than Silero, so we err on the side
+    of recording longer to ensure OpenAI Whisper gets complete utterances.
+    """
 
     sample_rate: int = 16000
     chunk_duration_ms: int = 30  # Silero VAD works best with 30ms chunks
-    speech_threshold: float = 0.5  # Probability threshold for speech detection
-    silence_threshold_ms: int = 800  # Silence duration to trigger end-of-speech
+    speech_threshold: float = 0.30  # Threshold for speech detection (higher = stricter, less noise)
+    silence_threshold_ms: int = 1800  # Wait 1.8s of silence before end-of-speech
     min_speech_duration_ms: int = 250  # Minimum speech duration to be valid
     max_speech_duration_s: float = 30.0  # Maximum speech duration before timeout
+    min_recording_duration_s: float = 2.5  # Guarantee at least 2.5s recording for better transcription
 
 
 @dataclass
@@ -150,7 +160,16 @@ class VoiceActivityDetector:
                     speech_duration = current_time - self._speech_start_time
                     min_duration_s = self.config.min_speech_duration_ms / 1000
 
-                    if speech_duration >= min_duration_s:
+                    # Also check minimum recording duration (prevents early cutoff)
+                    if speech_duration < self.config.min_recording_duration_s:
+                        # Not enough recording time yet, keep listening
+                        logger.debug(
+                            "recording_too_short",
+                            duration=speech_duration,
+                            min_required=self.config.min_recording_duration_s,
+                        )
+                        # Don't change state - keep waiting for more speech
+                    elif speech_duration >= min_duration_s:
                         self._state = SpeechState.END_OF_SPEECH
                         logger.debug(
                             "speech_ended",
@@ -199,15 +218,36 @@ class VoiceActivityDetector:
         return speech_prob
 
     def _get_energy_probability(self, samples: np.ndarray) -> float:
-        """Fallback energy-based speech detection."""
+        """Fallback energy-based speech detection.
+
+        Tuned for detecting end-of-speech reliably when Silero VAD
+        is unavailable (e.g., no torchaudio installed on Pi).
+
+        Energy detection parameters:
+        - RMS divisor: Controls sensitivity (lower = more sensitive)
+        - Typical speech RMS: 1000-4000
+        - Ambient noise RMS: 100-500
+        - Quiet speech RMS: 500-1000
+
+        With divisor=1200 and threshold=0.20:
+        - Loud speech (3000 RMS): 2.5 → 1.0 (capped) - detected
+        - Normal speech (1500 RMS): 1.25 → 1.0 - detected
+        - Quiet speech (600 RMS): 0.5 - detected
+        - Ambient noise (300 RMS): 0.25 - borderline (may trigger)
+        - Silence (100 RMS): 0.08 - not detected
+        """
         if len(samples) == 0:
             return 0.0
 
         # Calculate RMS energy
         rms = np.sqrt(np.mean(samples.astype(np.float32) ** 2))
 
-        # Normalize (assuming typical speech is around 2000-10000 amplitude)
-        normalized = min(1.0, rms / 5000.0)
+        # Balance between sensitivity and noise rejection:
+        # - Divisor 1000: Very sensitive, catches quiet speech but also noise
+        # - Divisor 1400: Moderate, good for normal speaking distance
+        # - Divisor 1800: Strict, only loud/close speech
+        # Using 1400 as a balanced value for robot-distance speaking
+        normalized = min(1.0, rms / 1400.0)
 
         return normalized
 

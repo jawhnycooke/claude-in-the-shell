@@ -1,6 +1,6 @@
 """Wake word detector for Reachy voice pipeline.
 
-Detects "Hey Reachy" trigger phrase using OpenWakeWord library.
+Detects "Hey Jarvis" trigger phrase using OpenWakeWord library.
 Runs continuously in low-power mode until wake phrase is detected.
 """
 
@@ -20,11 +20,12 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-# Available wake word models that could work for "Hey Reachy"
-# In priority order - we'll try each until one loads
+# Available wake word models
+# OpenWakeWord bundled models - "Hey Jarvis" is our primary wake word
+# Priority order - we'll try each until one loads
 WAKE_WORD_MODELS = [
-    "hey_jarvis",  # Closest phonetically to "Hey Reachy"
-    "alexa",  # Common wake word, good fallback
+    "hey_jarvis",  # Primary wake word - "Hey Jarvis" activates the robot
+    "alexa",  # Fallback
     "hey_mycroft",  # Another assistant wake word
 ]
 
@@ -33,7 +34,7 @@ WAKE_WORD_MODELS = [
 class WakeWordConfig:
     """Wake word detection configuration."""
 
-    model_name: str = "hey_jarvis"
+    model_name: str = "hey_jarvis"  # Wake word: "Hey Jarvis"
     sensitivity: float = 0.5  # 0.0 (strict) to 1.0 (lenient)
     chunk_size: int = 1280  # Samples per chunk (80ms at 16kHz)
     sample_rate: int = 16000
@@ -59,36 +60,60 @@ class WakeWordDetector:
         self._load_model()
 
     def _load_model(self) -> None:
-        """Load the OpenWakeWord model."""
+        """Load the OpenWakeWord model.
+
+        OpenWakeWord 0.4.0 changed its API:
+        - Model() with no args loads all default models (alexa, hey_mycroft, hey_jarvis, etc.)
+        - We filter predictions at detection time to only respond to configured model
+        """
         try:
             from openwakeword.model import Model
 
-            # Try loading configured model first
-            models_to_try = [self.config.model_name] + [
-                m for m in WAKE_WORD_MODELS if m != self.config.model_name
-            ]
+            # Load model with default bundled wake words
+            # The new API loads all models; we filter by config.model_name at prediction time
+            try:
+                self._model = Model()
 
-            for model_name in models_to_try:
-                try:
-                    self._model = Model(
-                        wakeword_models=[model_name],
-                        inference_framework="onnx",
-                    )
+                # Verify our preferred model is available
+                available_models = list(self._model.models.keys())
+                if self.config.model_name in available_models:
                     logger.info(
                         "wake_word_model_loaded",
-                        model=model_name,
+                        model=self.config.model_name,
+                        all_available=available_models,
                         sensitivity=self.config.sensitivity,
                     )
-                    return
-                except Exception as e:
-                    logger.debug(
-                        "wake_word_model_failed",
-                        model=model_name,
-                        error=str(e),
-                    )
-                    continue
+                else:
+                    # Fall back to first available model from our preference list
+                    for fallback in WAKE_WORD_MODELS:
+                        if fallback in available_models:
+                            self.config.model_name = fallback
+                            logger.info(
+                                "wake_word_model_fallback",
+                                model=fallback,
+                                all_available=available_models,
+                                sensitivity=self.config.sensitivity,
+                            )
+                            break
+                    else:
+                        # Use first available if none match
+                        if available_models:
+                            self.config.model_name = available_models[0]
+                            logger.info(
+                                "wake_word_model_default",
+                                model=self.config.model_name,
+                                all_available=available_models,
+                            )
+                        else:
+                            logger.warning("no_wake_word_model_available")
+                            self._model = None
 
-            logger.warning("no_wake_word_model_available")
+            except Exception as e:
+                logger.warning(
+                    "wake_word_model_load_failed",
+                    error=str(e),
+                )
+                self._model = None
 
         except ImportError:
             logger.warning(
@@ -134,13 +159,14 @@ class WakeWordDetector:
         # Run prediction
         predictions = self._model.predict(samples)
 
-        # Check if any model triggered above threshold
-        for model_name, score in predictions.items():
-            threshold = 1.0 - self.config.sensitivity
+        # Only check the configured model's score (not all models)
+        threshold = 1.0 - self.config.sensitivity
+        if self.config.model_name in predictions:
+            score = predictions[self.config.model_name]
             if score > threshold:
                 logger.info(
                     "wake_word_detected",
-                    model=model_name,
+                    model=self.config.model_name,
                     score=score,
                     threshold=threshold,
                 )
@@ -193,8 +219,15 @@ class WakeWordDetector:
         """Stop listening for wake word."""
         self._is_running = False
 
-    def reset(self) -> None:
-        """Reset detection state."""
+    def reset(self, preserve_cooldown: bool = False) -> None:
+        """Reset detection state.
+
+        Args:
+            preserve_cooldown: If True, don't reset the last detection time.
+                              This is useful after TTS playback to prevent
+                              immediate re-triggers from echo/reverb.
+        """
         if self._model:
             self._model.reset()
-        self._last_detection_time = 0.0
+        if not preserve_cooldown:
+            self._last_detection_time = 0.0

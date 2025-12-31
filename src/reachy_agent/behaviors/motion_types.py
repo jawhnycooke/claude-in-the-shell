@@ -109,15 +109,15 @@ class HeadPose:
     - roll: positive = tilt right (from robot's perspective)
     - z: vertical offset in millimeters
 
-    Antenna angles: 0 = flat down, 45 = neutral, 90 = fully up
+    Antenna angles: 0 = flat/back, 90 = vertical (straight up)
     """
 
     pitch: float = 0.0
     yaw: float = 0.0
     roll: float = 0.0
     z: float = 0.0  # Vertical offset in mm
-    left_antenna: float = 45.0  # Neutral position
-    right_antenna: float = 45.0
+    left_antenna: float = 90.0  # Vertical (straight up)
+    right_antenna: float = 90.0
     timestamp: datetime = field(default_factory=datetime.now)
 
     def __add__(self, offset: PoseOffset) -> HeadPose:
@@ -180,10 +180,31 @@ class HeadPose:
             right_antenna=self.right_antenna + (target.right_antenna - self.right_antenna) * t,
         )
 
+    def ease_in_out(self, target: HeadPose, t: float) -> HeadPose:
+        """Ease-in-out interpolation toward target pose.
+
+        Uses cubic ease-in-out for smooth acceleration and deceleration.
+        The motion starts slow, speeds up in the middle, and slows down at the end.
+
+        Args:
+            target: Target pose to interpolate toward.
+            t: Progress factor (0.0 = start, 1.0 = end).
+
+        Returns:
+            New HeadPose with eased interpolation between self and target.
+        """
+        t = max(0.0, min(1.0, t))
+        # Cubic ease-in-out: slow start, fast middle, slow end
+        if t < 0.5:
+            eased_t = 4.0 * t * t * t
+        else:
+            eased_t = 1.0 - pow(-2.0 * t + 2.0, 3) / 2.0
+        return self.lerp(target, eased_t)
+
     @classmethod
     def neutral(cls) -> HeadPose:
-        """Return a neutral (center) pose."""
-        return cls(pitch=0.0, yaw=0.0, roll=0.0, z=0.0, left_antenna=45.0, right_antenna=45.0)
+        """Return a neutral (center) pose with antennas vertical."""
+        return cls(pitch=0.0, yaw=0.0, roll=0.0, z=0.0, left_antenna=90.0, right_antenna=90.0)
 
     @classmethod
     def from_dict(cls, data: dict) -> HeadPose:

@@ -4,10 +4,10 @@
 version: "1.0"
 
 agent:
-  name: Reachy
-  wake_word: hey reachy
-  model: claude-sonnet-4-5-20250929
-  max_tokens: 1024
+  name: Jarvis
+  wake_word: hey jarvis
+  model: claude-haiku-4-5-20251001  # Fast model for low-latency voice
+  max_tokens: 512  # Reduced for faster responses
 
 perception:
   wake_word_engine: openwakeword
@@ -62,7 +62,7 @@ idle_behavior:
 
 # Motion blending - orchestrates all motion sources
 motion_blend:
-  enabled: false  # Disabled for voice testing
+  enabled: true  # Enabled - orchestrates idle behavior and wobble
   tick_rate_hz: 100.0        # Internal control loop rate
   command_rate_hz: 20.0      # Rate to send commands to daemon
   smoothing_factor: 0.3      # Pose interpolation factor (0.0-1.0)
@@ -73,9 +73,9 @@ motion_blend:
     z_range: [-50, 50]       # Vertical offset limits in mm
     antenna_range: [0, 90]   # Antenna position limits in degrees
 
-# Breathing behavior - subtle idle animation
+# Breathing behavior - subtle idle animation (antenna oscillation)
 breathing:
-  enabled: false  # Disabled for voice testing
+  enabled: false  # Disabled by preference - use idle_behavior instead
   z_amplitude_mm: 5.0        # Vertical body oscillation amplitude
   z_frequency_hz: 0.1        # 6 second breathing cycle
   antenna_amplitude_deg: 15.0  # Antenna sway amplitude
@@ -130,6 +130,30 @@ voice:
     channels: 1                  # Mono audio
     chunk_size: 512              # Samples per chunk (Silero VAD requires 512 at 16kHz)
     format_bits: 16              # int16 PCM
+    # Device indices for Reachy Mini (use shared dsnoop/dmix devices)
+    # Index 4 = reachymini_audio_src (dsnoop - shared input)
+    # Index 3 = reachymini_audio_sink (dmix - shared output)
+    input_device_index: 4        # Use dsnoop for mic sharing with daemon
+    output_device_index: 3       # Use dmix for speaker sharing with daemon
+
+    # Resilience settings
+    max_init_retries: 3          # Retry audio init this many times
+    retry_delay_seconds: 1.0     # Initial delay between retries
+    retry_backoff_factor: 2.0    # Multiply delay by this each retry
+
+    # Buffer settings
+    output_lead_in_ms: 200       # Silence before TTS playback (prevents click)
+    input_warmup_chunks: 5       # Discard first N chunks (mic settling)
+
+    # Health monitoring
+    health_check_interval_seconds: 5.0  # Check stream health every N seconds
+    max_consecutive_errors: 3    # Trigger recovery after N consecutive errors
+
+  # Degraded mode - graceful fallback when components fail
+  degraded_mode:
+    skip_wake_word_on_failure: true     # Switch to always-listening if wake word fails
+    use_energy_vad_fallback: true       # Use energy-based VAD if Silero unavailable
+    log_response_on_tts_failure: true   # Log response text if TTS fails
 
   # Pipeline behavior
   confirmation_beep: true        # Play sound when wake word detected

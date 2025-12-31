@@ -56,8 +56,7 @@ class RealtimeConfig:
     input_sample_rate: int = 16000  # Our microphone sample rate
     temperature: float = 0.8
     max_response_tokens: int = 4096
-    turn_detection_threshold: float = 0.5
-    turn_detection_silence_ms: int = 500
+    # Note: We use local VAD (not server VAD), so no turn_detection config here
 
 
 @dataclass
@@ -174,18 +173,28 @@ class OpenAIRealtimeClient:
             ).__aenter__()
 
             # Configure the session for audio I/O
+            # CRITICAL: We disable server VAD (turn_detection: null) because we use
+            # our own local VAD for end-of-speech detection. Using server_vad would
+            # cause OpenAI to consume/process the audio buffer automatically, which
+            # conflicts with our manual commit flow and results in "buffer too small"
+            # errors when we try to commit.
+            #
+            # Manual mode flow:
+            # 1. Client sends audio via input_audio_buffer.append
+            # 2. Client detects end-of-speech with local VAD
+            # 3. Client commits buffer via input_audio_buffer.commit
+            # 4. Server transcribes and returns conversation.item.input_audio_transcription.completed
             await self._connection.session.update(
                 session={
                     "modalities": ["audio", "text"],
                     "voice": self.config.voice,
                     "input_audio_format": "pcm16",
                     "output_audio_format": "pcm16",
-                    "input_audio_transcription": {"model": "whisper-1"},
-                    "turn_detection": {
-                        "type": "server_vad",
-                        "threshold": self.config.turn_detection_threshold,
-                        "silence_duration_ms": self.config.turn_detection_silence_ms,
+                    "input_audio_transcription": {
+                        "model": "whisper-1",
+                        "language": "en",  # Force English transcription
                     },
+                    "turn_detection": None,  # Disable server VAD - we use local VAD
                     "temperature": self.config.temperature,
                     "max_response_output_tokens": self.config.max_response_tokens,
                 }
@@ -213,14 +222,20 @@ class OpenAIRealtimeClient:
                 self._is_connected = False
                 logger.info("realtime_disconnected")
 
-    async def send_audio(self, audio_data: bytes) -> None:
+    async def send_audio(self, audio_data: bytes) -> bool:
         """Send audio chunk to the Realtime API.
 
         Args:
             audio_data: Raw PCM audio bytes (int16, mono)
+
+        Returns:
+            True if audio was sent successfully, False if connection is dead
         """
         if not self._connection:
-            return
+            logger.debug("send_audio_no_connection")
+            return False
+
+        original_size = len(audio_data)
 
         # Resample from 16kHz to 24kHz if needed
         if self.config.input_sample_rate != self.config.sample_rate:
@@ -230,33 +245,106 @@ class OpenAIRealtimeClient:
                 self.config.sample_rate,
             )
 
+        resampled_size = len(audio_data)
+
         # Encode as base64 for the API
         audio_b64 = base64.b64encode(audio_data).decode("utf-8")
 
         try:
             await self._connection.input_audio_buffer.append(audio=audio_b64)
             self._last_activity_time = time.monotonic()
+            # Log every 50th chunk to avoid log spam but still provide visibility
+            if not hasattr(self, "_send_count"):
+                self._send_count = 0
+            self._send_count += 1
+            if self._send_count % 50 == 1:
+                logger.debug(
+                    "send_audio_chunk",
+                    chunk_num=self._send_count,
+                    original_bytes=original_size,
+                    resampled_bytes=resampled_size,
+                    b64_len=len(audio_b64),
+                )
+            return True
         except Exception as e:
-            logger.warning("send_audio_failed", error=str(e))
+            error_str = str(e)
+            # Detect WebSocket death (1011 = internal error, keepalive timeout)
+            if "1011" in error_str or "keepalive" in error_str or "closed" in error_str:
+                logger.warning("send_audio_connection_dead", error=error_str)
+                self._is_connected = False
+                self._connection = None
+                return False
+            logger.warning("send_audio_failed", error=error_str)
+            return False
 
-    async def commit_audio(self) -> None:
-        """Commit the audio buffer to trigger transcription."""
+    async def send_audio_batch(self, chunks: list[bytes]) -> bool:
+        """Send multiple audio chunks to the Realtime API.
+
+        Args:
+            chunks: List of raw PCM audio byte chunks (int16, mono)
+
+        Returns:
+            True if all audio was sent successfully
+        """
+        if not chunks:
+            return True
+
+        logger.info("send_audio_batch_starting", chunk_count=len(chunks))
+
+        for i, chunk in enumerate(chunks):
+            success = await self.send_audio(chunk)
+            if not success:
+                logger.warning("send_audio_batch_failed", at_chunk=i, total=len(chunks))
+                return False
+
+        logger.info("send_audio_batch_complete", chunk_count=len(chunks))
+        return True
+
+    async def commit_audio(self) -> bool:
+        """Commit the audio buffer to trigger transcription.
+
+        In manual VAD mode, this must be called after the client detects
+        end-of-speech. It triggers the server to create a user message
+        item and begin transcription.
+
+        Returns:
+            True if commit succeeded, False otherwise
+        """
         if not self._connection:
-            return
+            logger.warning("commit_audio_no_connection")
+            return False
 
         try:
             await self._connection.input_audio_buffer.commit()
-            logger.debug("audio_buffer_committed")
+            self._last_activity_time = time.monotonic()
+            logger.info("audio_buffer_committed_successfully")
+            return True
         except Exception as e:
-            logger.warning("commit_audio_failed", error=str(e))
+            error_str = str(e)
+            # "buffer too small" means no audio was in the buffer to commit
+            if "too small" in error_str.lower() or "empty" in error_str.lower():
+                logger.error(
+                    "commit_audio_buffer_empty",
+                    error=error_str,
+                    msg="No audio data was received by OpenAI - check send_audio flow",
+                )
+            else:
+                logger.warning("commit_audio_failed", error=error_str)
+            return False
 
     async def clear_audio_buffer(self) -> None:
-        """Clear the input audio buffer."""
+        """Clear the input audio buffer.
+
+        In manual VAD mode, this should be called before starting a new
+        recording session to ensure no stale audio from previous interactions.
+        """
         if not self._connection:
             return
 
         try:
             await self._connection.input_audio_buffer.clear()
+            # Reset the send counter for the new recording session
+            self._send_count = 0
             logger.debug("audio_buffer_cleared")
         except Exception as e:
             logger.warning("clear_audio_failed", error=str(e))
@@ -273,10 +361,15 @@ class OpenAIRealtimeClient:
             logger.warning("request_response_failed", error=str(e))
 
     async def send_text(self, text: str) -> None:
-        """Send a text message to the model for TTS.
+        """Send text to OpenAI Realtime for TTS playback.
+
+        This creates an assistant message containing the exact text we want
+        spoken, then triggers a response to generate the audio. Using role
+        "assistant" ensures OpenAI reads the text verbatim rather than
+        generating a reply to it.
 
         Args:
-            text: Text message to send
+            text: Text to be spoken aloud
         """
         if not self._connection:
             return
@@ -285,17 +378,21 @@ class OpenAIRealtimeClient:
             # Clear any lingering audio buffer from previous STT
             await self._connection.input_audio_buffer.clear()
 
-            # Create a text message for the assistant to speak
+            # Create an assistant message with the text to speak
+            # IMPORTANT: Using role="assistant" makes OpenAI read this text
+            # verbatim for TTS. Using role="user" would cause OpenAI to
+            # generate its own response TO this text instead.
             await self._connection.conversation.item.create(
                 item={
                     "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": text}],
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": text}],
                 }
             )
+            # Request audio generation for the assistant message
             await self._connection.response.create()
             self._last_activity_time = time.monotonic()
-            logger.debug("text_sent", text_length=len(text))
+            logger.debug("text_sent_for_tts", text_length=len(text))
         except Exception as e:
             logger.warning("send_text_failed", error=str(e))
 
@@ -393,7 +490,7 @@ class OpenAIRealtimeClient:
         self,
         audio_stream: AsyncIterator[bytes],
     ) -> TranscriptionResult:
-        """Transcribe audio stream to text.
+        """Transcribe audio stream to text using Realtime API.
 
         Args:
             audio_stream: Async iterator of audio chunks
@@ -422,11 +519,141 @@ class OpenAIRealtimeClient:
 
         return TranscriptionResult(text=transcript)
 
+    async def transcribe_whisper(
+        self,
+        audio_data: bytes,
+        sample_rate: int = 16000,
+    ) -> TranscriptionResult:
+        """Transcribe audio using OpenAI's standard Whisper API (batch).
+
+        This is a batch endpoint - you send complete audio and get transcription.
+        Useful for comparing latency against the Realtime API's streaming approach.
+
+        Args:
+            audio_data: Complete audio buffer (int16 PCM mono)
+            sample_rate: Sample rate of the audio (default 16kHz)
+
+        Returns:
+            Transcription result with text
+        """
+        import io
+        import wave
+
+        if not self._client:
+            logger.error("transcribe_whisper_no_client")
+            return TranscriptionResult(text="", confidence=0.0)
+
+        start_time = time.monotonic()
+
+        try:
+            # Convert PCM to WAV format (Whisper API requires a file format)
+            wav_buffer = io.BytesIO()
+            with wave.open(wav_buffer, "wb") as wav_file:
+                wav_file.setnchannels(1)  # Mono
+                wav_file.setsampwidth(2)  # 16-bit
+                wav_file.setframerate(sample_rate)
+                wav_file.writeframes(audio_data)
+
+            wav_buffer.seek(0)
+            wav_buffer.name = "audio.wav"  # Required for the API
+
+            audio_duration = len(audio_data) / 2 / sample_rate  # 2 bytes per sample
+            logger.info(
+                "transcribe_whisper_starting",
+                audio_bytes=len(audio_data),
+                audio_duration_s=round(audio_duration, 2),
+            )
+
+            # Call the standard Whisper API
+            response = await self._client.audio.transcriptions.create(
+                model="whisper-1",
+                file=wav_buffer,
+                language="en",
+                response_format="text",
+            )
+
+            elapsed = time.monotonic() - start_time
+            transcript = response.strip() if isinstance(response, str) else str(response)
+
+            logger.info(
+                "transcribe_whisper_complete",
+                latency_ms=round(elapsed * 1000, 1),
+                transcript_length=len(transcript),
+                transcript_preview=transcript[:50] if transcript else "(empty)",
+            )
+
+            return TranscriptionResult(
+                text=transcript,
+                confidence=1.0,
+                duration_seconds=audio_duration,
+            )
+
+        except Exception as e:
+            elapsed = time.monotonic() - start_time
+            logger.error("transcribe_whisper_failed", error=str(e), elapsed_ms=round(elapsed * 1000, 1))
+            return TranscriptionResult(text="", confidence=0.0)
+
     async def speak(
         self,
         text: str,
     ) -> AsyncIterator[bytes]:
-        """Convert text to speech audio stream.
+        """Convert text to speech audio stream using OpenAI's standard TTS API.
+
+        Uses the /audio/speech endpoint which speaks text VERBATIM, unlike the
+        Realtime API which generates conversational responses.
+
+        Args:
+            text: Text to speak (will be spoken exactly as provided)
+
+        Yields:
+            Audio chunks (PCM16, 24kHz)
+        """
+        if not self._client:
+            logger.error("speak_failed_no_client")
+            return
+
+        try:
+            logger.debug("speak_verbatim_starting", text_length=len(text))
+
+            # Use the standard TTS API with streaming response
+            # This speaks text VERBATIM, unlike the Realtime API
+            async with self._client.audio.speech.with_streaming_response.create(
+                model="tts-1",  # or "tts-1-hd" for higher quality
+                voice=self.config.voice,
+                input=text,
+                response_format="pcm",  # Raw PCM16 at 24kHz
+            ) as response:
+                # Stream audio chunks as they arrive
+                async for chunk in response.iter_bytes(chunk_size=4096):
+                    if chunk:
+                        # Calculate amplitude for HeadWobble if callback registered
+                        if self.on_audio_amplitude:
+                            amplitude = self._calculate_amplitude(chunk)
+                            self.on_audio_amplitude(amplitude)
+                        yield chunk
+
+            # Reset amplitude when done
+            if self.on_audio_amplitude:
+                self.on_audio_amplitude(0.0)
+
+            logger.debug("speak_verbatim_complete")
+
+        except Exception as e:
+            logger.error("speak_verbatim_failed", error=str(e))
+            if self.on_audio_amplitude:
+                self.on_audio_amplitude(0.0)
+
+    async def speak_realtime(
+        self,
+        text: str,
+    ) -> AsyncIterator[bytes]:
+        """Convert text to speech using the Realtime API (DEPRECATED).
+
+        WARNING: This method generates conversational responses, NOT verbatim
+        speech. The Realtime API considers conversation history and may rephrase
+        or respond to the text instead of speaking it directly.
+
+        Use speak() instead for verbatim TTS.
 
         Args:
             text: Text to speak

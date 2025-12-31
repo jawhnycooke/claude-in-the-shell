@@ -107,6 +107,17 @@ class ReachyDaemonClient:
 
         try:
             status = await self.get_status()
+
+            # Check if get_status returned an error response (not a real status)
+            # This can happen if the daemon isn't fully ready yet
+            if status.get("status") == "error":
+                log.warning(
+                    "Backend detection deferred - daemon returned error",
+                    message=status.get("message"),
+                )
+                # Don't cache - allow retry on next call
+                return DaemonBackend.UNKNOWN
+
             # Mock daemon includes "connection_type": "simulator" or "mock"
             # Real daemon includes "robot_name" and different structure
             if status.get("connection_type") in ("simulator", "mock"):
@@ -114,8 +125,12 @@ class ReachyDaemonClient:
             elif "robot_name" in status or "state" in status:
                 self._backend = DaemonBackend.REAL
             else:
-                # Default to mock for development
-                self._backend = DaemonBackend.MOCK
+                # Default to mock for development - but don't cache if unsure
+                log.warning(
+                    "Backend detection uncertain - defaulting to mock (not cached)",
+                    status_keys=list(status.keys()),
+                )
+                return DaemonBackend.MOCK
 
             log.info("Detected daemon backend", backend=self._backend.value)
         except ReachyDaemonError:
@@ -658,9 +673,14 @@ class ReachyDaemonClient:
             # but reachy-mini uses negative = look up
             hardware_pitch_deg = -pitch_deg
 
-            # Convert antenna angles from degrees to radians
-            left_antenna_rad = deg_to_rad(antennas["left"])
-            right_antenna_rad = deg_to_rad(antennas["right"])
+            # Convert antenna angles from our convention to daemon convention
+            # Our convention: 0° = flat/back, 90° = vertical (straight up)
+            # Daemon convention: 0 rad = vertical, π/2 rad = flat/back
+            def to_daemon_radians(deg: float) -> float:
+                return deg_to_rad(90.0 - deg)
+
+            left_antenna_rad = to_daemon_radians(antennas["left"])
+            right_antenna_rad = to_daemon_radians(antennas["right"])
 
             # Use set_target for smooth custom emotion (no snapping)
             data = {
@@ -758,21 +778,32 @@ class ReachyDaemonClient:
         """Set antenna positions.
 
         Args:
-            left_angle: Left antenna angle in degrees.
-            right_angle: Right antenna angle in degrees.
+            left_angle: Left antenna angle in degrees (0=flat/back, 90=vertical).
+            right_angle: Right antenna angle in degrees (0=flat/back, 90=vertical).
             wiggle: Whether to wiggle (mock daemon only).
             duration_ms: Motion duration (mock daemon only, set_target uses smooth interpolation).
 
         Returns:
             Operation status.
+
+        Note:
+            The daemon API uses radians where 0=vertical and π/2=flat, which is
+            inverted from our user-facing convention (0=flat, 90=vertical).
+            This method handles the conversion automatically.
         """
         backend = await self.detect_backend()
 
         if backend == DaemonBackend.REAL:
             # Real daemon uses /api/move/set_target for smooth movements
-            # Antenna angles come in as degrees, MuJoCo expects radians
-            left_rad = deg_to_rad(left_angle) if left_angle is not None else 0.0
-            right_rad = deg_to_rad(right_angle) if right_angle is not None else 0.0
+            # Our convention: 0° = flat/back, 90° = vertical (straight up)
+            # Daemon convention: 0 rad = vertical, π/2 rad = flat/back
+            # Conversion: daemon_rad = (90 - our_deg) * π/180
+            def to_daemon_radians(deg: float) -> float:
+                """Convert our degrees (0=flat, 90=vertical) to daemon radians (0=vertical)."""
+                return deg_to_rad(90.0 - deg)
+
+            left_rad = to_daemon_radians(left_angle) if left_angle is not None else 0.0
+            right_rad = to_daemon_radians(right_angle) if right_angle is not None else 0.0
             antennas = [left_rad, right_rad]
             log.debug(
                 "set_antenna_state: using set_target for smooth movement",
@@ -967,6 +998,12 @@ class ReachyDaemonClient:
                     # Invert pitch for reachy-mini (positive = look up in user space)
                     hardware_pitch = -head["pitch"]
 
+                    # Convert antenna angles from our convention to daemon convention
+                    # Our convention: 0° = flat/back, 90° = vertical (straight up)
+                    # Daemon convention: 0 rad = vertical, π/2 rad = flat/back
+                    def to_daemon_radians(deg: float) -> float:
+                        return deg_to_rad(90.0 - deg)
+
                     # Use set_target for smooth dance keyframe playback (no snapping)
                     data = {
                         "target_head_pose": {
@@ -974,7 +1011,7 @@ class ReachyDaemonClient:
                             "pitch": deg_to_rad(hardware_pitch),
                             "yaw": deg_to_rad(head["yaw"]),
                         },
-                        "target_antennas": [deg_to_rad(antennas[0]), deg_to_rad(antennas[1])],
+                        "target_antennas": [to_daemon_radians(antennas[0]), to_daemon_radians(antennas[1])],
                     }
 
                     try:
@@ -1118,6 +1155,70 @@ class ReachyDaemonClient:
                 return await self._request("POST", "/head/look_at", json_data=data)
             except ReachyDaemonError as e:
                 return {"status": "error", "message": str(e)}
+
+    async def set_full_pose(
+        self,
+        roll: float = 0.0,
+        pitch: float = 0.0,
+        yaw: float = 0.0,
+        left_antenna: float = 90.0,
+        right_antenna: float = 90.0,
+    ) -> dict[str, str]:
+        """Set head pose and antenna positions in a single API call.
+
+        This is optimized for the blend controller to send complete poses
+        atomically, avoiding issues where separate calls reset each other's
+        targets.
+
+        Args:
+            roll: Roll angle in degrees (-45 to 45).
+            pitch: Pitch angle in degrees (-45 to 45). Positive = look up.
+            yaw: Yaw angle in degrees (-45 to 45). Positive = look left.
+            left_antenna: Left antenna angle in degrees (0=flat/back, 90=vertical).
+            right_antenna: Right antenna angle in degrees (0=flat/back, 90=vertical).
+
+        Returns:
+            Operation status.
+        """
+        backend = await self.detect_backend()
+
+        # Convert user-facing pitch convention (positive = up) to
+        # reachy-mini convention (negative = up)
+        hardware_pitch = -pitch
+
+        if backend == DaemonBackend.REAL:
+            # Convert head angles from degrees to radians
+            head_pose = {
+                "roll": deg_to_rad(roll),
+                "pitch": deg_to_rad(hardware_pitch),
+                "yaw": deg_to_rad(yaw),
+            }
+
+            # Convert antenna angles from our convention to daemon convention
+            # Our convention: 0° = flat/back, 90° = vertical (straight up)
+            # Daemon convention: 0 rad = vertical, π/2 rad = flat/back
+            def to_daemon_radians(deg: float) -> float:
+                return deg_to_rad(90.0 - deg)
+
+            antennas = [to_daemon_radians(left_antenna), to_daemon_radians(right_antenna)]
+
+            # Send both head pose and antennas in a single request
+            data = {
+                "target_head_pose": head_pose,
+                "target_antennas": antennas,
+            }
+
+            try:
+                result = await self._request("POST", "/api/move/set_target", json_data=data)
+                return {"status": "success", "result": str(result.get("status", "ok"))}
+            except ReachyDaemonError as e:
+                return {"status": "error", "message": str(e)}
+        else:
+            # Mock daemon: fall back to separate calls
+            await self.look_at(roll=roll, pitch=pitch, yaw=yaw)
+            return await self.set_antenna_state(
+                left_angle=left_antenna, right_angle=right_antenna
+            )
 
     async def listen(
         self,

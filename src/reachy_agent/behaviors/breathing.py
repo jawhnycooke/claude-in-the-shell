@@ -31,6 +31,9 @@ class BreathingConfig:
     (degrees for angles, mm for z-axis).
     """
 
+    # Whether breathing behavior is enabled
+    enabled: bool = True
+
     # Z-axis (body) oscillation - simulates breathing
     z_amplitude_mm: float = 5.0
     z_frequency_hz: float = 0.1  # 6 second period (slow breath)
@@ -38,7 +41,7 @@ class BreathingConfig:
     # Antenna oscillation - creates attentive appearance
     antenna_amplitude_deg: float = 15.0
     antenna_frequency_hz: float = 0.5  # 2 second period
-    antenna_base_angle: float = 45.0  # Neutral antenna position
+    antenna_base_angle: float = 90.0  # Vertical (straight up) neutral position
 
     # Head micro-movements - subtle variation
     pitch_amplitude_deg: float = 1.5
