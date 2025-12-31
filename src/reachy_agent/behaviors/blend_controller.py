@@ -349,13 +349,10 @@ class MotionBlendController:
                     )
 
                 # Rate-limit commands to daemon
-                should_send = False
-                if self._last_command_time is None:
-                    should_send = True
-                else:
-                    elapsed = (datetime.now() - self._last_command_time).total_seconds()
-                    if elapsed >= command_interval:
-                        should_send = True
+                should_send = (
+                    self._last_command_time is None
+                    or (datetime.now() - self._last_command_time).total_seconds() >= command_interval
+                )
 
                 if should_send and self._send_pose:
                     await self._send_pose_to_daemon(self._current_pose)
@@ -437,8 +434,11 @@ class MotionBlendController:
                     if self._sdk_failures > 0:
                         self._sdk_failures = 0
                         log.info("SDK connection recovered")
-                else:
-                    self._sdk_failures += 1
+                    self._reset_motion_health_on_success()
+                    return
+
+                # SDK call returned False
+                self._sdk_failures += 1
             except asyncio.CancelledError:
                 # Don't count cancellation as SDK failure
                 raise
@@ -457,11 +457,6 @@ class MotionBlendController:
                     failures=self._sdk_failures,
                 )
                 self._sdk_fallback_active = True
-
-        # If SDK succeeded, we're done
-        if sdk_success:
-            self._reset_motion_health_on_success()
-            return
 
         # Fall back to HTTP callback
         if self._send_pose:

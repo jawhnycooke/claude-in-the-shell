@@ -603,16 +603,10 @@ class ReachyAgentLoop:
 
         # Get memory paths from config or use defaults
         memory_config = getattr(self.config, "memory", None) if self.config else None
-        if memory_config is not None:
-            chroma_path = memory_config.chroma_path
-            sqlite_path = memory_config.sqlite_path
-            embedding_model = memory_config.embedding_model
-            retention_days = memory_config.retention_days
-        else:
-            chroma_path = "~/.reachy/memory/chroma"
-            sqlite_path = "~/.reachy/memory/reachy.db"
-            embedding_model = "all-MiniLM-L6-v2"
-            retention_days = 90
+        chroma_path = memory_config.chroma_path if memory_config else "~/.reachy/memory/chroma"
+        sqlite_path = memory_config.sqlite_path if memory_config else "~/.reachy/memory/reachy.db"
+        embedding_model = memory_config.embedding_model if memory_config else "all-MiniLM-L6-v2"
+        retention_days = memory_config.retention_days if memory_config else 90
 
         try:
             # Create and initialize memory manager
@@ -786,15 +780,23 @@ class ReachyAgentLoop:
 
             # Set default primary motion based on config
             # Use idle if enabled, otherwise breathing if enabled, otherwise none
-            breathing_enabled = self._breathing_config.enabled if self._breathing_config else True
+            breathing_enabled = (
+                self._breathing_config.enabled if self._breathing_config else True
+            )
+
+            primary_motion = None
             if self._enable_idle_behavior:
-                await self._blend_controller.set_primary("idle")
-                log.info("Using idle behavior as primary motion")
+                primary_motion = "idle"
+                log_msg = "Using idle behavior as primary motion"
             elif breathing_enabled:
-                await self._blend_controller.set_primary("breathing")
-                log.info("Using breathing as primary motion")
+                primary_motion = "breathing"
+                log_msg = "Using breathing as primary motion"
             else:
-                log.info("No primary motion enabled (both idle and breathing disabled)")
+                log_msg = "No primary motion enabled (both idle and breathing disabled)"
+
+            if primary_motion:
+                await self._blend_controller.set_primary(primary_motion)
+            log.info(log_msg)
 
             log.info(
                 "Motion blending system initialized",
@@ -936,14 +938,6 @@ class ReachyAgentLoop:
         duration_ms: int | None = None
 
         try:
-            # Reuse persistent SDK client (connected in initialize())
-            if self._client is None:
-                log.error("SDK client not initialized")
-                return AgentResponse(
-                    text="",
-                    error="SDK client not initialized",
-                    context=context,
-                )
 
             # Send query to Claude using persistent connection
             await self._client.query(augmented_input)

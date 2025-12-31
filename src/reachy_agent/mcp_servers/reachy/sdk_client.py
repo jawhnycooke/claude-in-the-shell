@@ -261,20 +261,18 @@ class ReachySDKClient:
         Returns:
             True if successful, False otherwise.
         """
-        if not self.is_connected or self._robot is None:
+        # Check all required resources are available
+        if not self.is_connected or self._robot is None or self._executor is None:
             # Rate-limited warning (avoid spam at 15Hz loop rate)
             now = time.monotonic()
-            if now - self._last_disconnected_warning > self._WARN_INTERVAL_SECONDS:
-                log.warning("sdk_set_pose_skipped", reason="not_connected")
-                self._last_disconnected_warning = now
-            return False
-
-        if self._executor is None:
-            # Rate-limited warning for executor not initialized
-            now = time.monotonic()
-            if now - self._last_executor_warning > self._WARN_INTERVAL_SECONDS:
-                log.warning("sdk_set_pose_skipped", reason="executor_not_initialized")
-                self._last_executor_warning = now
+            if not self.is_connected or self._robot is None:
+                if now - self._last_disconnected_warning > self._WARN_INTERVAL_SECONDS:
+                    log.warning("sdk_set_pose_skipped", reason="not_connected")
+                    self._last_disconnected_warning = now
+            elif self._executor is None:
+                if now - self._last_executor_warning > self._WARN_INTERVAL_SECONDS:
+                    log.warning("sdk_set_pose_skipped", reason="executor_not_initialized")
+                    self._last_executor_warning = now
             return False
 
         try:
