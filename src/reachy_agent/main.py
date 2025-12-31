@@ -84,6 +84,8 @@ async def async_main(
     daemon_url: str = "http://localhost:8000",
     mock_daemon: bool = False,
     interactive: bool = True,
+    voice_mode: bool = False,
+    test_voice_mode: bool = False,
 ) -> None:
     """Async main function.
 
@@ -92,6 +94,8 @@ async def async_main(
         daemon_url: URL of Reachy daemon.
         mock_daemon: Whether to start mock daemon.
         interactive: Whether to run interactive loop.
+        voice_mode: Whether to enable voice interaction.
+        test_voice_mode: Whether to run autonomous voice tests.
     """
     # Load configuration
     config = load_config(config_path)
@@ -108,6 +112,8 @@ async def async_main(
         model=config.agent.model.value,
         daemon_url=daemon_url,
         mock_daemon=mock_daemon,
+        voice_mode=voice_mode,
+        test_voice_mode=test_voice_mode,
     )
 
     # Start mock daemon if requested
@@ -117,14 +123,180 @@ async def async_main(
         await asyncio.sleep(1)  # Wait for daemon to start
 
     # Create and run agent
-    async with ReachyAgentLoop(config=config, daemon_url=daemon_url).session() as agent:
-        if interactive:
+    async with ReachyAgentLoop(
+        config=config,
+        daemon_url=daemon_url,
+        enable_motion_blend=True,
+        enable_idle_behavior=True,
+    ).session() as agent:
+        if test_voice_mode:
+            await run_voice_test_mode(agent)
+        elif voice_mode:
+            await run_voice_mode(agent, config)
+        elif interactive:
             await run_interactive_loop(agent)
         else:
             # Non-interactive mode - just keep running
             log.info("Running in non-interactive mode. Press Ctrl+C to exit.")
             while True:
                 await asyncio.sleep(1)
+
+
+async def run_voice_mode(agent: ReachyAgentLoop, config: dict | None = None) -> None:
+    """Run the agent with voice interaction.
+
+    Args:
+        agent: Initialized agent loop.
+        config: Optional config dict with voice settings from YAML.
+    """
+    try:
+        from reachy_agent.voice import VoicePipeline, VoicePipelineConfig
+        from reachy_agent.voice.audio import AudioConfig
+    except ImportError as e:
+        print(f"\n❌ Voice dependencies not installed: {e}")
+        print("Install with: pip install reachy-agent[voice]")
+        return
+
+    print("\n🎤 Reachy Agent Voice Mode")
+    print("Say 'Hey Reachy' to activate. Use Ctrl+C to exit.\n")
+
+    # Build voice pipeline config from YAML settings
+    voice_config = VoicePipelineConfig()
+    if config and hasattr(config, "voice") and config.voice:
+        voice_cfg = config.voice
+        # Build audio config with device indices from YAML
+        if voice_cfg.get("audio"):
+            audio_cfg = voice_cfg["audio"]
+            voice_config.audio = AudioConfig(
+                sample_rate=audio_cfg.get("sample_rate", 16000),
+                channels=audio_cfg.get("channels", 1),
+                chunk_size=audio_cfg.get("chunk_size", 512),
+                format_bits=audio_cfg.get("format_bits", 16),
+                input_device_index=audio_cfg.get("input_device_index"),
+                output_device_index=audio_cfg.get("output_device_index"),
+                max_init_retries=audio_cfg.get("max_init_retries", 3),
+                retry_delay_seconds=audio_cfg.get("retry_delay_seconds", 1.0),
+                output_lead_in_ms=audio_cfg.get("output_lead_in_ms", 200),
+                input_warmup_chunks=audio_cfg.get("input_warmup_chunks", 5),
+            )
+            log.info(
+                "Voice audio config loaded",
+                input_device=voice_config.audio.input_device_index,
+                output_device=voice_config.audio.output_device_index,
+            )
+
+    # Create and start voice pipeline
+    pipeline = VoicePipeline(
+        agent=agent,
+        config=voice_config,
+        on_transcription=lambda text: print(f"You: {text}"),
+        on_response=lambda text: print(f"Reachy: {text}"),
+    )
+
+    try:
+        success = await pipeline.initialize()
+        if not success:
+            print("❌ Failed to initialize voice pipeline")
+            return
+
+        await pipeline.start()
+
+        # Keep running until interrupted
+        while pipeline.is_running:
+            await asyncio.sleep(0.1)
+
+    finally:
+        await pipeline.stop()
+
+
+async def run_voice_test_mode(agent: ReachyAgentLoop) -> None:
+    """Run autonomous voice pipeline tests using synthetic speech.
+
+    Uses OpenAI TTS to generate synthetic human speech and inject it
+    into the voice pipeline for automated end-to-end testing.
+
+    Args:
+        agent: Initialized agent loop.
+    """
+    try:
+        from reachy_agent.voice import (
+            DEFAULT_TEST_SCENARIOS,
+            SyntheticHuman,
+            VoicePipeline,
+            VoicePipelineConfig,
+            VoiceTestHarness,
+        )
+    except ImportError as e:
+        print(f"\n❌ Voice dependencies not installed: {e}")
+        print("Install with: pip install reachy-agent[voice]")
+        return
+
+    print("\n🧪 Reachy Agent Voice Test Mode")
+    print("Running autonomous voice pipeline tests...\n")
+
+    # Create voice pipeline with wake word disabled for testing
+    config = VoicePipelineConfig(wake_word_enabled=False)
+    pipeline = VoicePipeline(
+        agent=agent,
+        config=config,
+        on_transcription=lambda text: print(f"  📝 Transcription: {text}"),
+        on_response=lambda text: print(f"  🗣️ Response: {text[:100]}..."),
+    )
+
+    # Initialize pipeline
+    success = await pipeline.initialize()
+    if not success:
+        print("❌ Failed to initialize voice pipeline")
+        return
+
+    # Create test harness
+    harness = VoiceTestHarness(
+        agent=agent,
+        pipeline=pipeline,
+        synthetic_human=SyntheticHuman(),
+    )
+
+    # Wire up pipeline callbacks to harness
+    pipeline.on_transcription = harness._on_transcription
+    pipeline.on_response = harness._on_response
+
+    if not await harness.initialize():
+        print("❌ Failed to initialize test harness")
+        return
+
+    try:
+        # Connect synthetic human
+        if not await harness.synthetic_human.connect():
+            print("❌ Failed to connect synthetic human to OpenAI")
+            return
+
+        print(f"Running {len(DEFAULT_TEST_SCENARIOS)} test scenarios...\n")
+        print("-" * 60)
+
+        # Run test scenarios
+        results = await harness.run_all_scenarios(DEFAULT_TEST_SCENARIOS)
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("TEST RESULTS SUMMARY")
+        print("=" * 60)
+
+        passed = sum(1 for r in results if r.success)
+        failed = len(results) - passed
+
+        for result in results:
+            status_icon = "✅" if result.success else "❌"
+            print(f"{status_icon} {result.input_text[:40]:<40} [{result.status.value}]")
+            if not result.success and result.error_message:
+                print(f"   Error: {result.error_message}")
+
+        print("-" * 60)
+        print(f"Total: {len(results)} | Passed: {passed} | Failed: {failed}")
+        print("=" * 60)
+
+    finally:
+        await harness.cleanup()
+        await pipeline.stop()
 
 
 async def start_mock_daemon() -> None:
@@ -167,8 +339,24 @@ def run(
         "--non-interactive",
         help="Run without interactive prompt",
     ),
+    voice: bool = typer.Option(
+        False,
+        "--voice",
+        "-v",
+        help="Enable voice interaction (requires OpenAI API key)",
+    ),
+    test_voice: bool = typer.Option(
+        False,
+        "--test-voice",
+        help="Run autonomous voice pipeline tests using synthetic speech",
+    ),
 ) -> None:
-    """Run the Reachy agent."""
+    """Run the Reachy agent.
+
+    Use --voice to enable real-time voice interaction with the robot.
+    Use --test-voice to run autonomous voice pipeline tests without manual speech.
+    Requires: pip install reachy-agent[voice] and OPENAI_API_KEY env var.
+    """
     try:
         asyncio.run(
             async_main(
@@ -176,6 +364,8 @@ def run(
                 daemon_url=daemon_url,
                 mock_daemon=mock,
                 interactive=not non_interactive,
+                voice_mode=voice,
+                test_voice_mode=test_voice,
             )
         )
     except KeyboardInterrupt:

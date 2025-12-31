@@ -4,10 +4,10 @@
 version: "1.0"
 
 agent:
-  name: Reachy
-  wake_word: hey reachy
-  model: claude-sonnet-4-5-20250929
-  max_tokens: 1024
+  name: Jarvis
+  wake_word: hey jarvis
+  model: claude-haiku-4-5-20251001  # Fast model for low-latency voice
+  max_tokens: 512  # Reduced for faster responses
 
 perception:
   wake_word_engine: openwakeword
@@ -62,7 +62,7 @@ idle_behavior:
 
 # Motion blending - orchestrates all motion sources
 motion_blend:
-  enabled: true
+  enabled: true  # Enabled - orchestrates idle behavior and wobble
   tick_rate_hz: 100.0        # Internal control loop rate
   command_rate_hz: 20.0      # Rate to send commands to daemon
   smoothing_factor: 0.3      # Pose interpolation factor (0.0-1.0)
@@ -73,9 +73,9 @@ motion_blend:
     z_range: [-50, 50]       # Vertical offset limits in mm
     antenna_range: [0, 90]   # Antenna position limits in degrees
 
-# Breathing behavior - subtle idle animation
+# Breathing behavior - subtle idle animation (antenna oscillation)
 breathing:
-  enabled: true
+  enabled: false  # Disabled by preference - use idle_behavior instead
   z_amplitude_mm: 5.0        # Vertical body oscillation amplitude
   z_frequency_hz: 0.1        # 6 second breathing cycle
   antenna_amplitude_deg: 15.0  # Antenna sway amplitude
@@ -95,6 +95,69 @@ wobble:
   latency_compensation_ms: 80.0  # Audio processing latency
   smoothing_factor: 0.3      # Smoothing for transitions
   noise_scale: 0.2           # Perlin-like noise overlay scale
+
+# Voice pipeline - real-time voice interaction via OpenAI Realtime API
+voice:
+  enabled: false                 # Enable with --voice flag
+
+  # Wake word detection
+  wake_word:
+    enabled: true
+    model: hey_jarvis            # Closest to "Hey Reachy" available
+    sensitivity: 0.5             # 0.0 (strict) to 1.0 (lenient)
+    cooldown_seconds: 2.0        # Ignore detections for this period
+
+  # Voice activity detection (end-of-speech)
+  vad:
+    silence_threshold_ms: 800    # Silence duration to trigger end-of-speech
+    min_speech_duration_ms: 250  # Minimum speech to be valid
+    max_speech_duration_s: 30.0  # Maximum before timeout
+    speech_threshold: 0.5        # VAD sensitivity
+
+  # OpenAI Realtime API settings
+  openai:
+    model: gpt-realtime-mini     # Cost-efficient, low latency
+    voice: alloy                 # Options: alloy, echo, fable, onyx, nova, shimmer
+    sample_rate: 24000           # OpenAI uses 24kHz
+    temperature: 0.8             # Response creativity
+    max_response_tokens: 4096    # Max response length
+    turn_detection_threshold: 0.5
+    turn_detection_silence_ms: 500
+
+  # Audio hardware settings
+  audio:
+    sample_rate: 16000           # Microphone sample rate
+    channels: 1                  # Mono audio
+    chunk_size: 512              # Samples per chunk (Silero VAD requires 512 at 16kHz)
+    format_bits: 16              # int16 PCM
+    # Device indices for Reachy Mini (use shared dsnoop/dmix devices)
+    # Index 4 = reachymini_audio_src (dsnoop - shared input)
+    # Index 3 = reachymini_audio_sink (dmix - shared output)
+    input_device_index: 4        # Use dsnoop for mic sharing with daemon
+    output_device_index: 3       # Use dmix for speaker sharing with daemon
+
+    # Resilience settings
+    max_init_retries: 3          # Retry audio init this many times
+    retry_delay_seconds: 1.0     # Initial delay between retries
+    retry_backoff_factor: 2.0    # Multiply delay by this each retry
+
+    # Buffer settings
+    output_lead_in_ms: 200       # Silence before TTS playback (prevents click)
+    input_warmup_chunks: 5       # Discard first N chunks (mic settling)
+
+    # Health monitoring
+    health_check_interval_seconds: 5.0  # Check stream health every N seconds
+    max_consecutive_errors: 3    # Trigger recovery after N consecutive errors
+
+  # Degraded mode - graceful fallback when components fail
+  degraded_mode:
+    skip_wake_word_on_failure: true     # Switch to always-listening if wake word fails
+    use_energy_vad_fallback: true       # Use energy-based VAD if Silero unavailable
+    log_response_on_tts_failure: true   # Log response text if TTS fails
+
+  # Pipeline behavior
+  confirmation_beep: true        # Play sound when wake word detected
+  auto_restart: true             # Restart listening after response
 
 integrations:
   home_assistant:

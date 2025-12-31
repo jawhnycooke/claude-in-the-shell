@@ -65,6 +65,18 @@ offline = [
     "faster-whisper>=1.0.0",
 ]
 
+# Voice pipeline (OpenAI Realtime + wake word + VAD)
+voice = [
+    "openai>=1.0.0",            # OpenAI Realtime API
+    "websockets>=12.0",          # WebSocket for Realtime streaming
+    "openwakeword>=0.6.0",       # Wake word detection ("Hey Reachy")
+    "pyaudio>=0.2.14",           # Audio I/O
+    "numpy>=1.26.0",             # Audio processing
+    "sounddevice>=0.4.6",        # Alternative audio backend
+    "torch>=2.0.0",              # Required for Silero VAD
+    "torchaudio>=2.0.0",         # Audio processing with PyTorch
+]
+
 # Development dependencies
 dev = [
     "pytest>=8.0.0",
@@ -94,7 +106,7 @@ docs = [
 
 # All optional dependencies
 all = [
-    "reachy-agent[perception,offline,dev,docs]",
+    "reachy-agent[perception,offline,voice,dev,docs]",
 ]
 
 [project.scripts]

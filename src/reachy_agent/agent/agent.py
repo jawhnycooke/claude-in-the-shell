@@ -197,6 +197,11 @@ class ReachyAgentLoop:
         self._enable_github = enable_github
         self._github_toolsets = github_toolsets
 
+        # Voice mode flag - when True, skip speak tool (pipeline handles TTS)
+        self._voice_mode: bool = False
+        # Queue to capture speak tool text for pipeline TTS when in voice mode
+        self._voice_mode_speak_queue: list[str] = []
+
     @property
     def idle_controller(self) -> IdleBehaviorController | None:
         """Get the idle behavior controller if enabled."""
@@ -225,6 +230,45 @@ class ReachyAgentLoop:
         if self._blend_controller is None:
             return False
         return self._blend_controller.is_running
+
+    @property
+    def voice_mode(self) -> bool:
+        """Check if voice mode is active (pipeline handles TTS)."""
+        return self._voice_mode
+
+    def set_voice_mode(self, enabled: bool) -> None:
+        """Enable or disable voice mode.
+
+        When voice mode is enabled, the `speak` tool is skipped because
+        the voice pipeline handles TTS directly. This avoids redundant
+        TTS calls and reduces latency.
+
+        Args:
+            enabled: True to enable voice mode, False to disable.
+        """
+        self._voice_mode = enabled
+        log.info("Voice mode updated", voice_mode=enabled)
+
+    def get_voice_mode_speak_text(self) -> str:
+        """Get captured speak tool text and clear the queue.
+
+        In voice mode, speak tool calls are intercepted and their text
+        is stored for the pipeline to speak via TTS. This method returns
+        all queued text joined with spaces and clears the queue.
+
+        Returns:
+            Concatenated speak tool text, or empty string if none.
+        """
+        if not self._voice_mode_speak_queue:
+            return ""
+        text = " ".join(self._voice_mode_speak_queue)
+        self._voice_mode_speak_queue.clear()
+        log.info(
+            "voice_mode_speak_text_retrieved",
+            text_length=len(text),
+            text_preview=text[:50] + "..." if len(text) > 50 else text,
+        )
+        return text
 
     def _build_mcp_servers(self) -> dict[str, dict[str, Any]]:
         """Build MCP server configuration for SDK.
@@ -380,6 +424,35 @@ class ReachyAgentLoop:
             if len(parts) >= 3:
                 original_tool = parts[2]
 
+        # Voice mode: capture speak tool text and skip daemon execution
+        # The pipeline will speak this text via TTS instead
+        if self._voice_mode and original_tool == "speak":
+            # Capture the speak text for pipeline to use
+            speak_text = tool_input.get("text", "") if isinstance(tool_input, dict) else ""
+            if speak_text:
+                self._voice_mode_speak_queue.append(speak_text)
+                log.info(
+                    "voice_mode_speak_captured",
+                    tool_name=tool_name,
+                    text_length=len(speak_text),
+                    text_preview=speak_text[:50] + "..." if len(speak_text) > 50 else speak_text,
+                    queue_size=len(self._voice_mode_speak_queue),
+                )
+            else:
+                log.warning(
+                    "voice_mode_speak_empty",
+                    tool_name=tool_name,
+                    tool_input=tool_input,
+                )
+            # Deny the daemon speak but Claude sees success
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": "Voice mode active - text captured for pipeline TTS",
+                }
+            }
+
         # Evaluate permission tier
         decision = self._permission_evaluator.evaluate(original_tool)
 
@@ -425,7 +498,12 @@ class ReachyAgentLoop:
         Returns:
             Configured ClaudeAgentOptions instance.
         """
+        # Get model from config (defaults defined in config.py)
+        model = self.config.agent.model.value if self.config else None
+
         return ClaudeAgentOptions(
+            # Model selection from config
+            model=model,
             # System prompt with memory context
             system_prompt=self._system_prompt,
             # MCP servers (SDK handles stdio transport)
@@ -470,6 +548,9 @@ class ReachyAgentLoop:
             # Initialize daemon client (shared by behaviors)
             self._daemon_client = ReachyDaemonClient(base_url=self.daemon_url)
 
+            # Ensure robot is awake before starting behaviors
+            await self._ensure_robot_awake()
+
             # Initialize motion blending system if enabled
             if self._enable_motion_blend:
                 await self._initialize_motion_blend()
@@ -482,13 +563,21 @@ class ReachyAgentLoop:
                 await self._idle_controller.start()
                 log.info("Idle behavior controller started (standalone mode)")
 
-            # Create SDK client (don't connect yet - connect on first query)
+            # Create and connect SDK client (persistent connection for low latency)
             options = self._build_sdk_options()
             self._client = ClaudeSDKClient(options)
+            await self._client.connect()
+            log.info("SDK client connected (persistent mode)")
+
+            # Get the model being used for logging
+            model = "claude-haiku-4-5-20251001"  # Default
+            if self.config and hasattr(self.config, "agent"):
+                model = self.config.agent.model.value
 
             self.state = AgentState.READY
             log.info(
                 "Agent loop initialized with Claude Agent SDK",
+                model=model,
                 idle_behavior=self._enable_idle_behavior,
                 memory_enabled=self._enable_memory,
                 mcp_servers=list(self._build_mcp_servers().keys()),
@@ -549,6 +638,33 @@ class ReachyAgentLoop:
             self._memory_manager = None
             self._enable_memory = False
 
+    async def _ensure_robot_awake(self) -> None:
+        """Ensure the robot is awake and ready for motion commands.
+
+        Checks daemon status and calls wake_up if robot is not initialized.
+        This is required for motion tools to work properly.
+        """
+        if self._daemon_client is None:
+            return
+
+        try:
+            # Get current robot status
+            status = await self._daemon_client.get_status()
+            state = status.get("state", "unknown")
+            log.info("Robot daemon status", state=state)
+
+            if state == "not_initialized":
+                log.info("Robot not initialized, calling wake_up")
+                await self._daemon_client.wake_up()
+                log.info("Robot wake_up complete")
+
+        except Exception as e:
+            log.warning(
+                "Could not check/wake robot status",
+                error=str(e),
+                hint="Motion tools may not work until robot is manually woken up",
+            )
+
     async def _initialize_motion_blend(self) -> None:
         """Initialize the motion blending system.
 
@@ -565,20 +681,21 @@ class ReachyAgentLoop:
         try:
             # Create callback to send poses to daemon
             async def send_pose_to_daemon(pose: HeadPose) -> None:
-                """Send composed pose to Reachy daemon."""
+                """Send composed pose to Reachy daemon.
+
+                Uses set_full_pose to send head and antennas atomically,
+                avoiding issues where separate API calls reset each other's targets.
+                """
                 if self._daemon_client is None:
                     return
                 try:
-                    await self._daemon_client.look_at(
-                        yaw=pose.yaw,
-                        pitch=pose.pitch,
+                    # Send head pose and antennas in a single API call
+                    await self._daemon_client.set_full_pose(
                         roll=pose.roll,
-                        duration=0.05,  # Quick updates (20Hz)
-                    )
-                    # Also update antennas
-                    await self._daemon_client.set_antenna_state(
-                        left_angle=pose.left_antenna,
-                        right_angle=pose.right_antenna,
+                        pitch=pose.pitch,
+                        yaw=pose.yaw,
+                        left_antenna=pose.left_antenna,
+                        right_antenna=pose.right_antenna,
                     )
                 except Exception as e:
                     log.debug("Error sending pose to daemon", error=str(e))
@@ -609,13 +726,24 @@ class ReachyAgentLoop:
             # Start the blend controller
             await self._blend_controller.start()
 
-            # Set breathing as default primary motion
-            await self._blend_controller.set_primary("breathing")
+            # Set default primary motion based on config
+            # Use idle if enabled, otherwise breathing if enabled, otherwise none
+            breathing_enabled = self._breathing_config.enabled if self._breathing_config else True
+            if self._enable_idle_behavior:
+                await self._blend_controller.set_primary("idle")
+                log.info("Using idle behavior as primary motion")
+            elif breathing_enabled:
+                await self._blend_controller.set_primary("breathing")
+                log.info("Using breathing as primary motion")
+            else:
+                log.info("No primary motion enabled (both idle and breathing disabled)")
 
             log.info(
                 "Motion blending system initialized",
                 sources=list(self._blend_controller._sources.keys()),
                 active_primary=self._blend_controller.active_primary,
+                breathing_enabled=breathing_enabled,
+                idle_enabled=self._enable_idle_behavior,
             )
 
         except Exception as e:
@@ -750,42 +878,49 @@ class ReachyAgentLoop:
         duration_ms: int | None = None
 
         try:
-            # Use SDK client as context manager for this query
-            async with ClaudeSDKClient(options=self._build_sdk_options()) as client:
-                # Send query to Claude
-                await client.query(augmented_input)
+            # Reuse persistent SDK client (connected in initialize())
+            if self._client is None:
+                log.error("SDK client not initialized")
+                return AgentResponse(
+                    text="",
+                    error="SDK client not initialized",
+                    context=context,
+                )
 
-                # Process response stream
-                async for message in client.receive_response():
-                    if isinstance(message, AssistantMessage):
-                        for block in message.content:
-                            if isinstance(block, TextBlock):
-                                response_text += block.text
-                            elif isinstance(block, ToolUseBlock):
-                                log.info(
-                                    "SDK tool call",
-                                    tool=block.name,
-                                    input=block.input,
-                                )
-                                tool_calls_made.append({
-                                    "tool": block.name,
-                                    "input": block.input,
-                                })
-                            elif isinstance(block, ToolResultBlock):
-                                log.debug(
-                                    "Tool result",
-                                    tool_use_id=block.tool_use_id,
-                                )
+            # Send query to Claude using persistent connection
+            await self._client.query(augmented_input)
 
-                    elif isinstance(message, ResultMessage):
-                        cost_usd = message.total_cost_usd
-                        duration_ms = message.duration_ms
-                        log.info(
-                            "SDK query completed",
-                            cost_usd=cost_usd,
-                            duration_ms=duration_ms,
-                            num_turns=message.num_turns,
-                        )
+            # Process response stream
+            async for message in self._client.receive_response():
+                if isinstance(message, AssistantMessage):
+                    for block in message.content:
+                        if isinstance(block, TextBlock):
+                            response_text += block.text
+                        elif isinstance(block, ToolUseBlock):
+                            log.info(
+                                "SDK tool call",
+                                tool=block.name,
+                                input=block.input,
+                            )
+                            tool_calls_made.append({
+                                "tool": block.name,
+                                "input": block.input,
+                            })
+                        elif isinstance(block, ToolResultBlock):
+                            log.debug(
+                                "Tool result",
+                                tool_use_id=block.tool_use_id,
+                            )
+
+                elif isinstance(message, ResultMessage):
+                    cost_usd = message.total_cost_usd
+                    duration_ms = message.duration_ms
+                    log.info(
+                        "SDK query completed",
+                        cost_usd=cost_usd,
+                        duration_ms=duration_ms,
+                        num_turns=message.num_turns,
+                    )
 
             return AgentResponse(
                 text=response_text,
@@ -864,8 +999,13 @@ class ReachyAgentLoop:
             except Exception as e:
                 log.warning("Error closing memory system", error=str(e))
 
-        # SDK client manages its own cleanup via context manager
-        # No explicit MCP cleanup needed - SDK handles it
+        # Disconnect persistent SDK client
+        if self._client:
+            try:
+                await self._client.disconnect()
+                log.info("SDK client disconnected")
+            except Exception as e:
+                log.warning("Error disconnecting SDK client", error=str(e))
 
         # Close daemon client if used
         if self._daemon_client:

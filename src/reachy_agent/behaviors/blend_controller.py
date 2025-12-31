@@ -4,8 +4,8 @@ The MotionBlendController manages multiple motion sources and composes
 their contributions into a final pose sent to the daemon.
 
 Key concepts:
-- Runs at 100Hz internal tick rate
-- Sends commands to daemon at 20Hz (configurable)
+- Runs at 30Hz internal tick rate (reduced for CPU efficiency)
+- Sends commands to daemon at 5Hz (reduced to prevent USB bus contention)
 - Composes primary (exclusive) + secondary (additive) motions
 - Applies smoothing and safety limits
 
@@ -36,16 +36,16 @@ class BlendControllerConfig:
     """Configuration for the motion blend controller.
 
     Attributes:
-        tick_rate_hz: Internal control loop rate (default 100Hz).
-        command_rate_hz: Rate to send commands to daemon (default 20Hz).
+        tick_rate_hz: Internal control loop rate (default 30Hz).
+        command_rate_hz: Rate to send commands to daemon (default 5Hz).
         smoothing_factor: Pose interpolation factor (0.0-1.0).
         enabled: Whether blending is active.
         pose_limits: Safety limits for poses.
     """
 
-    tick_rate_hz: float = 100.0
-    command_rate_hz: float = 20.0
-    smoothing_factor: float = 0.3
+    tick_rate_hz: float = 30.0  # Reduced from 100Hz to save CPU
+    command_rate_hz: float = 15.0  # 15Hz balances smooth motion and USB bus load (was 20Hz)
+    smoothing_factor: float = 0.35  # Adjusted for 15Hz command rate
     enabled: bool = True
     pose_limits: PoseLimits = field(default_factory=PoseLimits)
 
@@ -67,8 +67,8 @@ class MotionBlendController:
     The controller maintains:
     - A registry of motion sources (primary and secondary)
     - The currently active primary source
-    - A 100Hz control loop that composes poses
-    - A 20Hz rate limiter for daemon commands
+    - A 30Hz control loop that composes poses
+    - A 5Hz rate limiter for daemon commands
 
     Example:
         config = BlendControllerConfig()
@@ -120,8 +120,8 @@ class MotionBlendController:
 
         # Listening state (freezes antennas during user speech)
         self._listening = False
-        self._frozen_antenna_left: float = 45.0
-        self._frozen_antenna_right: float = 45.0
+        self._frozen_antenna_left: float = 90.0  # Vertical (straight up)
+        self._frozen_antenna_right: float = 90.0
 
     @property
     def is_running(self) -> bool:

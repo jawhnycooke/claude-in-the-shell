@@ -30,8 +30,31 @@ HookInput = dict[str, Any]
 HookJSONOutput = dict[str, Any]
 HookFunction = Callable[[HookInput, str | None, HookContext], HookJSONOutput]
 
-# Default prompts directory relative to project root
-PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
+# Default prompts directory - try multiple strategies for robustness
+def _find_prompts_dir() -> Path:
+    """Find the prompts directory using multiple strategies.
+
+    This handles both development (src layout) and installed package scenarios,
+    as well as editable installs where __file__ may resolve differently.
+    """
+    candidates = [
+        # Strategy 1: Relative to __file__ (works in standard src layout)
+        Path(__file__).parent.parent.parent.parent / "prompts",
+        # Strategy 2: Current working directory (reliable for CLI invocation)
+        Path.cwd() / "prompts",
+        # Strategy 3: Home directory config
+        Path.home() / ".reachy" / "prompts",
+    ]
+
+    for candidate in candidates:
+        if candidate.exists() and (candidate / "system").exists():
+            return candidate
+
+    # Fallback to first candidate even if not found
+    return candidates[0]
+
+
+PROMPTS_DIR = _find_prompts_dir()
 
 
 def render_template(template: str, context: dict[str, str]) -> str:
@@ -63,7 +86,7 @@ def get_default_context(config: ReachyConfig | None = None) -> dict[str, str]:
     """
     now = datetime.now()
     return {
-        "agent_name": config.agent.name if config else "Reachy",
+        "agent_name": config.agent.name if config else "Jarvis",
         "current_time": now.strftime("%H:%M"),
         "day_of_week": now.strftime("%A"),
         "turn_number": "1",
@@ -165,7 +188,7 @@ def load_system_prompt(
 
     # 5. Minimal fallback (should not happen with proper prompts folder)
     log.warning("No prompt files found, using minimal fallback")
-    name = config.agent.name if config else "Reachy"
+    name = config.agent.name if config else "Jarvis"
     return f"You are {name}, an embodied AI assistant robot. Be helpful and expressive."
 
 

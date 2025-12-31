@@ -3,11 +3,16 @@
 This server provides tools for controlling the Reachy Mini robot's head,
 antennas, camera, and audio output. It communicates with the Reachy Daemon
 running on localhost:8000.
+
+Motion tools use fire-and-forget execution to reduce latency - they return
+"acknowledged" immediately while the daemon executes asynchronously.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import asyncio
+from collections.abc import Awaitable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from mcp.server.fastmcp import FastMCP
 
@@ -18,6 +23,52 @@ if TYPE_CHECKING:
     from reachy_agent.utils.config import ReachyConfig
 
 log = get_logger(__name__)
+
+# Type variable for generic daemon call result
+T = TypeVar("T")
+
+
+async def _fire_and_forget(
+    coro: Awaitable[T],
+    tool_name: str,
+) -> dict[str, str]:
+    """Execute a coroutine in fire-and-forget mode.
+
+    Starts the coroutine as a background task and returns immediately
+    with an "acknowledged" status. Errors are logged but not propagated.
+
+    This reduces tool execution latency for motion commands that don't
+    return data needed for Claude's response generation.
+
+    Args:
+        coro: The awaitable coroutine to execute.
+        tool_name: Name of the tool for logging.
+
+    Returns:
+        Acknowledgment dict indicating the command was dispatched.
+    """
+    async def _run_and_log() -> None:
+        try:
+            result = await coro
+            log.debug(
+                "fire_and_forget_completed",
+                tool=tool_name,
+                result=result,
+            )
+        except Exception as e:
+            log.warning(
+                "fire_and_forget_error",
+                tool=tool_name,
+                error=str(e),
+            )
+
+    # Create background task - doesn't block
+    asyncio.create_task(_run_and_log())
+
+    return {
+        "status": "acknowledged",
+        "message": f"{tool_name} command dispatched",
+    }
 
 
 def create_reachy_mcp_server(
@@ -66,12 +117,11 @@ def create_reachy_mcp_server(
 
         log.info("Moving head", direction=direction, speed=speed, degrees=degrees)
 
-        result = await client.move_head(
-            direction=direction,
-            speed=speed,
-            degrees=degrees,
+        # Fire-and-forget: return immediately while motion executes
+        return await _fire_and_forget(
+            client.move_head(direction=direction, speed=speed, degrees=degrees),
+            "move_head",
         )
-        return result
 
     @mcp.tool()
     async def play_emotion(
@@ -107,8 +157,11 @@ def create_reachy_mcp_server(
 
         log.info("Playing emotion", emotion=emotion, intensity=intensity)
 
-        result = await client.play_emotion(emotion=emotion, intensity=intensity)
-        return result
+        # Fire-and-forget: return immediately while emotion plays
+        return await _fire_and_forget(
+            client.play_emotion(emotion=emotion, intensity=intensity),
+            "play_emotion",
+        )
 
     @mcp.tool()
     async def speak(
@@ -187,13 +240,16 @@ def create_reachy_mcp_server(
             wiggle=wiggle,
         )
 
-        result = await client.set_antenna_state(
-            left_angle=left_angle,
-            right_angle=right_angle,
-            wiggle=wiggle,
-            duration_ms=duration_ms,
+        # Fire-and-forget: return immediately while antennas move
+        return await _fire_and_forget(
+            client.set_antenna_state(
+                left_angle=left_angle,
+                right_angle=right_angle,
+                wiggle=wiggle,
+                duration_ms=duration_ms,
+            ),
+            "set_antenna_state",
         )
-        return result
 
     @mcp.tool()
     async def get_sensor_data(
@@ -267,8 +323,11 @@ def create_reachy_mcp_server(
 
         log.info("Dancing", routine=routine, duration_seconds=duration_seconds)
 
-        result = await client.dance(routine=routine, duration_seconds=duration_seconds)
-        return result
+        # Fire-and-forget: return immediately while dance executes
+        return await _fire_and_forget(
+            client.dance(routine=routine, duration_seconds=duration_seconds),
+            "dance",
+        )
 
     # ========== NEW TOOLS FOR FULL SDK SUPPORT ==========
 
@@ -300,8 +359,11 @@ def create_reachy_mcp_server(
 
         log.info("Rotating body", direction=direction, degrees=degrees, speed=speed)
 
-        result = await client.rotate(direction=direction, degrees=degrees, speed=speed)
-        return result
+        # Fire-and-forget: return immediately while body rotates
+        return await _fire_and_forget(
+            client.rotate(direction=direction, degrees=degrees, speed=speed),
+            "rotate",
+        )
 
     @mcp.tool()
     async def look_at(
@@ -345,10 +407,11 @@ def create_reachy_mcp_server(
             duration=duration,
         )
 
-        result = await client.look_at(
-            roll=roll, pitch=pitch, yaw=yaw, z=z, duration=duration
+        # Fire-and-forget: return immediately while head moves
+        return await _fire_and_forget(
+            client.look_at(roll=roll, pitch=pitch, yaw=yaw, z=z, duration=duration),
+            "look_at",
         )
-        return result
 
     @mcp.tool()
     async def listen(
@@ -383,8 +446,9 @@ def create_reachy_mcp_server(
             Status of the wake up operation.
         """
         log.info("Waking up robot")
-        result = await client.wake_up()
-        return result
+
+        # Fire-and-forget: return immediately while robot wakes
+        return await _fire_and_forget(client.wake_up(), "wake_up")
 
     @mcp.tool()
     async def sleep() -> dict[str, str]:
@@ -397,8 +461,9 @@ def create_reachy_mcp_server(
             Status of the sleep operation.
         """
         log.info("Putting robot to sleep")
-        result = await client.sleep()
-        return result
+
+        # Fire-and-forget: return immediately while robot sleeps
+        return await _fire_and_forget(client.sleep(), "sleep")
 
     @mcp.tool()
     async def nod(
@@ -423,8 +488,11 @@ def create_reachy_mcp_server(
 
         log.info("Nodding", times=times, speed=speed)
 
-        result = await client.nod(times=times, speed=speed)
-        return result
+        # Fire-and-forget: return immediately while nodding
+        return await _fire_and_forget(
+            client.nod(times=times, speed=speed),
+            "nod",
+        )
 
     @mcp.tool()
     async def shake(
@@ -449,8 +517,11 @@ def create_reachy_mcp_server(
 
         log.info("Shaking head", times=times, speed=speed)
 
-        result = await client.shake(times=times, speed=speed)
-        return result
+        # Fire-and-forget: return immediately while shaking
+        return await _fire_and_forget(
+            client.shake(times=times, speed=speed),
+            "shake",
+        )
 
     @mcp.tool()
     async def rest() -> dict[str, str]:
@@ -463,8 +534,9 @@ def create_reachy_mcp_server(
             Status of the rest operation.
         """
         log.info("Returning to rest pose")
-        result = await client.rest()
-        return result
+
+        # Fire-and-forget: return immediately while moving to rest
+        return await _fire_and_forget(client.rest(), "rest")
 
     @mcp.tool()
     async def get_status() -> dict[str, Any]:
@@ -507,11 +579,12 @@ def create_reachy_mcp_server(
             return {"error": "Must specify action_id or set all_actions=True"}
 
         log.info("Cancelling actions", action_id=action_id, all_actions=all_actions)
-        result = await client.cancel_action(
-            action_id=action_id,
-            all_actions=all_actions,
+
+        # Fire-and-forget: return immediately while cancelling
+        return await _fire_and_forget(
+            client.cancel_action(action_id=action_id, all_actions=all_actions),
+            "cancel_action",
         )
-        return result
 
     @mcp.tool()
     async def get_pose() -> dict[str, Any]:
@@ -579,8 +652,11 @@ def create_reachy_mcp_server(
 
         log.info("Looking at world coordinates", x=x, y=y, z=z, duration=duration)
 
-        result = await client.look_at_world(x=x, y=y, z=z, duration=duration)
-        return result
+        # Fire-and-forget: return immediately while head moves
+        return await _fire_and_forget(
+            client.look_at_world(x=x, y=y, z=z, duration=duration),
+            "look_at_world",
+        )
 
     @mcp.tool()
     async def look_at_pixel(
@@ -619,8 +695,11 @@ def create_reachy_mcp_server(
 
         log.info("Looking at pixel coordinates", u=u, v=v, duration=duration)
 
-        result = await client.look_at_pixel(u=u, v=v, duration=duration)
-        return result
+        # Fire-and-forget: return immediately while head moves
+        return await _fire_and_forget(
+            client.look_at_pixel(u=u, v=v, duration=duration),
+            "look_at_pixel",
+        )
 
     @mcp.tool()
     async def play_recorded_move(
@@ -663,8 +742,11 @@ def create_reachy_mcp_server(
 
         log.info("Playing recorded move", dataset=dataset, move_name=move_name)
 
-        result = await client.play_recorded_move(dataset=dataset, move_name=move_name)
-        return result
+        # Fire-and-forget: return immediately while move plays
+        return await _fire_and_forget(
+            client.play_recorded_move(dataset=dataset, move_name=move_name),
+            "play_recorded_move",
+        )
 
     @mcp.tool()
     async def set_motor_mode(
@@ -702,7 +784,10 @@ def create_reachy_mcp_server(
 
         log.info("Setting motor mode", mode=mode)
 
-        result = await client.set_motor_mode(mode=mode)
-        return result
+        # Fire-and-forget: return immediately while mode changes
+        return await _fire_and_forget(
+            client.set_motor_mode(mode=mode),
+            "set_motor_mode",
+        )
 
     return mcp

@@ -26,7 +26,7 @@ class ClaudeModel(str, Enum):
     """Supported Claude models."""
 
     SONNET = "claude-sonnet-4-5-20250929"
-    HAIKU = "claude-3-5-haiku-20241022"
+    HAIKU = "claude-haiku-4-5-20251001"  # Fast model for low-latency voice
 
 
 class AgentConfig(BaseModel):
