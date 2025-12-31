@@ -238,12 +238,14 @@ class VoicePipeline:
         """Switch to a new persona.
 
         Updates the voice, system prompt, and reconnects to OpenAI.
+        State is only updated AFTER successful reconnection to avoid
+        corrupted state on failure.
 
         Args:
             persona: The PersonaConfig to switch to
 
         Returns:
-            True if switch succeeded
+            True if switch succeeded, False if reconnection failed
         """
         old_persona = self._current_persona
         logger.info(
@@ -253,31 +255,49 @@ class VoicePipeline:
             new_voice=persona.voice,
         )
 
-        # Update the current persona
-        self._current_persona = persona
-        if self.config.persona_manager:
-            self.config.persona_manager.current_persona = persona
-
-        # Update OpenAI voice (requires reconnect)
+        # Update OpenAI voice FIRST (requires reconnect)
+        # Only update state after successful reconnection
         if self._realtime:
+            old_voice = self.config.realtime.voice
             self.config.realtime.voice = persona.voice
             await self._realtime.disconnect()
             connected = await self._realtime.connect()
             if not connected:
-                logger.error("persona_switch_reconnect_failed", persona=persona.name)
+                # Rollback voice config on failure
+                self.config.realtime.voice = old_voice
+                logger.error(
+                    "persona_switch_reconnect_failed",
+                    persona=persona.name,
+                    rolled_back_voice=old_voice,
+                )
                 return False
+
+        # Reconnection succeeded - now update persona state
+        self._current_persona = persona
+        if self.config.persona_manager:
+            self.config.persona_manager.current_persona = persona
 
         # Update agent system prompt if available
         if self.agent and hasattr(self.agent, "update_system_prompt"):
             from reachy_agent.agent.options import load_persona_prompt
 
             new_prompt = load_persona_prompt(persona)
-            self.agent.update_system_prompt(new_prompt)
-            logger.info(
-                "persona_prompt_updated",
-                persona=persona.name,
-                prompt_length=len(new_prompt),
-            )
+            prompt_updated = await self.agent.update_system_prompt(new_prompt)
+            if prompt_updated:
+                logger.info(
+                    "persona_prompt_updated",
+                    persona=persona.name,
+                    prompt_length=len(new_prompt),
+                )
+            else:
+                # Voice changed but prompt failed - partial success
+                # Log warning but continue; prompt will use previous persona
+                logger.warning(
+                    "persona_prompt_update_failed",
+                    persona=persona.name,
+                    voice_changed=True,
+                    sdk_reconnect_failed=True,
+                )
 
         logger.info(
             "persona_switched",
@@ -887,8 +907,17 @@ class VoicePipeline:
             # This ensures the current response finishes with the current voice
             # before switching to the new persona
             if self._pending_persona and self._pending_persona != self._current_persona:
-                await self._switch_persona(self._pending_persona)
-                self._pending_persona = None
+                switch_success = await self._switch_persona(self._pending_persona)
+                if switch_success:
+                    self._pending_persona = None
+                else:
+                    # Keep pending persona for retry on next response
+                    logger.warning(
+                        "persona_switch_deferred",
+                        pending_persona=self._pending_persona.name,
+                        reason="reconnection_failed",
+                        will_retry_after_next_response=True,
+                    )
 
             self._restart_listening()
 

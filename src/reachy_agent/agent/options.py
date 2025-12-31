@@ -235,7 +235,9 @@ def load_persona_prompt(
                 error_type=type(e).__name__,
             )
             return None
-        except Exception as e:
+        except (TypeError, AttributeError, KeyError) as e:
+            # Specific exceptions from template rendering: type conversion errors,
+            # missing attributes, or invalid context keys
             log.warning(
                 "Failed to render persona prompt template",
                 persona=persona_name,
@@ -489,7 +491,8 @@ def build_sdk_agent_options(
         system_prompt: System prompt for Claude.
         mcp_servers: MCP server configuration. Uses defaults if None.
         permission_hook: Optional PreToolUse hook for permissions.
-        allowed_tools: List of allowed MCP tools. Uses all if None.
+        allowed_tools: List of allowed MCP tools. Defaults to empty list if None
+            (SDK behavior: empty list means no tool filtering).
         max_turns: Maximum agent turns per query.
         daemon_url: Reachy daemon URL (used if mcp_servers is None).
         enable_memory: Enable memory MCP server (used if mcp_servers is None).
