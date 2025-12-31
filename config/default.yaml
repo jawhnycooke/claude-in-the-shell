@@ -159,6 +159,16 @@ voice:
   confirmation_beep: true        # Play sound when wake word detected
   auto_restart: true             # Restart listening after response
 
+# Reachy SDK - Direct Python SDK for motion control
+# Uses Zenoh pub/sub (1-5ms latency) vs HTTP daemon (10-50ms)
+sdk:
+  enabled: true                    # Use SDK for motion control (blend controller)
+  robot_name: reachy_mini          # Robot name for Zenoh connection
+  connect_timeout_seconds: 10.0    # Timeout for SDK connection
+  fallback_to_http: true           # Fall back to HTTP if SDK fails
+  max_workers: 1                   # Thread pool size for blocking SDK calls
+  localhost_only: true             # Only connect to localhost daemons
+
 integrations:
   home_assistant:
     enabled: false

@@ -55,6 +55,7 @@ from reachy_agent.permissions.tiers import PermissionEvaluator, PermissionTier
 from reachy_agent.utils.logging import bind_context, clear_context, get_logger
 
 if TYPE_CHECKING:
+    from reachy_agent.mcp_servers.reachy.sdk_client import ReachySDKClient
     from reachy_agent.utils.config import ReachyConfig
 
 log = get_logger(__name__)
@@ -186,6 +187,7 @@ class ReachyAgentLoop:
         self._blend_controller: MotionBlendController | None = None
         self._breathing_motion: BreathingMotion | None = None
         self._head_wobble: HeadWobble | None = None
+        self._sdk_client: ReachySDKClient | None = None
 
         # Memory system
         self._enable_memory = enable_memory
@@ -201,6 +203,9 @@ class ReachyAgentLoop:
         self._voice_mode: bool = False
         # Queue to capture speak tool text for pipeline TTS when in voice mode
         self._voice_mode_speak_queue: list[str] = []
+
+        # Motion degraded mode - set when robot wake-up fails
+        self._motion_degraded: bool = False
 
     @property
     def idle_controller(self) -> IdleBehaviorController | None:
@@ -598,16 +603,10 @@ class ReachyAgentLoop:
 
         # Get memory paths from config or use defaults
         memory_config = getattr(self.config, "memory", None) if self.config else None
-        if memory_config is not None:
-            chroma_path = memory_config.chroma_path
-            sqlite_path = memory_config.sqlite_path
-            embedding_model = memory_config.embedding_model
-            retention_days = memory_config.retention_days
-        else:
-            chroma_path = "~/.reachy/memory/chroma"
-            sqlite_path = "~/.reachy/memory/reachy.db"
-            embedding_model = "all-MiniLM-L6-v2"
-            retention_days = 90
+        chroma_path = memory_config.chroma_path if memory_config else "~/.reachy/memory/chroma"
+        sqlite_path = memory_config.sqlite_path if memory_config else "~/.reachy/memory/reachy.db"
+        embedding_model = memory_config.embedding_model if memory_config else "all-MiniLM-L6-v2"
+        retention_days = memory_config.retention_days if memory_config else 90
 
         try:
             # Create and initialize memory manager
@@ -638,14 +637,19 @@ class ReachyAgentLoop:
             self._memory_manager = None
             self._enable_memory = False
 
-    async def _ensure_robot_awake(self) -> None:
+    async def _ensure_robot_awake(self) -> bool:
         """Ensure the robot is awake and ready for motion commands.
 
         Checks daemon status and calls wake_up if robot is not initialized.
         This is required for motion tools to work properly.
+
+        Returns:
+            True if robot is ready, False if wake-up failed (degraded mode).
         """
         if self._daemon_client is None:
-            return
+            log.warning("No daemon client available - motion in degraded mode")
+            self._motion_degraded = True
+            return False
 
         try:
             # Get current robot status
@@ -658,33 +662,80 @@ class ReachyAgentLoop:
                 await self._daemon_client.wake_up()
                 log.info("Robot wake_up complete")
 
+            return True
+
         except Exception as e:
-            log.warning(
-                "Could not check/wake robot status",
+            log.error(
+                "robot_wake_up_failed",
                 error=str(e),
-                hint="Motion tools may not work until robot is manually woken up",
+                hint="Check daemon connection and robot power",
             )
+            self._motion_degraded = True
+            return False
 
     async def _initialize_motion_blend(self) -> None:
         """Initialize the motion blending system.
 
         Sets up:
+        - ReachySDKClient (direct SDK for low-latency motion via Zenoh)
         - MotionBlendController (orchestrator)
         - BreathingMotion (primary, idle animation)
         - IdleBehaviorController (primary, look-around)
         - HeadWobble (secondary, speech animation)
 
-        The blend controller sends composed poses to the daemon.
+        The blend controller sends composed poses via SDK (preferred)
+        or HTTP daemon (fallback).
         """
         log.info("Initializing motion blending system")
 
         try:
-            # Create callback to send poses to daemon
+            # Try to connect SDK client for low-latency motion control
+            # SDK uses Zenoh pub/sub (1-5ms) vs HTTP REST (10-50ms)
+            try:
+                from reachy_agent.mcp_servers.reachy.sdk_client import (
+                    ReachySDKClient,
+                    SDKClientConfig,
+                )
+
+                # Get SDK config from config if available
+                sdk_config_dict = {}
+                if self.config:
+                    sdk_config_dict = getattr(self.config, "sdk", {})
+                    if hasattr(sdk_config_dict, "to_dict"):
+                        sdk_config_dict = sdk_config_dict.to_dict()
+                    elif not isinstance(sdk_config_dict, dict):
+                        sdk_config_dict = {}
+
+                sdk_config = SDKClientConfig.from_dict(sdk_config_dict)
+                self._sdk_client = ReachySDKClient(sdk_config)
+
+                if await self._sdk_client.connect():
+                    log.info(
+                        "SDK client connected - using Zenoh for motion control",
+                        robot_name=sdk_config.robot_name,
+                    )
+                else:
+                    log.warning(
+                        "SDK connection failed, using HTTP fallback",
+                        error=self._sdk_client.last_error,
+                    )
+                    self._sdk_client = None
+
+            except ImportError as e:
+                log.warning(
+                    "reachy_mini SDK not available, using HTTP for motion",
+                    error=str(e),
+                )
+                self._sdk_client = None
+
+            # Create callback to send poses to daemon via HTTP (fallback)
             async def send_pose_to_daemon(pose: HeadPose) -> None:
-                """Send composed pose to Reachy daemon.
+                """Send composed pose to Reachy daemon via HTTP.
 
                 Uses set_full_pose to send head and antennas atomically,
                 avoiding issues where separate API calls reset each other's targets.
+
+                Note: This is the fallback path; SDK is preferred when available.
                 """
                 if self._daemon_client is None:
                     return
@@ -698,12 +749,13 @@ class ReachyAgentLoop:
                         right_antenna=pose.right_antenna,
                     )
                 except Exception as e:
-                    log.debug("Error sending pose to daemon", error=str(e))
+                    log.debug("Error sending pose to daemon via HTTP", error=str(e))
 
-            # Create blend controller
+            # Create blend controller with SDK client (preferred) and HTTP callback (fallback)
             self._blend_controller = MotionBlendController(
                 config=self._blend_config,
                 send_pose_callback=send_pose_to_daemon,
+                sdk_client=self._sdk_client,
             )
 
             # Create and register breathing motion (primary)
@@ -728,15 +780,23 @@ class ReachyAgentLoop:
 
             # Set default primary motion based on config
             # Use idle if enabled, otherwise breathing if enabled, otherwise none
-            breathing_enabled = self._breathing_config.enabled if self._breathing_config else True
+            breathing_enabled = (
+                self._breathing_config.enabled if self._breathing_config else True
+            )
+
+            primary_motion = None
             if self._enable_idle_behavior:
-                await self._blend_controller.set_primary("idle")
-                log.info("Using idle behavior as primary motion")
+                primary_motion = "idle"
+                log_msg = "Using idle behavior as primary motion"
             elif breathing_enabled:
-                await self._blend_controller.set_primary("breathing")
-                log.info("Using breathing as primary motion")
+                primary_motion = "breathing"
+                log_msg = "Using breathing as primary motion"
             else:
-                log.info("No primary motion enabled (both idle and breathing disabled)")
+                log_msg = "No primary motion enabled (both idle and breathing disabled)"
+
+            if primary_motion:
+                await self._blend_controller.set_primary(primary_motion)
+            log.info(log_msg)
 
             log.info(
                 "Motion blending system initialized",
@@ -878,14 +938,6 @@ class ReachyAgentLoop:
         duration_ms: int | None = None
 
         try:
-            # Reuse persistent SDK client (connected in initialize())
-            if self._client is None:
-                log.error("SDK client not initialized")
-                return AgentResponse(
-                    text="",
-                    error="SDK client not initialized",
-                    context=context,
-                )
 
             # Send query to Claude using persistent connection
             await self._client.query(augmented_input)
@@ -981,6 +1033,14 @@ class ReachyAgentLoop:
         if self._blend_controller:
             await self._blend_controller.stop()
             log.info("Motion blend controller stopped")
+
+        # Disconnect Reachy SDK client (for motion control)
+        if self._sdk_client:
+            try:
+                await self._sdk_client.disconnect()
+                log.info("Reachy SDK client disconnected")
+            except Exception as e:
+                log.warning("Error disconnecting Reachy SDK client", error=str(e))
 
         # Stop idle behavior controller (if running standalone)
         if self._idle_controller and not self._blend_controller:

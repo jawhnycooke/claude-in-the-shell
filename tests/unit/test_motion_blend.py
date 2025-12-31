@@ -46,8 +46,8 @@ class TestHeadPose:
         assert pose.yaw == 0.0
         assert pose.roll == 0.0
         assert pose.z == 0.0
-        assert pose.left_antenna == 45.0
-        assert pose.right_antenna == 45.0
+        assert pose.left_antenna == 90.0  # Vertical = neutral
+        assert pose.right_antenna == 90.0  # Vertical = neutral
 
     def test_add_offset(self) -> None:
         """Test adding PoseOffset to HeadPose."""
@@ -632,3 +632,177 @@ class TestConfigs:
 
         assert config.tick_rate_hz == 50.0
         assert config.command_rate_hz == 10.0
+
+
+# =============================================================================
+# SDK Fallback Tests
+# =============================================================================
+
+
+class MockSDKClient:
+    """Mock SDK client for testing fallback behavior."""
+
+    def __init__(self, fail_count: int = 0) -> None:
+        """Initialize mock client.
+
+        Args:
+            fail_count: Number of times set_pose should fail before succeeding.
+        """
+        self._fail_count = fail_count
+        self._call_count = 0
+        self._is_connected = True
+
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
+
+    async def set_pose(self, pose: HeadPose) -> bool:
+        self._call_count += 1
+        if self._call_count <= self._fail_count:
+            return False
+        return True
+
+
+class TestSDKFallback:
+    """Test SDK to HTTP fallback mechanism."""
+
+    @pytest.mark.asyncio
+    async def test_fallback_after_5_failures(self) -> None:
+        """SDK fallback activates after 5 consecutive failures."""
+        http_called: list[HeadPose] = []
+
+        async def capture_http(pose: HeadPose) -> None:
+            http_called.append(pose)
+
+        # SDK that always fails
+        mock_sdk = MockSDKClient(fail_count=100)
+
+        config = BlendControllerConfig(
+            tick_rate_hz=100.0,
+            command_rate_hz=100.0,  # High rate for faster test
+        )
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=capture_http,
+            sdk_client=mock_sdk,  # type: ignore
+        )
+
+        # Send 6 poses directly to the daemon method
+        for _ in range(6):
+            await controller._send_pose_to_daemon(HeadPose.neutral())
+
+        # SDK should have been tried 5 times before fallback activated
+        assert mock_sdk._call_count == 5
+        assert controller._sdk_fallback_active is True
+        # HTTP should have been called (at least for the 6th call)
+        assert len(http_called) >= 1
+
+    @pytest.mark.asyncio
+    async def test_sdk_success_resets_failure_count(self) -> None:
+        """SDK success resets the failure counter."""
+        async def noop_http(pose: HeadPose) -> None:
+            pass
+
+        # SDK that fails twice then succeeds
+        mock_sdk = MockSDKClient(fail_count=2)
+
+        config = BlendControllerConfig()
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=noop_http,
+            sdk_client=mock_sdk,  # type: ignore
+        )
+
+        # First two calls fail
+        await controller._send_pose_to_daemon(HeadPose.neutral())
+        assert controller._sdk_failures == 1
+
+        await controller._send_pose_to_daemon(HeadPose.neutral())
+        assert controller._sdk_failures == 2
+
+        # Third call succeeds and resets counter
+        await controller._send_pose_to_daemon(HeadPose.neutral())
+        assert controller._sdk_failures == 0
+        assert controller._sdk_fallback_active is False
+
+    @pytest.mark.asyncio
+    async def test_reset_sdk_fallback(self) -> None:
+        """reset_sdk_fallback clears fallback state."""
+        controller = MotionBlendController()
+        controller._sdk_fallback_active = True
+        controller._sdk_failures = 10
+
+        controller.reset_sdk_fallback()
+
+        assert controller._sdk_fallback_active is False
+        assert controller._sdk_failures == 0
+
+    @pytest.mark.asyncio
+    async def test_motion_health_tracking(self) -> None:
+        """Motion becomes unhealthy after 10 consecutive total failures."""
+        # No SDK, HTTP that always fails
+        fail_count = 0
+
+        async def failing_http(pose: HeadPose) -> None:
+            nonlocal fail_count
+            fail_count += 1
+            raise RuntimeError("HTTP failure")
+
+        config = BlendControllerConfig()
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=failing_http,
+            sdk_client=None,  # No SDK
+        )
+
+        assert controller.is_motion_healthy is True
+
+        # Send 10 poses (all will fail)
+        for _ in range(10):
+            await controller._send_pose_to_daemon(HeadPose.neutral())
+
+        assert controller.is_motion_healthy is False
+        assert controller._consecutive_total_failures >= 10
+
+    @pytest.mark.asyncio
+    async def test_motion_health_recovers(self) -> None:
+        """Motion health recovers after successful send."""
+        call_count = 0
+
+        async def flaky_http(pose: HeadPose) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 10:
+                raise RuntimeError("HTTP failure")
+            # After 10 failures, succeed
+
+        config = BlendControllerConfig()
+        controller = MotionBlendController(
+            config=config,
+            send_pose_callback=flaky_http,
+            sdk_client=None,
+        )
+
+        # Make it unhealthy
+        for _ in range(10):
+            await controller._send_pose_to_daemon(HeadPose.neutral())
+
+        assert controller.is_motion_healthy is False
+
+        # Now succeed
+        await controller._send_pose_to_daemon(HeadPose.neutral())
+
+        assert controller.is_motion_healthy is True
+        assert controller._consecutive_total_failures == 0
+
+    @pytest.mark.asyncio
+    async def test_get_status_includes_health(self) -> None:
+        """get_status includes motion health information."""
+        controller = MotionBlendController()
+
+        status = controller.get_status()
+
+        assert "motion_healthy" in status
+        assert "consecutive_total_failures" in status
+        assert "http_failures" in status
+        assert status["motion_healthy"] is True
