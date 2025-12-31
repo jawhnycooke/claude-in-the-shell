@@ -4,11 +4,11 @@ The MotionBlendController manages multiple motion sources and composes
 their contributions into a final pose sent to the daemon.
 
 Key concepts:
-- Runs at 30Hz internal tick rate (reduced for CPU efficiency)
-- Sends commands to daemon at 15Hz (balances smooth motion and bus load)
+- Configurable tick rate (code default: 30Hz, config may override to 100Hz)
+- Configurable command rate (code default: 15Hz, config may override to 20Hz)
 - Composes primary (exclusive) + secondary (additive) motions
 - Applies smoothing and safety limits
-- Prefers SDK for motion commands (lower latency), falls back to HTTP
+- Prefers SDK for motion commands (1-5ms latency), falls back to HTTP (10-50ms)
 
 Based on MovementManager pattern from Pollen Robotics' Conversation App.
 """
@@ -40,16 +40,16 @@ class BlendControllerConfig:
     """Configuration for the motion blend controller.
 
     Attributes:
-        tick_rate_hz: Internal control loop rate (default 30Hz).
-        command_rate_hz: Rate to send commands to daemon (default 5Hz).
+        tick_rate_hz: Internal control loop rate (default 30Hz, config: 100Hz).
+        command_rate_hz: Rate to send commands to daemon (default 15Hz, config: 20Hz).
         smoothing_factor: Pose interpolation factor (0.0-1.0).
         enabled: Whether blending is active.
         pose_limits: Safety limits for poses.
     """
 
-    tick_rate_hz: float = 30.0  # Reduced from 100Hz to save CPU
-    command_rate_hz: float = 15.0  # 15Hz balances smooth motion and USB bus load (was 20Hz)
-    smoothing_factor: float = 0.35  # Adjusted for 15Hz command rate
+    tick_rate_hz: float = 30.0  # Default for CPU efficiency; config/default.yaml uses 100Hz
+    command_rate_hz: float = 15.0  # Balances smooth motion and USB bus load; config uses 20Hz
+    smoothing_factor: float = 0.35  # Tuned for 15Hz command rate
     enabled: bool = True
     pose_limits: PoseLimits = field(default_factory=PoseLimits)
 
@@ -71,8 +71,8 @@ class MotionBlendController:
     The controller maintains:
     - A registry of motion sources (primary and secondary)
     - The currently active primary source
-    - A 30Hz control loop that composes poses
-    - A 5Hz rate limiter for daemon commands
+    - A configurable control loop (default 30Hz, config may set 100Hz)
+    - A configurable rate limiter for daemon commands (default 15Hz, config: 20Hz)
 
     Example:
         config = BlendControllerConfig()
@@ -130,6 +130,14 @@ class MotionBlendController:
         self._sdk_failures: int = 0
         self._sdk_fallback_active: bool = False
 
+        # Motion health tracking (detects when both SDK and HTTP are failing)
+        self._consecutive_total_failures: int = 0
+        self._motion_healthy: bool = True
+        self._UNHEALTHY_THRESHOLD: int = 10  # After 10 consecutive total failures
+
+        # HTTP fallback failure tracking
+        self._http_failures: int = 0
+
         # Listening state (freezes antennas during user speech)
         self._listening = False
         self._frozen_antenna_left: float = 90.0  # Vertical (straight up)
@@ -154,6 +162,11 @@ class MotionBlendController:
     def active_secondaries(self) -> set[str]:
         """Get names of active secondary motion sources."""
         return self._active_secondaries.copy()
+
+    @property
+    def is_motion_healthy(self) -> bool:
+        """Check if motion control is healthy (at least one method working)."""
+        return self._motion_healthy
 
     def register_source(self, name: str, source: MotionSource) -> None:
         """Register a motion source.
@@ -412,29 +425,43 @@ class MotionBlendController:
         Args:
             pose: Pose to send to the daemon.
         """
+        sdk_success = False
+        http_success = False
+
         # Try SDK first (lower latency via Zenoh)
         if self._sdk_client and not self._sdk_fallback_active:
             try:
-                success = await self._sdk_client.set_pose(pose)
-                if success:
+                sdk_success = await self._sdk_client.set_pose(pose)
+                if sdk_success:
                     # Reset failure count on success
                     if self._sdk_failures > 0:
                         self._sdk_failures = 0
                         log.info("SDK connection recovered")
-                    return
                 else:
                     self._sdk_failures += 1
-            except Exception as e:
+            except asyncio.CancelledError:
+                # Don't count cancellation as SDK failure
+                raise
+            except (RuntimeError, OSError, ConnectionError) as e:
                 self._sdk_failures += 1
-                log.debug("SDK set_pose exception", error=str(e))
+                log.debug("sdk_set_pose_exception", error=str(e), error_type=type(e).__name__)
+            except Exception as e:
+                # Unexpected errors - log at warning level
+                self._sdk_failures += 1
+                log.warning("sdk_set_pose_unexpected", error=str(e), error_type=type(e).__name__)
 
             # After 5 consecutive failures, fall back to HTTP
-            if self._sdk_failures >= 5:
+            if self._sdk_failures >= 5 and not self._sdk_fallback_active:
                 log.warning(
                     "SDK failing consistently, switching to HTTP fallback",
                     failures=self._sdk_failures,
                 )
                 self._sdk_fallback_active = True
+
+        # If SDK succeeded, we're done
+        if sdk_success:
+            self._reset_motion_health_on_success()
+            return
 
         # Fall back to HTTP callback
         if self._send_pose:
@@ -443,8 +470,40 @@ class MotionBlendController:
                 # Handle both sync and async callbacks
                 if asyncio.iscoroutine(result):
                     await result
+                http_success = True
+                self._http_failures = 0  # Reset on success
+            except asyncio.CancelledError:
+                raise
             except Exception as e:
-                log.exception("Error sending pose to daemon", error=str(e))
+                self._http_failures += 1
+                log.warning(
+                    "http_pose_send_failed",
+                    error=str(e),
+                    consecutive_failures=self._http_failures,
+                )
+
+        # Track overall motion health
+        if http_success:
+            self._reset_motion_health_on_success()
+        elif not sdk_success and not http_success:
+            self._consecutive_total_failures += 1
+            if self._consecutive_total_failures >= self._UNHEALTHY_THRESHOLD:
+                if self._motion_healthy:
+                    log.error(
+                        "motion_control_unhealthy",
+                        consecutive_failures=self._consecutive_total_failures,
+                        sdk_failures=self._sdk_failures,
+                        http_failures=self._http_failures,
+                    )
+                    self._motion_healthy = False
+
+    def _reset_motion_health_on_success(self) -> None:
+        """Reset motion health tracking after successful pose send."""
+        if self._consecutive_total_failures > 0:
+            self._consecutive_total_failures = 0
+            if not self._motion_healthy:
+                log.info("motion_control_recovered")
+                self._motion_healthy = True
 
     def reset_sdk_fallback(self) -> None:
         """Reset SDK fallback state to retry SDK connection.
@@ -472,6 +531,9 @@ class MotionBlendController:
             "sdk_connected": self._sdk_client.is_connected if self._sdk_client else False,
             "sdk_fallback_active": self._sdk_fallback_active,
             "sdk_failures": self._sdk_failures,
+            "http_failures": self._http_failures,
+            "motion_healthy": self._motion_healthy,
+            "consecutive_total_failures": self._consecutive_total_failures,
             "current_pose": {
                 "pitch": self._current_pose.pitch,
                 "yaw": self._current_pose.yaw,

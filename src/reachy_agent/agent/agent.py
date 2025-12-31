@@ -204,6 +204,9 @@ class ReachyAgentLoop:
         # Queue to capture speak tool text for pipeline TTS when in voice mode
         self._voice_mode_speak_queue: list[str] = []
 
+        # Motion degraded mode - set when robot wake-up fails
+        self._motion_degraded: bool = False
+
     @property
     def idle_controller(self) -> IdleBehaviorController | None:
         """Get the idle behavior controller if enabled."""
@@ -640,14 +643,19 @@ class ReachyAgentLoop:
             self._memory_manager = None
             self._enable_memory = False
 
-    async def _ensure_robot_awake(self) -> None:
+    async def _ensure_robot_awake(self) -> bool:
         """Ensure the robot is awake and ready for motion commands.
 
         Checks daemon status and calls wake_up if robot is not initialized.
         This is required for motion tools to work properly.
+
+        Returns:
+            True if robot is ready, False if wake-up failed (degraded mode).
         """
         if self._daemon_client is None:
-            return
+            log.warning("No daemon client available - motion in degraded mode")
+            self._motion_degraded = True
+            return False
 
         try:
             # Get current robot status
@@ -660,12 +668,16 @@ class ReachyAgentLoop:
                 await self._daemon_client.wake_up()
                 log.info("Robot wake_up complete")
 
+            return True
+
         except Exception as e:
-            log.warning(
-                "Could not check/wake robot status",
+            log.error(
+                "robot_wake_up_failed",
                 error=str(e),
-                hint="Motion tools may not work until robot is manually woken up",
+                hint="Check daemon connection and robot power",
             )
+            self._motion_degraded = True
+            return False
 
     async def _initialize_motion_blend(self) -> None:
         """Initialize the motion blending system.

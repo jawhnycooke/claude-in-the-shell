@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -83,6 +84,9 @@ class ReachySDKClient:
             pass
     """
 
+    # Rate limiting constants for warning logs (avoid spam at 15Hz)
+    _WARN_INTERVAL_SECONDS: float = 1.0
+
     def __init__(self, config: SDKClientConfig | None = None) -> None:
         """Initialize the SDK client.
 
@@ -94,6 +98,9 @@ class ReachySDKClient:
         self._executor: ThreadPoolExecutor | None = None
         self._connected = False
         self._last_error: str | None = None
+        # Rate-limited warning tracking
+        self._last_disconnected_warning: float = 0.0
+        self._last_executor_warning: float = 0.0
 
     @property
     def is_connected(self) -> bool:
@@ -255,9 +262,19 @@ class ReachySDKClient:
             True if successful, False otherwise.
         """
         if not self.is_connected or self._robot is None:
+            # Rate-limited warning (avoid spam at 15Hz loop rate)
+            now = time.monotonic()
+            if now - self._last_disconnected_warning > self._WARN_INTERVAL_SECONDS:
+                log.warning("sdk_set_pose_skipped", reason="not_connected")
+                self._last_disconnected_warning = now
             return False
 
         if self._executor is None:
+            # Rate-limited warning for executor not initialized
+            now = time.monotonic()
+            if now - self._last_executor_warning > self._WARN_INTERVAL_SECONDS:
+                log.warning("sdk_set_pose_skipped", reason="executor_not_initialized")
+                self._last_executor_warning = now
             return False
 
         try:
@@ -281,9 +298,13 @@ class ReachySDKClient:
             await loop.run_in_executor(self._executor, _set_target)
             return True
 
+        except (RuntimeError, OSError, ConnectionError) as e:
+            # Expected errors during SDK communication - log at warning level
+            log.warning("sdk_set_pose_failed", error=str(e), error_type=type(e).__name__)
+            return False
         except Exception as e:
-            # Rate-limit error logging to avoid spam at 15Hz
-            log.debug("SDK set_pose failed", error=str(e))
+            # Unexpected errors - log at error level for investigation
+            log.error("sdk_set_pose_unexpected_error", error=str(e), error_type=type(e).__name__)
             return False
 
     def get_status(self) -> dict[str, Any]:
