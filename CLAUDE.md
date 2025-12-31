@@ -67,6 +67,11 @@ uvx pytest -v --cov=. --cov-report=html
 | **Breathing Motion** | Idle breathing animation (Z-axis + antennas) | `src/reachy_agent/behaviors/breathing.py` |
 | **Head Wobble** | Audio-reactive speech animation | `src/reachy_agent/behaviors/wobble.py` |
 | **Idle Behavior** | Look-around behavior when idle | `src/reachy_agent/behaviors/idle.py` |
+| **Voice Pipeline** | Real-time voice interaction state machine | `src/reachy_agent/voice/pipeline.py` |
+| **PersonaManager** | Multi-persona wake word switching | `src/reachy_agent/voice/persona.py` |
+| **OpenAI Realtime** | WebSocket STT/TTS client | `src/reachy_agent/voice/openai_realtime.py` |
+| **Wake Word Detector** | OpenWakeWord multi-model detection | `src/reachy_agent/voice/wake_word.py` |
+| **ReachySDKClient** | Low-latency Zenoh motion control (1-5ms) | `src/reachy_agent/mcp_servers/reachy/sdk_client.py` |
 
 ### Permission Tiers
 
@@ -228,6 +233,12 @@ python -m reachy_agent run --daemon-url http://localhost:8765
 
 # Run with mock daemon (no external daemon needed)
 python -m reachy_agent run --mock
+
+# Run with voice pipeline (real-time voice interaction)
+python -m reachy_agent run --voice
+
+# Run with voice on hardware (Raspberry Pi)
+python -m reachy_agent run --voice --daemon-url http://localhost:8000
 
 # Rich terminal REPL with slash commands
 python -m reachy_agent repl

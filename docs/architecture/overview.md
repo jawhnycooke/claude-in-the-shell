@@ -33,6 +33,17 @@ flowchart TB
             AUDIO["Spatial Audio<br/>(4-mic array)"]
             VISION["Vision<br/>(OpenCV)"]
         end
+
+        subgraph Voice["Voice Pipeline"]
+            VPIPE["VoicePipeline<br/>(State Machine)"]
+            REALTIME["OpenAI Realtime<br/>(STT/TTS)"]
+            PERSONA["PersonaManager<br/>(Motoko/Batou)"]
+        end
+
+        subgraph Motion["Motion System"]
+            BLEND["MotionBlendController<br/>(100Hz orchestration)"]
+            SDK_CLIENT["ReachySDKClient<br/>(1-5ms Zenoh)"]
+        end
     end
 
     subgraph Hardware["Reachy Mini Hardware"]

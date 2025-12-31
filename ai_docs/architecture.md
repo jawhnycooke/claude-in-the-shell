@@ -90,53 +90,82 @@ agent.py (ReachyAgent)
 | **Breathing Motion** | Idle breathing animation (Z-axis + antennas) | `src/reachy_agent/behaviors/breathing.py` |
 | **Head Wobble** | Audio-reactive speech animation | `src/reachy_agent/behaviors/wobble.py` |
 | **Idle Behavior** | Look-around behavior when idle | `src/reachy_agent/behaviors/idle.py` |
+| **Voice Pipeline** | Real-time voice interaction state machine | `src/reachy_agent/voice/pipeline.py` |
+| **PersonaManager** | Multi-persona wake word switching | `src/reachy_agent/voice/persona.py` |
+| **OpenAI Realtime** | WebSocket STT/TTS client | `src/reachy_agent/voice/openai_realtime.py` |
+| **Wake Word Detector** | OpenWakeWord multi-model detection | `src/reachy_agent/voice/wake_word.py` |
+| **ReachySDKClient** | Low-latency Zenoh motion control | `src/reachy_agent/mcp_servers/reachy/sdk_client.py` |
 
 ## Data Flow
 
+```mermaid
+flowchart TB
+    subgraph User["User Interaction"]
+        SPEAK["User speaks"]
+    end
+
+    subgraph Voice["Voice Pipeline"]
+        WW["Wake Word<br/>(OpenWakeWord)"]
+        STT["OpenAI Realtime<br/>(STT)"]
+        VAD["Voice Activity<br/>Detection"]
+    end
+
+    subgraph Agent["Agent Core"]
+        MEM["Memory System<br/>(ChromaDB)"]
+        CTX["Context Building"]
+        SDK_LOOP["Claude Agent<br/>SDK Loop"]
+        PERM["Permission Hooks"]
+    end
+
+    subgraph MCP["MCP Layer"]
+        REACHY_MCP["Reachy MCP<br/>(23 tools)"]
+    end
+
+    subgraph Motion["Motion System"]
+        BLEND["MotionBlendController<br/>(100Hz)"]
+        SDK_CLIENT["ReachySDKClient<br/>(Zenoh 1-5ms)"]
+        HTTP["HTTP Fallback<br/>(10-50ms)"]
+    end
+
+    subgraph Hardware["Hardware"]
+        DAEMON["Reachy Daemon"]
+    end
+
+    SPEAK --> WW
+    WW -->|"Wake word"| STT
+    STT --> VAD
+    VAD -->|"Transcribed text"| CTX
+    MEM --> CTX
+    CTX --> SDK_LOOP
+    SDK_LOOP --> PERM
+    PERM --> REACHY_MCP
+    REACHY_MCP --> BLEND
+    BLEND -->|"Preferred"| SDK_CLIENT
+    BLEND -->|"Fallback"| HTTP
+    SDK_CLIENT --> DAEMON
+    HTTP --> DAEMON
 ```
-User speaks
-    │
-    ▼
-┌─────────────────┐
-│  Wake Word      │ (OpenWakeWord - local)
-│  Detection      │
-└────────┬────────┘
-         │ "Hey Reachy"
-         ▼
-┌─────────────────┐
-│  Audio Pipeline │ (PyAudio → Whisper API or local)
-│  STT            │
-└────────┬────────┘
-         │ Transcribed text
-         ▼
-┌─────────────────┐     ┌─────────────────┐
-│  Memory System  │────▶│  Context        │
-│  (ChromaDB)     │     │  Building       │
-└─────────────────┘     └────────┬────────┘
-                                 │ Enriched prompt
-                                 ▼
-                        ┌─────────────────┐
-                        │  Claude Agent   │
-                        │  SDK Loop       │
-                        └────────┬────────┘
-                                 │ Tool calls
-                                 ▼
-                        ┌─────────────────┐
-                        │  Permission     │
-                        │  Hooks          │
-                        └────────┬────────┘
-                                 │ Allowed tools
-                                 ▼
-                        ┌─────────────────┐
-                        │  Reachy MCP     │
-                        │  Server         │
-                        └────────┬────────┘
-                                 │ HTTP
-                                 ▼
-                        ┌─────────────────┐
-                        │  Reachy Daemon  │
-                        │  (Hardware)     │
-                        └─────────────────┘
+
+### Voice Pipeline Data Flow
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> LISTENING_WAKE: start()
+    LISTENING_WAKE --> WAKE_DETECTED: wake word
+    WAKE_DETECTED --> LISTENING_SPEECH: confirmation
+    LISTENING_SPEECH --> PROCESSING: end of speech
+    PROCESSING --> SPEAKING: Claude response
+    SPEAKING --> LISTENING_WAKE: TTS complete
+    ERROR --> LISTENING_WAKE: auto-recovery
+
+    note right of LISTENING_WAKE
+        Multi-persona: hey_motoko, hey_batou
+    end note
+
+    note right of SPEAKING
+        HeadWobble animation active
+    end note
 ```
 
 ## Permission Tiers

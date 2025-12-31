@@ -326,6 +326,76 @@ client = ClaudeSDKClient(options)
 result = await client.query("Do something")
 ```
 
+## Voice Mode Integration
+
+The SDK integrates with the voice pipeline for real-time voice interaction:
+
+### Voice Mode Methods
+
+```python
+# Enable voice mode (skip speak tool, capture text for TTS)
+agent.set_voice_mode(True)
+
+# Get captured speak text for TTS synthesis
+text = agent.get_voice_mode_speak_text()
+
+# Update system prompt for persona switching
+await agent.update_system_prompt(new_prompt)
+
+# Control antenna freeze during listening
+agent.set_listening_state(True)
+```
+
+### Persona System Integration
+
+```python
+from reachy_agent.agent.options import load_persona_prompt
+from reachy_agent.voice.persona import PersonaManager
+
+# Load persona-specific prompt
+persona_manager = PersonaManager.from_config(config["voice"])
+persona = persona_manager.get_persona("hey_motoko")
+prompt = load_persona_prompt(persona, config)
+
+# Update agent prompt for new persona
+await agent.update_system_prompt(prompt)
+```
+
+### Voice Pipeline Data Flow
+
+```
+VoicePipeline                ReachyAgentLoop               Claude SDK
+     │                            │                            │
+     ├─────set_voice_mode(True)──▶│                            │
+     │                            │                            │
+     ├─────process_input(text)───▶│──────query(text)──────────▶│
+     │                            │                            │
+     │                            │◀─────Response + tools──────┤
+     │                            │                            │
+     │◀──get_voice_mode_speak_text│                            │
+     │     (captured text)        │                            │
+     │                            │                            │
+     ├─────TTS synthesis─────────▶│                            │
+```
+
+## SDK Motion Control
+
+For low-latency motion, the blend controller uses ReachySDKClient:
+
+```python
+from reachy_agent.mcp_servers.reachy.sdk_client import ReachySDKClient
+
+# SDK provides 1-5ms latency via Zenoh pub/sub
+# vs 10-50ms with HTTP REST API
+
+controller = MotionBlendController(
+    sdk_client=sdk_client,           # Preferred (Zenoh)
+    send_pose_callback=http_fallback # Fallback (HTTP)
+)
+```
+
+See `docs/api/sdk-motion-control.md` for coordinate transformations and circuit breaker details.
+
 ## Debugging
 
 Enable SDK debug logging:
