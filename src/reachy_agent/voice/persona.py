@@ -132,11 +132,19 @@ class PersonaManager:
     def set_default(self, wake_word_model: str) -> bool:
         """Set the default persona.
 
+        This method always updates `default_persona_key` if the persona exists,
+        but only sets `current_persona` if it is currently None. This means
+        calling set_default() will NOT override an already-active persona.
+
+        To switch the active persona, modify `current_persona` directly or
+        use the voice pipeline's persona switching mechanism.
+
         Args:
             wake_word_model: The wake word model to use as default
 
         Returns:
-            True if default was set successfully
+            True if default was set successfully (persona exists),
+            False if the wake_word_model was not found in registered personas
         """
         if wake_word_model in self.personas:
             self.default_persona_key = wake_word_model
